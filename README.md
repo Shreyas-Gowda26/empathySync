@@ -77,33 +77,37 @@ streamlit run src/app.py
 - 8GB RAM
 - 4GB free storage
 - GPU support for faster responses
+  
 ## Development Phases
 
-### Phase 1 : Core Engine & Usability
-- Empathetic conversation loop  
-- Basic boundary-setting check-ins  
-- One-click installer / binary package  
-- Early user testing for friction points  
+### Phase 1 — Core Engine & Usability  (Current)
+- [x] Empathetic conversation loop  
+- [x] Local Ollama integration
+- [ ] Basic boundary-setting check-ins  
+- [ ] Simple executable packaging (PyInstaller)
+- [ ] Setup script for dependencies
 
-### Phase 2 : Feedback & Validation
-- Local usage tracking and reflection prompts  
-- User feedback collection  
-- Iteration on core flow until stable and effective  
+### Phase 2 — Validation & Polish
+- [ ] Local usage tracking and reflection prompts  
+- [ ] User feedback collection (5-10 beta users)
+- [ ] Native installer creation
+- [ ] Iteration based on real user experiences
 
-### Phase 3 : Functionality Expansion
-- Multi-language support  
-- Deeper wellness tracking (weekly/monthly patterns)  
-- Optional integrations (notifications, calendar cues)  
+### Phase 3 — Enhanced Features  
+- [ ] Multi-language support  
+- [ ] Weekly/monthly wellness patterns
+- [ ] Desktop notifications for check-ins
 
-### Phase 4 : Ecosystem & Community
-- Contributor-friendly documentation  
-- Community add-ons and feature proposals  
-- Donation and sponsorship channels  
+### Phase 4 — Community & Distribution
+- [ ] App store distribution (if applicable)
+- [ ] Community plugin system
+- [ ] Donation and sponsorship channels  
 
-### Phase 5 : Mature Platform
-- Mobile companion app  
-- Anonymized wellness insights for research  
-- Long-term governance and sustainability model  
+### Phase 5 — Advanced Platform
+- [ ] Mobile companion app  
+- [ ] Research partnerships for wellness insights
+- [ ] Long-term sustainability model
+
 
 ## Contributing
 
@@ -129,16 +133,6 @@ Join our community of digital wellness enthusiasts:
 - 💬 [Discussions](https://github.com/[your-username]/empathySync/discussions)
 - 🐛 [Issues](https://github.com/[your-username]/empathySync/issues)
 - 📖 [Documentation](./docs/)
-
-## Roadmap
-
-- [x] Core empathetic conversation engine
-- [x] Local LLM integration 
-- [ ]  Phase 1 usability packaging
-- [ ]  Phase 2 feedback + validation
-- [ ]  Phase 3 expanded tracking + multi-language
-- [ ]  Phase 4 ecosystem + community building
-- [ ]  Phase 5 mobile app + research insights
 ---
 
 *Building technology that serves human flourishing in the age of AI.*
