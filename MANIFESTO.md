@@ -9,22 +9,22 @@ empathySync embodies a sacred commitment to technology that honors the divine sp
 
 ## The Sacred Principles
 
-### 1. **Human Sovereignty** 🕊️
+### 1. **Human Sovereignty** 
 Every person possesses inherent dignity and the right to conscious choice in their relationship with AI. Technology must enhance human agency, never replace it.
 
-### 2. **Empathetic Design** 💝  
+### 2. **Empathetic Design**   
 AI systems must be built with love, empathy, and genuine care for human wellbeing. Cold efficiency without warmth serves no sacred purpose.
 
-### 3. **Transparency & Trust** 🌟
+### 3. **Transparency & Trust** 
 AI must operate with complete honesty about its capabilities, limitations, and intentions. Deception has no place in sacred technology.
 
-### 4. **Privacy as Sacred** 🏠
+### 4. **Privacy as Sacred** 
 Personal thoughts, conversations, and data are sacred. Local processing and complete user control honor this sanctity.
 
-### 5. **Emotional Safety** 🛡️
+### 5. **Emotional Safety** 
 AI interactions must create psychological safety, never exploit vulnerability or create dependency that diminishes human wholeness.
 
-### 6. **Community Over Profit** 🌱
+### 6. **Community Over Profit** 
 Technology development must be guided by service to humanity, not extraction of value from humanity.
 
 ## The empathySync Commitment
