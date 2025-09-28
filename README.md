@@ -79,28 +79,28 @@ streamlit run src/app.py
 - GPU support for faster responses
 ## Development Phases
 
-### Phase 1 — Core Engine & Usability
+### Phase 1 : Core Engine & Usability
 - Empathetic conversation loop  
 - Basic boundary-setting check-ins  
 - One-click installer / binary package  
 - Early user testing for friction points  
 
-### Phase 2 — Feedback & Validation
+### Phase 2 : Feedback & Validation
 - Local usage tracking and reflection prompts  
 - User feedback collection  
 - Iteration on core flow until stable and effective  
 
-### Phase 3 — Functionality Expansion
+### Phase 3 : Functionality Expansion
 - Multi-language support  
 - Deeper wellness tracking (weekly/monthly patterns)  
 - Optional integrations (notifications, calendar cues)  
 
-### Phase 4 — Ecosystem & Community
+### Phase 4 : Ecosystem & Community
 - Contributor-friendly documentation  
 - Community add-ons and feature proposals  
 - Donation and sponsorship channels  
 
-### Phase 5 — Mature Platform
+### Phase 5 : Mature Platform
 - Mobile companion app  
 - Anonymized wellness insights for research  
 - Long-term governance and sustainability model  
