@@ -1,33 +1,39 @@
-# empathySync 🕊️
+# empathySync
 *Your Compassionate Guide to Healthy AI Relationships*
 
-## Sacred Mission
+## Mission
 
-empathySync is a local-first AI wellness companion designed to help humanity develop healthier, more mindful relationships with artificial intelligence. Built with empathy, privacy, and spiritual integrity at its core.
+empathySync is a local-first AI wellness companion designed to help people develop healthier, more mindful relationships with artificial intelligence. Built with empathy, privacy, and user wellbeing at its core.
 
-**"Synchronizing human hearts with artificial minds through compassion."**
+**"Synchronizing human values with artificial intelligence through compassion."**
 
-## Vision
+## Why empathySync?
 
-In an age where AI becomes increasingly present in our lives, empathySync serves as your gentle guide helping you:
+As AI becomes increasingly present in our daily lives, many people experience:
+- Unhealthy dependency on AI for decision-making
+- Digital overwhelm and technology fatigue  
+- Loss of human autonomy and self-reliance
+- Lack of awareness about their AI usage patterns
+- No guidance for maintaining healthy tech boundaries
 
+empathySync serves as your gentle guide, helping you:
 - Recognize unhealthy AI dependency patterns
 - Develop mindful technology habits  
 - Find balance between AI assistance and human autonomy
-- Cultivate compassionate self-awareness in digital spaces
-- Honor your sovereignty while embracing beneficial AI tools
+- Cultivate self-awareness in digital spaces
+- Honor your independence while embracing beneficial AI tools
 
 ## Core Principles
 
  **Empathetic**: Every interaction centers human wellbeing and emotional safety  
- **Local-First**: Complete data sovereignty, your conversations never leave your device  
- **Open Source**: Transparent, community-driven development serving humanity  
- **Donation-Supported**: Sustained by generosity, not profit motives  
- **Spiritually Aligned**: Technology that honors the sacred nature of human consciousness  
+ **Local-First**: Complete data sovereignty—your conversations never leave your device  
+ **Open Source**: Transparent, community-driven development serving users  
+ **Donation-Supported**: Sustained by community generosity, not profit motives  
+ **Privacy-Focused**: Technology that respects and protects user privacy  
 
 ## Quick Start
 
-## Clone and Setup
+### Clone and Setup
 ```bash
 git clone https://github.com/[your-username]/empathySync.git
 cd empathySync
@@ -45,39 +51,67 @@ streamlit run src/app.py
 
 ## Features
 
- **AI Wellness Guidance**: Compassionate conversations about healthy AI habits  
- **Mindful Check-ins**: Regular reflection prompts and awareness exercises  
- **Boundary Setting**: Gentle guidance for maintaining AI-human balance  
- **Progress Tracking**: Private insights into your digital wellness journey  
+🧠 **AI Wellness Guidance**: Thoughtful conversations about healthy AI habits  
+🧘 **Mindful Check-ins**: Regular reflection prompts and awareness exercises  
+🛡️ **Boundary Setting**: Gentle guidance for maintaining AI-human balance  
+📊 **Progress Tracking**: Private insights into your digital wellness journey  
+⚡ **Local Processing**: All conversations processed privately on your device  
 
 ## Technical Foundation
 
 - **Local LLM Integration**: Runs entirely on your hardware via Ollama
-- **Privacy-First**: Zero external API calls, complete data sovereignty
+- **Privacy-First**: Zero external API calls, complete data sovereignty  
 - **Lightweight**: Optimized for consumer hardware and efficient operation
 - **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Docker Support**: Easy deployment and consistent environment
 
-## Support This Sacred Mission
+## System Requirements
 
-If empathySync brings peace and awareness to your relationship with AI, consider supporting continued development:
+**Minimum:**
+- 4GB RAM
+- 2GB free storage
+- Python 3.8+
+- Docker (optional but recommended)
+
+**Recommended:**
+- 8GB RAM
+- 4GB free storage
+- GPU support for faster responses
+
+## Contributing
+
+We welcome contributions from developers who care about digital wellness and ethical AI. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Support This Project
+
+If empathySync helps you develop a healthier relationship with AI:
 
 - ⭐ Star this repository
 - 🙏 [GitHub Sponsors](#) 
 - ☕ [Ko-fi](#)
 - 🤝 Contribute to the codebase
-- 🌟 Share with others seeking digital wellness
+- 📢 Share with others interested in digital wellness
 
 ## License
 
-MIT License - Built for humanity's benefit and maximum accessibility.
+MIT License - Built for everyone's benefit and maximum accessibility.
 
 ## Community
 
-Join our growing community of digital wellness seekers:
+Join our community of digital wellness enthusiasts:
 - 💬 [Discussions](https://github.com/[your-username]/empathySync/discussions)
 - 🐛 [Issues](https://github.com/[your-username]/empathySync/issues)
 - 📖 [Documentation](./docs/)
 
+## Roadmap
+
+- [x] Core empathetic conversation engine
+- [x] Local LLM integration 
+- [ ] Advanced wellness tracking
+- [ ] Multi-language support
+- [ ] Mobile companion app
+- [ ] Community wellness insights (anonymized)
+
 ---
 
-*"Let empathy be the bridge between human consciousness and artificial intelligence."*
+*Building technology that serves human flourishing in the age of AI.*
