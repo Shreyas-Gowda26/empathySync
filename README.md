@@ -77,6 +77,33 @@ streamlit run src/app.py
 - 8GB RAM
 - 4GB free storage
 - GPU support for faster responses
+## Development Phases
+
+### Phase 1 — Core Engine & Usability
+- Empathetic conversation loop  
+- Basic boundary-setting check-ins  
+- One-click installer / binary package  
+- Early user testing for friction points  
+
+### Phase 2 — Feedback & Validation
+- Local usage tracking and reflection prompts  
+- User feedback collection  
+- Iteration on core flow until stable and effective  
+
+### Phase 3 — Functionality Expansion
+- Multi-language support  
+- Deeper wellness tracking (weekly/monthly patterns)  
+- Optional integrations (notifications, calendar cues)  
+
+### Phase 4 — Ecosystem & Community
+- Contributor-friendly documentation  
+- Community add-ons and feature proposals  
+- Donation and sponsorship channels  
+
+### Phase 5 — Mature Platform
+- Mobile companion app  
+- Anonymized wellness insights for research  
+- Long-term governance and sustainability model  
 
 ## Contributing
 
@@ -107,11 +134,11 @@ Join our community of digital wellness enthusiasts:
 
 - [x] Core empathetic conversation engine
 - [x] Local LLM integration 
-- [ ] Advanced wellness tracking
-- [ ] Multi-language support
-- [ ] Mobile companion app
-- [ ] Community wellness insights (anonymized)
-
+- [ ]  Phase 1 usability packaging
+- [ ]  Phase 2 feedback + validation
+- [ ]  Phase 3 expanded tracking + multi-language
+- [ ]  Phase 4 ecosystem + community building
+- [ ]  Phase 5 mobile app + research insights
 ---
 
 *Building technology that serves human flourishing in the age of AI.*
