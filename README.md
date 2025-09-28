@@ -80,30 +80,30 @@ streamlit run src/app.py
   
 ## Development Phases
 
-### Phase 1 — Core Engine & Usability  (Current)
+### Phase 1: Core Engine & Usability  (Current)
 - [x] Empathetic conversation loop  
 - [x] Local Ollama integration
 - [ ] Basic boundary-setting check-ins  
 - [ ] Simple executable packaging (PyInstaller)
 - [ ] Setup script for dependencies
 
-### Phase 2 — Validation & Polish
+### Phase 2: Validation & Polish
 - [ ] Local usage tracking and reflection prompts  
 - [ ] User feedback collection (5-10 beta users)
 - [ ] Native installer creation
 - [ ] Iteration based on real user experiences
 
-### Phase 3 — Enhanced Features  
+### Phase 3: Enhanced Features  
 - [ ] Multi-language support  
 - [ ] Weekly/monthly wellness patterns
 - [ ] Desktop notifications for check-ins
 
-### Phase 4 — Community & Distribution
+### Phase 4: Community & Distribution
 - [ ] App store distribution (if applicable)
 - [ ] Community plugin system
 - [ ] Donation and sponsorship channels  
 
-### Phase 5 — Advanced Platform
+### Phase 5: Advanced Platform
 - [ ] Mobile companion app  
 - [ ] Research partnerships for wellness insights
 - [ ] Long-term sustainability model
