@@ -26,7 +26,7 @@ empathySync serves as your gentle guide, helping you:
 ## Core Principles
 
  **Empathetic**: Every interaction centers human wellbeing and emotional safety  
- **Local-First**: Complete data sovereignty—your conversations never leave your device  
+ **Local-First**: Complete data sovereignty, your conversations never leave your device  
  **Open Source**: Transparent, community-driven development serving users  
  **Donation-Supported**: Sustained by community generosity, not profit motives  
  **Privacy-Focused**: Technology that respects and protects user privacy  
