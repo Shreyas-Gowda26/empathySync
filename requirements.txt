@@ -41,4 +41,4 @@ structlog>=23.1.0
 #pytest: Testing framework
 #black/flake8: Code formatting and linting
 #cryptography: For any future encryption needs
-#All dependencies are focused on local processing and privacy-first architecture, aligned with your empathySync mission. No external AI APIs required!
+#All dependencies are focused on local processing and privacy-first architecture, aligned with empathySync mission. No external AI APIs required!
