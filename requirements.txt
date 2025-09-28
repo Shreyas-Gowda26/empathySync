@@ -1,0 +1,44 @@
+# Core Dependencies
+streamlit>=1.28.0
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pyyaml>=6.0.1
+requests>=2.31.0
+
+# Database (leveraging PostgreSQL)
+psycopg2-binary>=2.9.7
+sqlalchemy>=2.0.23
+
+# AI/ML (for future semantic search features)
+sentence-transformers>=2.2.2
+numpy>=1.24.0
+pandas>=2.1.0
+
+# Development & Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.9.0
+flake8>=6.1.0
+mypy>=1.6.0
+
+# Security
+cryptography>=41.0.0
+
+# Utilities
+click>=8.1.0
+rich>=13.6.0
+
+# Logging and monitoring
+structlog>=23.1.0
+
+
+#Notes on Dependencies:
+#streamlit: Main web app framework
+#requests: For Ollama API calls (no external APIs, just local)
+#python-dotenv: For secure .env configuration management
+#psycopg2-binary: PostgreSQL driver (for your database expertise)
+#sentence-transformers: For future semantic search features
+#pytest: Testing framework
+#black/flake8: Code formatting and linting
+#cryptography: For any future encryption needs
+#All dependencies are focused on local processing and privacy-first architecture, aligned with your empathySync mission. No external AI APIs required!

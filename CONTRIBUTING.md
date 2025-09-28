@@ -1,0 +1,89 @@
+# Contributing to empathySync
+
+Thank you for your interest in contributing to empathySync! This project exists to serve users through compassionate AI wellness guidance.
+
+## Development Principles
+
+Before contributing, please embrace these principles:
+
+### 1. **Empathy First** 
+- Every feature must center human wellbeing
+- Code with compassion for users experiencing digital overwhelm
+- Test for emotional safety alongside technical functionality
+
+### 2. **Privacy First**   
+- All processing must remain local
+- No external API calls without explicit user consent
+- Data sovereignty is non-negotiable
+
+### 3. **User Wellbeing** 
+- Reject features that manipulate or exploit users
+- Build technology that honors human dignity
+- Consider the wellness impact of your code
+
+## Getting Started
+
+1. **Fork the repository**
+2. **Clone your fork**: `git clone https://github.com/your-username/empathySync.git`
+3. **Create a virtual environment**: `python -m venv venv`
+4. **Activate environment**: `source venv/bin/activate` (Linux/Mac) or `venv\Scripts\activate` (Windows)
+5. **Install dependencies**: `pip install -r requirements.txt`
+6. **Copy .env.example to .env** and configure your settings
+7. **Run tests**: `pytest tests/`
+
+## Development Workflow
+
+1. **Create feature branch**: `git checkout -b feature/wellness-enhancement`
+2. **Write tests first** (TDD approach)
+3. **Implement with empathy**
+4. **Test thoroughly** for both functionality and emotional safety
+5. **Submit pull request** with detailed description
+
+## Code Style
+
+- Follow PEP 8 guidelines
+- Use descriptive variable names that reflect compassionate intent
+- Comment code to explain the "why" behind empathetic choices
+- Include docstrings for all functions
+
+## Areas for Contribution
+
+### **High Priority** 
+- AI wellness conversation flows
+- Emotional safety features  
+- Local LLM optimization
+- Accessibility improvements
+
+### **Medium Priority** 
+- UI/UX enhancements
+- Documentation improvements
+- Testing coverage
+- Performance optimizations
+
+### **Wellness Features** 
+- Mindfulness exercise prompts
+- Digital detox guidance
+- Progress tracking features
+- Community support tools
+
+## Pull Request Guidelines
+
+Your PR should include:
+
+- **Clear description** of the change and why it serves users
+- **Test coverage** for new functionality
+- **Documentation updates** if needed
+- **Emotional safety consideration** - how does this help users?
+
+## Community Standards
+
+- **Be kind** - Everyone is learning and growing
+- **Assume good intent** - We're all here to serve users
+- **Offer constructive feedback** - Help others improve
+- **Respect boundaries** - Honor people's time and energy
+
+---
+
+*"Through empathy and collaboration, we build technology that serves human wellbeing."*
+
+**Thank you for helping people develop healthier relationships with AI!** 💝
