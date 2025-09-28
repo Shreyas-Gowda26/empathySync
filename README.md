@@ -19,11 +19,11 @@ In an age where AI becomes increasingly present in our lives, empathySync serves
 
 ## Core Principles
 
-🕊️ **Empathetic**: Every interaction centers human wellbeing and emotional safety  
-🏠 **Local-First**: Complete data sovereignty, your conversations never leave your device  
-🌱 **Open Source**: Transparent, community-driven development serving humanity  
-💝 **Donation-Supported**: Sustained by generosity, not profit motives  
-🙏 **Spiritually Aligned**: Technology that honors the sacred nature of human consciousness  
+ **Empathetic**: Every interaction centers human wellbeing and emotional safety  
+ **Local-First**: Complete data sovereignty, your conversations never leave your device  
+ **Open Source**: Transparent, community-driven development serving humanity  
+ **Donation-Supported**: Sustained by generosity, not profit motives  
+ **Spiritually Aligned**: Technology that honors the sacred nature of human consciousness  
 
 ## Quick Start
 
@@ -45,10 +45,10 @@ streamlit run src/app.py
 
 ## Features
 
-✨ **AI Wellness Guidance**: Compassionate conversations about healthy AI habits  
-🧘 **Mindful Check-ins**: Regular reflection prompts and awareness exercises  
-🛡️ **Boundary Setting**: Gentle guidance for maintaining AI-human balance  
-📊 **Progress Tracking**: Private insights into your digital wellness journey  
+ **AI Wellness Guidance**: Compassionate conversations about healthy AI habits  
+ **Mindful Check-ins**: Regular reflection prompts and awareness exercises  
+ **Boundary Setting**: Gentle guidance for maintaining AI-human balance  
+ **Progress Tracking**: Private insights into your digital wellness journey  
 
 ## Technical Foundation
 
