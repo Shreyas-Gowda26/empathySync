@@ -6,6 +6,8 @@ Main Streamlit application entry point
 import streamlit as st
 import sys
 from pathlib import Path
+from utils.wellness_tracker import WellnessTracker
+
 
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent))
@@ -22,6 +24,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Add this import at the top
+from utils.wellness_tracker import WellnessTracker
+
+# Update the main() function to include wellness tracker
 def main():
     """Main application function"""
     
@@ -43,16 +49,49 @@ def main():
         st.session_state.messages = []
     if "wellness_guide" not in st.session_state:
         st.session_state.wellness_guide = WellnessGuide()
+    if "wellness_tracker" not in st.session_state:
+        st.session_state.wellness_tracker = WellnessTracker()
     
     # Header
-    st.markdown("#  empathySync")
+    st.markdown("# 🤝 empathySync")
     st.markdown("*Your compassionate guide to healthy AI relationships*")
     
-    # Sidebar
+    # Sidebar with wellness features
     with st.sidebar:
-        st.markdown("## Settings")
+        st.markdown("## 🧘 Wellness Check")
         
-        # Wellness mode selection
+        # Daily check-in
+        today_checkin = st.session_state.wellness_tracker.get_today_check_in()
+        
+        if not today_checkin:
+            st.markdown("**How are you feeling about your AI use today?**")
+            feeling = st.select_slider(
+                "Feeling Scale",
+                options=[1, 2, 3, 4, 5],
+                format_func=lambda x: {
+                    1: "😟 Overwhelmed", 
+                    2: "😐 Concerned", 
+                    3: "😊 Balanced", 
+                    4: "😌 Comfortable", 
+                    5: "🌟 Empowered"
+                }[x],
+                value=3
+            )
+            
+            notes = st.text_input("Optional notes", placeholder="Any specific concerns?")
+            
+            if st.button(" Check In"):
+                st.session_state.wellness_tracker.add_check_in(feeling, notes)
+                st.success("Thanks for checking in! 🙏")
+                st.rerun()
+        else:
+            st.success(f" Today's check-in: {today_checkin['feeling_score']}/5")
+            if today_checkin.get('notes'):
+                st.info(f"Notes: {today_checkin['notes']}")
+        
+        st.markdown("---")
+        
+        # Conversation style
         wellness_mode = st.selectbox(
             "Conversation Style",
             ["Gentle", "Direct", "Balanced"],
@@ -60,8 +99,17 @@ def main():
             help="Choose how empathySync communicates with you"
         )
         
+        # Recent check-ins
+        recent = st.session_state.wellness_tracker.get_recent_check_ins(7)
+        if recent:
+            st.markdown("**Recent Check-ins**")
+            for checkin in recent[-3:]:  # Show last 3
+                date_str = checkin['date']
+                score = checkin['feeling_score']
+                st.caption(f"{date_str}: {score}/5")
+        
         # Privacy reminder
-        st.info(" All conversations stay on your device")
+        st.info(" All data stays on your device")
         
         # Clear conversation
         if st.button("Start Fresh Conversation"):
@@ -70,6 +118,7 @@ def main():
     
     # Main chat interface
     display_chat_interface(wellness_mode)
+
 
 def display_chat_interface(wellness_mode: str):
     """Display the main chat interface"""
