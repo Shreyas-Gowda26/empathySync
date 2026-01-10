@@ -9,6 +9,8 @@ import logging
 from typing import List, Dict, Optional
 from config.settings import settings
 from prompts.wellness_prompts import WellnessPrompts
+from models.risk_classifier import RiskClassifier
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,8 @@ class WellnessGuide:
         self.model = settings.OLLAMA_MODEL
         self.temperature = settings.OLLAMA_TEMPERATURE
         self.prompts = WellnessPrompts()
+        self.risk_classifier = RiskClassifier()
+
     
     def generate_response(
         self, 
@@ -27,26 +31,52 @@ class WellnessGuide:
         wellness_mode: str = "Balanced",
         conversation_history: List[Dict] = None
     ) -> str:
-        """Generate empathetic response to user input"""
+        """Generate empathetic response to user input, with risk awareness."""
         
+        if conversation_history is None:
+            conversation_history = []
+
         try:
-            # Build context-aware prompt
+            # 1) Risk assessment (Phase 1: awareness only)
+            risk_assessment = self.risk_classifier.classify(
+                user_input=user_input,
+                conversation_history=conversation_history
+            )
+
+            logger.info(
+                "Risk assessment | domain=%s | intensity=%.2f | dependency=%.2f | weight=%.2f",
+                risk_assessment["domain"],
+                risk_assessment["emotional_intensity"],
+                risk_assessment["dependency_risk"],
+                risk_assessment["risk_weight"],
+            )
+
+            # (Optional) store last assessment if you want to surface later in UI
+            self.last_risk_assessment = risk_assessment
+
+            # 2) Build context-aware prompt (same as before)
             system_prompt = self.prompts.get_system_prompt(wellness_mode)
-            conversation_context = self._build_context(conversation_history or [])
-            
-            full_prompt = f"{system_prompt}\n\n{conversation_context}\n\nUser: {user_input}\n\nAssistant:"
-            
-            # Call Ollama API
+            conversation_context = self._build_context(conversation_history)
+
+            full_prompt = (
+                f"{system_prompt}\n\n"
+                f"{conversation_context}\n\n"
+                f"User: {user_input}\n\n"
+                f"Assistant:"
+            )
+
+            # 3) Call Ollama API
             response = self._call_ollama(full_prompt)
-            
-            # Process and validate response
+
+            # 4) Process and validate response
             processed_response = self._process_response(response, user_input)
-            
+
             return processed_response
-            
+
         except Exception as e:
             logger.error(f"Error generating response: {str(e)}")
             return self._get_fallback_response()
+
     
     def _call_ollama(self, prompt: str) -> str:
         """Call Ollama API with error handling"""

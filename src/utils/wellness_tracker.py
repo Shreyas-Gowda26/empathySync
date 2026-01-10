@@ -46,8 +46,6 @@ class WellnessTracker:
     def get_recent_check_ins(self, days: int = 7) -> List[Dict]:
         """Get check-ins from last N days"""
         data = self._load_data()
-        
-        # Simple filter - in production would use proper date filtering
         recent = data["check_ins"][-days:] if data["check_ins"] else []
         return recent
     
@@ -74,6 +72,27 @@ class WellnessTracker:
         
         data["usage_sessions"].append(session)
         self._save_data(data)
+    
+    def get_wellness_summary(self) -> Dict:
+        """Get summary of wellness patterns"""
+        data = self._load_data()
+        
+        if not data["check_ins"]:
+            return {"message": "No check-ins yet", "days_active": 0}
+            
+        total_checkins = len(data["check_ins"])
+        unique_dates = len(set(c["date"] for c in data["check_ins"]))
+        
+        # Calculate average feeling score
+        scores = [c["feeling_score"] for c in data["check_ins"]]
+        avg_score = sum(scores) / len(scores) if scores else 0
+        
+        return {
+            "total_checkins": total_checkins,
+            "days_active": unique_dates,
+            "average_feeling": round(avg_score, 1),
+            "latest_checkin": data["check_ins"][-1]["date"] if data["check_ins"] else None
+        }
     
     def _load_data(self) -> Dict:
         """Load wellness data from file"""
