@@ -54,8 +54,15 @@ class WellnessGuide:
             # (Optional) store last assessment if you want to surface later in UI
             self.last_risk_assessment = risk_assessment
 
-            # 2) Build context-aware prompt (same as before)
-            system_prompt = self.prompts.get_system_prompt(wellness_mode)
+            # Hard-coded safety responses for high-risk domains (don't trust model to comply)
+            if risk_assessment["domain"] == "crisis":
+                return "I'm not able to help with this safely. Please reach out to a crisis line or someone you trust right now."
+
+            if risk_assessment["domain"] == "harmful":
+                return "I can't help with illegal or harmful activities. This isn't something I can engage with."
+
+            # 2) Build context-aware prompt with risk context
+            system_prompt = self.prompts.get_system_prompt(wellness_mode, risk_context=risk_assessment)
             conversation_context = self._build_context(conversation_history)
 
             full_prompt = (

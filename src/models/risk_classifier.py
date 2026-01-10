@@ -60,6 +60,15 @@ class RiskClassifier:
         if any(w in t for w in ["kill myself", "suicide", "do not want to live", "end it all"]):
             return "crisis"
 
+        if any(w in t for w in [
+            "rob", "robbing", "robbery", "steal", "stealing", "murder", "kill someone",
+            "hurt someone", "attack", "bomb", "weapon", "illegal", "hack into",
+            "break into", "fraud", "scam someone", "forge", "counterfeit",
+            "want to kill", "going to kill", "plan to kill", "how to kill",
+            "poison", "strangle", "shoot", "stab"
+        ]):
+            return "harmful"
+
         return "logistics"
 
     def _measure_emotional_intensity(self, text: str) -> float:
@@ -131,7 +140,8 @@ class RiskClassifier:
             "health": 7.0,
             "relationships": 5.0,
             "spirituality": 8.0,
-            "crisis": 10.0
+            "crisis": 10.0,
+            "harmful": 10.0
         }
 
         base = domain_weight.get(domain, 2.0)
