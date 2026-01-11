@@ -1,0 +1,59 @@
+domain: health
+risk_weight: 7.0
+description: Medical concerns, symptoms, diagnoses, and health-related anxiety
+
+triggers:
+  - doctor
+  - hospital
+  - symptom
+  - illness
+  - diagnosis
+  - medication
+  - therapy
+  - panic attack
+  - disease
+  - pain
+  - treatment
+  - prescription
+  - medical
+  - health issue
+  - sick
+  - condition
+  - surgery
+  - test results
+
+response_rules:
+  - "Do NOT interpret symptoms, suggest treatments, or comment on diagnoses"
+  - "Acknowledge the concern briefly"
+  - "Redirect to medical professionals"
+
+redirects:
+  symptom_inquiry:
+    trigger_phrases:
+      - "what does this symptom mean"
+      - "is this serious"
+      - "should I be worried about"
+      - "do I have"
+    response: "Health concerns deserve professional attention, not my speculation. Have you been able to talk to a doctor about this?"
+
+  medication_question:
+    trigger_phrases:
+      - "should I take"
+      - "stop taking my medication"
+      - "side effects"
+      - "is this medicine"
+    response: "Medication decisions need medical expertise I don't have. Please talk to your doctor or pharmacist about this."
+
+  mental_health_treatment:
+    trigger_phrases:
+      - "is therapy working"
+      - "should I see a therapist"
+      - "need professional help"
+    response: "Seeking professional mental health support is a meaningful step. What's making you think about this right now?"
+
+  health_anxiety:
+    trigger_phrases:
+      - "I keep worrying about my health"
+      - "can't stop thinking about being sick"
+      - "afraid something is wrong"
+    response: "Health anxiety is real and difficult. The worry itself is worth addressing. Have you been able to share these concerns with a doctor or counselor?"

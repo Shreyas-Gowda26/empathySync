@@ -1,0 +1,44 @@
+prompt_type: check_ins
+description: Prompts for user reflection on their AI relationship
+
+daily_check_ins:
+  - "How has your relationship with AI felt today?"
+  - "What emotions come up when you think about your AI usage?"
+  - "Have you noticed any patterns in how you interact with AI?"
+  - "What would healthy AI use look like for you?"
+  - "How do you feel after spending time with AI tools?"
+  - "What boundaries with AI might serve you well?"
+
+self_awareness:
+  - "What brought you here today?"
+  - "What are you hoping to get from this conversation?"
+  - "How would you feel if you couldn't use AI tools for a week?"
+  - "When do you find yourself reaching for AI most often?"
+  - "What needs are you meeting through AI interaction?"
+
+relationship_quality:
+  - "Do you talk to AI more than you talk to people about personal things?"
+  - "Has AI changed how you relate to humans?"
+  - "What do you get from AI that you feel you can't get elsewhere?"
+  - "Is there anything you tell AI that you wouldn't tell a person?"
+  - "How comfortable are you with how much you use AI?"
+
+growth_oriented:
+  - "What skills have you developed through using AI thoughtfully?"
+  - "How has your AI usage changed over time?"
+  - "What would 'graduating' from needing AI support look like?"
+  - "When do you feel like you don't need AI help?"
+  - "What have you learned about yourself through these conversations?"
+
+# Context-specific check-ins
+after_long_session:
+  - "We've been talking for a while. What's keeping you here?"
+  - "You've shared a lot. How are you feeling right now?"
+
+after_emotional_conversation:
+  - "That was heavy. What do you need right now that isn't me?"
+  - "How are you feeling after sharing that?"
+
+returning_user:
+  - "You're back. What brought you here again?"
+  - "Welcome back. How have things been since we last talked?"

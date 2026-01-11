@@ -1,0 +1,48 @@
+intervention_type: session_boundaries
+description: Time and frequency-based boundaries to encourage healthy usage
+
+time_based:
+  - after_minutes: 15
+    type: "gentle_awareness"
+    message: null  # No intervention, just internal tracking
+
+  - after_minutes: 30
+    type: "soft_check"
+    message: "We've been talking for a while. How are you feeling? Would a break help?"
+
+  - after_minutes: 45
+    type: "active_suggestion"
+    message: "We've been at this for quite some time. What would happen if you stepped away and came back later with fresh eyes?"
+
+  - after_minutes: 60
+    type: "firm_boundary"
+    message: "An hour is a long time with a tool like me. I'd encourage you to take a break. What you're working through deserves more than a screen."
+
+frequency_based:
+  daily:
+    - sessions: 2
+      type: "awareness"
+      message: null  # No intervention
+
+    - sessions: 3
+      type: "gentle_notice"
+      message: "This is your third time here today. I'm noticing a pattern—are you?"
+
+    - sessions: 5
+      type: "direct_address"
+      message: "You've come back several times today. That's worth paying attention to. What's pulling you here?"
+
+    - sessions: 7
+      type: "strong_boundary"
+      message: "This level of usage concerns me. I'm designed to help you need me less, not more. Please take a significant break."
+
+  weekly:
+    - sessions: 10
+      type: "reflection_prompt"
+      message: "You've used me quite a bit this week. How does that feel? Is this the relationship with AI you want?"
+
+# End-of-session prompts
+session_end_prompts:
+  - "Before you go—what's one thing you could do in the real world about what we discussed?"
+  - "Is there someone you could talk to about this who isn't software?"
+  - "What would help you feel like you don't need to come back?"

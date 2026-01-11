@@ -1,0 +1,14 @@
+intensity_level: neutral
+score: 3.0
+description: No significant emotional markers detected
+
+markers: []  # Default when no markers match
+
+response_modifier: |
+  No significant emotional intensity detected.
+  Engage normally according to base behavioral rules.
+
+behavioral_rules:
+  - "Standard engagement"
+  - "Full exploratory conversation allowed"
+  - "Watch for emotional shifts"

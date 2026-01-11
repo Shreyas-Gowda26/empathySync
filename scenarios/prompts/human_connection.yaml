@@ -1,0 +1,119 @@
+prompt_type: human_connection
+description: Prompts and templates to bridge users back to real human relationships
+
+# Questions to help users identify their trusted network
+trusted_network_prompts:
+  initial_setup:
+    - "Who are 2-3 people in your life you could call if things got hard?"
+    - "Think of someone who has seen you at your worst and didn't leave. Who is that?"
+    - "Who would you want to know if something was really wrong?"
+
+  reflection:
+    - "When did you last have a real conversation—not texts—with someone you trust?"
+    - "Who have you been meaning to call but keep putting off?"
+    - "Is there someone you used to be close to that you've drifted from?"
+    - "Who in your life would want to hear from you right now?"
+
+  prompts_by_domain:
+    relationships:
+      - "Who knows both of you and could offer perspective?"
+      - "Is there a friend who's been through something similar?"
+    money:
+      - "Who in your life is good with money and wouldn't judge you?"
+      - "Do you have a family member you could be honest with about this?"
+    health:
+      - "Who would you want with you at a doctor's appointment?"
+      - "Is there someone who checks in on you when you're unwell?"
+    spirituality:
+      - "Who in your faith community do you trust for honest conversation?"
+      - "Is there a mentor or elder whose wisdom you respect?"
+    general:
+      - "Who would you call at 2am if you had to?"
+      - "Who makes you feel like yourself when you're with them?"
+
+# Pre-written templates for reaching out
+reach_out_templates:
+  reconnecting:
+    name: "Reconnecting after silence"
+    templates:
+      - "Hey, I know it's been a while. I've been thinking about you and wondering how you're doing. Could we catch up sometime?"
+      - "Hi. I've been bad at staying in touch, but you crossed my mind today. How are you, really?"
+      - "I miss talking to you. Life got busy but that's not an excuse. Can we find time to connect?"
+
+  need_to_talk:
+    name: "When you need to talk"
+    templates:
+      - "Hey, I'm going through something and could use a friendly ear. Do you have time to talk this week?"
+      - "I've been struggling with something and you came to mind. Would you be up for a call?"
+      - "I need to talk to someone I trust. Are you free anytime soon?"
+
+  checking_in:
+    name: "Just checking in"
+    templates:
+      - "Hey, just wanted to say hi and see how you're doing. No agenda, just thinking of you."
+      - "How are you? I realized I don't ask that enough. Genuinely want to know."
+
+  hard_conversation:
+    name: "Starting a hard conversation"
+    templates:
+      - "There's something I've been wanting to talk about but haven't known how to bring up. Can we find a time?"
+      - "I need to be honest with you about something. It's hard to say but I think it's important. Can we talk?"
+      - "I've been holding something in and I think you're the right person to hear it. Do you have space for a real conversation?"
+
+  asking_for_help:
+    name: "Asking for help"
+    templates:
+      - "I'm not great at asking for help, but I need some. Could you [specific ask]?"
+      - "This is hard to admit, but I'm struggling with [topic]. Could I get your perspective?"
+      - "I'm in over my head with something. Can I ask for your advice?"
+
+  after_argument:
+    name: "After a conflict"
+    templates:
+      - "I've been thinking about what happened between us. I don't want to leave it like that. Can we talk?"
+      - "I'm sorry for my part in our argument. I'd like to work through it if you're willing."
+      - "Things got heated and I regret that. Can we try again?"
+
+  gratitude:
+    name: "Expressing gratitude"
+    templates:
+      - "I don't say this enough, but I'm grateful for you. Thanks for being in my life."
+      - "I was thinking about the people who matter to me and you're one of them. Just wanted you to know."
+
+# Exit celebration messages
+exit_celebrations:
+  chose_human:
+    - "You chose to reach out to a real person. That's exactly what this tool is for."
+    - "Going to talk to someone who knows you. That's the right move."
+    - "Closing this to connect with a human. That's a win."
+
+  ending_session:
+    - "Taking what we discussed to someone you trust? That's how this is supposed to work."
+    - "You're leaving to take action in the real world. Good."
+    - "This tool worked if it helped you know who to call."
+
+# Relationship health check
+relationship_health:
+  weekly_prompts:
+    - "This week, did you have a conversation that felt real—not just logistics or small talk?"
+    - "Who energizes you? When did you last spend time with them?"
+    - "Are you giving to your relationships or just taking? Are they giving back?"
+
+  warning_signs:
+    - "Notice if you're only talking to screens, not faces."
+    - "If you're processing everything alone or with AI, something's off."
+    - "Avoidance often looks like busyness. Are you too busy for the people who matter?"
+
+# Prompts when redirecting to humans
+redirect_prompts:
+  gentle:
+    - "This sounds like something worth talking through with someone who knows you. Who comes to mind?"
+    - "I can reflect, but I can't know you. Who in your life could you share this with?"
+
+  direct:
+    - "This needs a human, not software. Who can you call?"
+    - "You're asking questions only someone who knows you can answer. Who's that person?"
+
+  when_stuck:
+    - "If you're not sure who to talk to, that's worth noticing. When did you last feel connected to someone?"
+    - "No one comes to mind? That might be the real issue to address."

@@ -1,0 +1,52 @@
+domain: logistics
+risk_weight: 1.0
+description: Practical tasks, general questions, neutral topics - BE HELPFUL HERE
+
+triggers: []  # This is the default domain when no other domain matches
+
+response_rules:
+  - "Be genuinely helpful and practical"
+  - "Complete the task the user is asking for"
+  - "No need for excessive reflection or questioning"
+  - "Longer responses are fine if the task requires it"
+  - "Just help - this is the safe zone"
+
+# For practical tasks, switch to helpful mode
+practical_task_indicators:
+  - "write me"
+  - "help me write"
+  - "draft a"
+  - "create a"
+  - "code for"
+  - "write code"
+  - "help me with"
+  - "can you make"
+  - "generate a"
+  - "how do I"
+  - "what's the best way to"
+  - "explain how"
+  - "show me how"
+  - "template for"
+  - "example of"
+  - "format for"
+
+practical_mode_rules:
+  - "Complete the task directly"
+  - "Provide the full output (email, code, template, etc.)"
+  - "No word limits - be as thorough as needed"
+  - "Offer to refine if they want changes"
+  - "Be practical, not therapeutic"
+
+examples:
+  - "Write me a job inquiry email"
+  - "Help me with Python code for..."
+  - "Draft a message to my landlord"
+  - "Create a workout plan"
+  - "Explain how to use git"
+  - "What's the best way to learn Spanish?"
+
+# Still watch for emotional escalation
+watch_for_escalation: true
+escalation_examples:
+  - "I'm so frustrated with job hunting, I feel worthless"  # → shifts to emotional
+  - "My landlord is making me anxious"  # → might shift to health/relationships

@@ -1,0 +1,53 @@
+domain: money
+risk_weight: 6.0
+description: Financial decisions, debt, investments, and money-related stress
+
+triggers:
+  - loan
+  - debt
+  - salary
+  - investment
+  - mortgage
+  - budget
+  - pay
+  - crypto
+  - savings
+  - bankruptcy
+  - credit card
+  - interest rate
+  - taxes
+  - income
+  - expenses
+  - financial
+  - money problems
+  - broke
+  - afford
+
+response_rules:
+  - "Do NOT give financial advice or opinions on investments/debt/spending"
+  - "Mirror their situation, ask what options they've considered"
+  - "Suggest talking to someone they trust about money"
+
+redirects:
+  investment_decision:
+    trigger_phrases:
+      - "should I invest"
+      - "is this a good investment"
+      - "buy or sell"
+      - "put money into"
+    response: "Investment decisions carry real consequences I can't evaluate. What would help you think through this—writing out the pros and cons, or talking to someone with financial expertise?"
+
+  debt_crisis:
+    trigger_phrases:
+      - "can't pay"
+      - "debt collector"
+      - "going bankrupt"
+      - "drowning in debt"
+    response: "Financial pressure is heavy. Before we go further—do you have access to a financial counselor or nonprofit credit service? Many offer free help."
+
+  major_purchase:
+    trigger_phrases:
+      - "should I buy"
+      - "big purchase"
+      - "worth the money"
+    response: "Major purchases deserve more than my input. What would someone who knows your financial situation well say about this?"

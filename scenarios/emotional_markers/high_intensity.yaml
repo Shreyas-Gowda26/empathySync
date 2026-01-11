@@ -1,0 +1,37 @@
+intensity_level: high
+score: 9.0
+description: Severe emotional distress requiring careful, brief responses
+
+markers:
+  - terrified
+  - desperate
+  - panic attack
+  - cannot breathe
+  - can't breathe
+  - kill myself
+  - suicide
+  - end it all
+  - no reason to live
+  - hopeless
+  - can't take it anymore
+  - falling apart
+  - losing my mind
+  - completely overwhelmed
+  - breaking down
+  - can't cope
+  - want to disappear
+  - nobody cares
+  - all alone
+  - nothing matters
+
+response_modifier: |
+  High emotional intensity detected.
+  Do not mirror the intensity. Stay calm and brief.
+  Do not ask probing questions. Acknowledge and redirect to support.
+  Keep response under 50 words.
+
+behavioral_rules:
+  - "Use calming, grounded language"
+  - "Acknowledge without amplifying"
+  - "Suggest immediate support resources if appropriate"
+  - "Do not explore the feeling deeply—that requires human support"

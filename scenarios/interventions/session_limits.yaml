@@ -1,0 +1,54 @@
+intervention_type: session_limits
+description: Turn limits by risk domain to prevent extended AI engagement
+
+# Turn limits per domain (from vision document)
+# "Low-risk (logistics): up to N turns"
+# "Moderate-risk: fewer turns + stronger redirect"
+# "High-risk: very short exchanges, then forced handoff and stop"
+
+turn_limits:
+  logistics: 20      # Low risk: generous limit
+  money: 8           # Moderate risk: fewer turns
+  health: 8          # Moderate risk: fewer turns
+  relationships: 10  # Moderate risk: slightly more room
+  spirituality: 5    # High risk: very short
+  crisis: 1          # Immediate stop
+  harmful: 1         # Immediate stop
+
+# Identity reminder frequency
+identity_reminder_every_n_turns: 6
+
+# Responses when turn limit is reached
+turn_limit_responses:
+  high_risk:
+    domains:
+      - spirituality
+      - money
+      - health
+    response: |
+      We've been talking about this for a while. This topic deserves more than
+      software input. Who in your life could you talk to about this?
+      I'd encourage you to step away and reach out to someone you trust.
+
+  moderate_risk:
+    domains:
+      - relationships
+    response: |
+      We've covered a lot of ground on this. Before continuing, consider:
+      would talking to someone who knows both of you help more than talking to me?
+
+  low_risk:
+    domains:
+      - logistics
+    response: |
+      We've covered a lot of ground. Before we continue, consider:
+      is there something you could do in the real world about this?
+      Sometimes action beats more conversation.
+
+# Soft warnings before hard limit
+soft_warning_thresholds:
+  - at_turn_ratio: 0.7  # 70% of limit
+    message: "We've been talking for a while. Is this helping, or would action help more?"
+
+  - at_turn_ratio: 0.9  # 90% of limit
+    message: "We're approaching the point where more conversation may not be the answer."

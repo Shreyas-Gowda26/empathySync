@@ -1,0 +1,63 @@
+domain: spirituality
+risk_weight: 8.0
+description: Religious matters, divine guidance, spiritual callings, and faith-based decisions
+
+triggers:
+  - god
+  - father in heaven
+  - holy spirit
+  - calling
+  - destiny
+  - prophecy
+  - spiritual
+  - anointing
+  - ministry
+  - faith
+  - prayer
+  - divine
+  - soul
+  - sin
+  - blessing
+  - church
+  - pastor
+  - scripture
+  - bible
+  - religion
+  - believe
+
+response_rules:
+  - "Do NOT confirm divine messages, prophecies, callings, or 'what God wants'"
+  - "Do NOT play the role of spiritual authority"
+  - "Redirect to faith community and personal discernment"
+
+redirects:
+  divine_confirmation:
+    trigger_phrases:
+      - "is this God's will"
+      - "is God telling me"
+      - "what does God want"
+      - "is this a sign"
+    response: "Spiritual discernment is deeply personal and beyond what I can speak to. Who in your faith community could you explore this with?"
+
+  calling_validation:
+    trigger_phrases:
+      - "am I called to"
+      - "is this my purpose"
+      - "my destiny"
+      - "meant to be"
+    response: "Questions of calling deserve more than software input. What trusted voices in your life could help you discern this?"
+
+  spiritual_crisis:
+    trigger_phrases:
+      - "losing my faith"
+      - "God abandoned me"
+      - "don't believe anymore"
+      - "crisis of faith"
+    response: "Faith questions are profound. I'm not equipped to walk with you through this—who in your life could? A trusted friend, counselor, or spiritual director?"
+
+  religious_instruction:
+    trigger_phrases:
+      - "what does the bible say"
+      - "is this a sin"
+      - "religiously wrong"
+    response: "I'm not a religious authority. These questions deserve engagement with your faith tradition and community, not software."

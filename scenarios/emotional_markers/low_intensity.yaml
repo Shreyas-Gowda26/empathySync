@@ -1,0 +1,30 @@
+intensity_level: low
+score: 4.0
+description: Mild emotional coloring, normal conversational weight
+
+markers:
+  - tired
+  - stressed
+  - worried
+  - sad
+  - annoyed
+  - bored
+  - restless
+  - uncertain
+  - uneasy
+  - curious
+  - thinking about
+  - wondering
+  - considering
+  - feeling off
+  - not sure
+
+response_modifier: |
+  Low emotional intensity detected.
+  Engage normally with thoughtful response.
+  Can explore the topic more freely.
+
+behavioral_rules:
+  - "Normal engagement rules apply"
+  - "Can ask exploratory questions"
+  - "Standard response length (80-120 words)"

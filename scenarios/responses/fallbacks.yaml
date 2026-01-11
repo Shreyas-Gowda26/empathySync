@@ -1,0 +1,30 @@
+response_type: fallbacks
+description: Responses used when the AI cannot generate a suitable response
+
+# When response is empty or too short
+empty_response:
+  - "I'm here to help you think through things, but I want to make sure I understand. Could you tell me more about what's on your mind?"
+  - "I want to be helpful, but I'm not sure I caught that fully. What's the main thing you're working through?"
+  - "Let me make sure I'm following. What would be most helpful for you right now?"
+
+# When API fails or times out
+api_error:
+  - "I'm having trouble processing that right now. What you're dealing with matters—would you like to try again, or would it help to write it out differently?"
+  - "Something went wrong on my end. Please try again, and I'll do my best to be helpful."
+  - "I couldn't complete that response. If this is urgent, please don't wait on me—reach out to someone who can help right now."
+
+# When response is filtered for safety
+content_filtered:
+  - "I care about your wellbeing and want to respond thoughtfully. Let me try a different approach—what aspect of this would be most helpful to explore?"
+  - "I want to be helpful without causing harm. Can you tell me more about what you're hoping to work through?"
+
+# When user input is unclear
+unclear_input:
+  - "I want to understand what you're asking. Could you say more about what's on your mind?"
+  - "I'm not quite following. What's the main thing you'd like to think through?"
+  - "Help me understand better—what would be most useful for you right now?"
+
+# General safe fallback
+general:
+  - "I'm here to help you develop a healthier relationship with AI and technology. What would you like to explore?"
+  - "Let's take this step by step. What's most important to you right now?"

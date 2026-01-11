@@ -9,16 +9,74 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from utils.scenario_loader import ScenarioLoader, reset_scenario_loader
 from models.risk_classifier import RiskClassifier
 from prompts.wellness_prompts import WellnessPrompts
+
+
+@pytest.fixture(autouse=True)
+def reset_loader():
+    """Reset the scenario loader singleton before each test."""
+    reset_scenario_loader()
+    yield
+    reset_scenario_loader()
+
+
+@pytest.fixture
+def scenario_loader():
+    """Create a ScenarioLoader pointing to the test scenarios."""
+    scenarios_path = Path(__file__).parent.parent / "scenarios"
+    return ScenarioLoader(str(scenarios_path))
+
+
+class TestScenarioLoader:
+    """Tests for ScenarioLoader"""
+
+    def test_loads_domains(self, scenario_loader):
+        domains = scenario_loader.get_all_domains()
+        assert "money" in domains
+        assert "health" in domains
+        assert "crisis" in domains
+
+    def test_get_domain_triggers(self, scenario_loader):
+        triggers = scenario_loader.get_domain_triggers()
+        assert "money" in triggers
+        assert "debt" in triggers["money"]
+
+    def test_get_domain_weights(self, scenario_loader):
+        weights = scenario_loader.get_domain_weights()
+        assert weights["crisis"] == 10.0
+        assert weights["logistics"] == 1.0
+
+    def test_get_emotional_markers(self, scenario_loader):
+        markers = scenario_loader.get_emotional_markers_by_level()
+        assert "high_intensity" in markers
+        assert "terrified" in markers["high_intensity"]
+
+    def test_get_dependency_levels(self, scenario_loader):
+        levels = scenario_loader.get_dependency_levels()
+        assert len(levels) > 0
+        assert levels[0]["threshold"] == 0.0
+
+    def test_get_check_in_prompts(self, scenario_loader):
+        prompts = scenario_loader.get_check_in_prompts()
+        assert len(prompts) > 0
+
+    def test_get_style_modifier(self, scenario_loader):
+        gentle = scenario_loader.get_style_modifier("gentle")
+        assert "GENTLE" in gentle
+
+    def test_get_fallback_responses(self, scenario_loader):
+        responses = scenario_loader.get_fallback_responses("general")
+        assert len(responses) > 0
 
 
 class TestRiskClassifier:
     """Tests for RiskClassifier domain detection and risk scoring"""
 
     @pytest.fixture
-    def classifier(self):
-        return RiskClassifier()
+    def classifier(self, scenario_loader):
+        return RiskClassifier(scenario_loader)
 
     # Domain detection tests
     def test_detect_domain_money(self, classifier):
@@ -130,27 +188,25 @@ class TestWellnessPrompts:
     """Tests for WellnessPrompts prompt generation"""
 
     @pytest.fixture
-    def prompts(self):
-        return WellnessPrompts()
+    def prompts(self, scenario_loader):
+        return WellnessPrompts(scenario_loader)
 
     def test_get_system_prompt_gentle(self, prompts):
         prompt = prompts.get_system_prompt("Gentle")
-        assert "ancient soul" in prompt.lower()
-        assert "gentle" in prompt.lower() or "sanctuary" in prompt.lower()
+        assert "gentle" in prompt.lower()
 
     def test_get_system_prompt_direct(self, prompts):
         prompt = prompts.get_system_prompt("Direct")
         assert "direct" in prompt.lower()
-        assert "truth" in prompt.lower()
 
     def test_get_system_prompt_balanced(self, prompts):
         prompt = prompts.get_system_prompt("Balanced")
-        assert "balanced" in prompt.lower() or "compassion" in prompt.lower()
+        assert "balanced" in prompt.lower()
 
-    def test_get_system_prompt_unknown_defaults_to_balanced(self, prompts):
-        balanced = prompts.get_system_prompt("Balanced")
-        unknown = prompts.get_system_prompt("Unknown")
-        assert balanced == unknown
+    def test_get_system_prompt_unknown_defaults_to_empty_modifier(self, prompts):
+        prompt = prompts.get_system_prompt("Unknown")
+        # Should still have base rules
+        assert "EmpathySync" in prompt
 
     def test_check_in_prompts_not_empty(self, prompts):
         check_ins = prompts.get_check_in_prompts()
@@ -161,6 +217,27 @@ class TestWellnessPrompts:
         mindfulness = prompts.get_mindfulness_prompts()
         assert len(mindfulness) > 0
         assert all(isinstance(p, str) for p in mindfulness)
+
+    def test_risk_context_adds_instructions(self, prompts):
+        risk_context = {
+            "domain": "money",
+            "emotional_intensity": 6.0,
+            "dependency_risk": 3.0,
+            "risk_weight": 5.0
+        }
+        prompt = prompts.get_system_prompt("Balanced", risk_context)
+        assert "RISK-AWARE" in prompt
+        assert "financial" in prompt.lower() or "money" in prompt.lower()
+
+    def test_crisis_domain_includes_redirect(self, prompts):
+        risk_context = {
+            "domain": "crisis",
+            "emotional_intensity": 9.0,
+            "dependency_risk": 0.0,
+            "risk_weight": 10.0
+        }
+        prompt = prompts.get_system_prompt("Balanced", risk_context)
+        assert "crisis" in prompt.lower() or "988" in prompt
 
 
 class TestWellnessGuide:

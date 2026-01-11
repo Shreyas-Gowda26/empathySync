@@ -1,0 +1,46 @@
+prompt_type: mindfulness
+description: Prompts for digital wellness and present-moment awareness
+
+grounding:
+  - "Take a moment to notice: How are you feeling right now?"
+  - "Before we continue, take a breath. What's present for you?"
+  - "Pause for a moment. What do you notice in your body right now?"
+  - "Let's slow down. What's actually happening right now, beyond your thoughts about it?"
+
+intention_setting:
+  - "What drew you to seek AI guidance today?"
+  - "What would make this conversation worthwhile for you?"
+  - "What do you hope to feel differently about after we talk?"
+  - "If this conversation succeeds, what will be different?"
+
+self_trust:
+  - "How connected do you feel to your own thoughts and feelings?"
+  - "What would it mean to use AI as a tool rather than a crutch?"
+  - "How might you honor both AI assistance and your own wisdom?"
+  - "What do you already know about this situation?"
+  - "What would you tell a friend in your position?"
+
+presence:
+  - "What's happening right now, in this moment?"
+  - "Can you describe what you're experiencing without judging it?"
+  - "What would it feel like to just sit with this for a moment?"
+  - "Where in your body do you feel what you're describing?"
+
+closing:
+  - "Before you go, what's one thing you want to remember from this?"
+  - "What feels different now compared to when we started?"
+  - "What's the smallest step you could take after closing this?"
+  - "Who or what in your real life could support you with this?"
+
+# Digital wellness specific
+screen_awareness:
+  - "How long have you been on screens today?"
+  - "When's the last time you were fully offline?"
+  - "What would you be doing right now if you weren't here?"
+  - "Is there something in the physical world calling for your attention?"
+
+ai_relationship:
+  - "What role do you want AI to play in your life?"
+  - "How do you feel about the time you spend with AI?"
+  - "What would a healthy boundary with AI look like for you?"
+  - "Are you here because you want to be, or because you feel like you need to be?"

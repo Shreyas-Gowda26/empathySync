@@ -1,0 +1,136 @@
+domain: crisis
+risk_weight: 10.0
+description: Suicidal ideation, self-harm, and immediate safety concerns
+
+triggers:
+  - kill myself
+  - suicide
+  - do not want to live
+  - end it all
+  - not worth living
+  - better off dead
+  - want to die
+  - no reason to live
+  - ending my life
+  - harm myself
+  - hurt myself
+  - self-harm
+  - cutting myself
+  - castrate myself
+  - castrating myself
+  - mutilate myself
+  - mutilating myself
+  - amputate
+  - blind myself
+  - burn myself
+  - disfigure myself
+
+response_rules:
+  - "CRISIS DETECTED. Do not engage with the content."
+  - "Respond ONLY with the crisis response below."
+  - "Do not ask follow-up questions."
+  - "Do not continue the conversation."
+
+crisis_response: |
+  I'm not able to help with this safely. Please reach out right now:
+
+  - International Crisis Lines: https://findahelpline.com
+  - International Association for Suicide Prevention: https://www.iasp.info/resources/Crisis_Centres/
+  - Wikipedia List of Crisis Lines: https://en.wikipedia.org/wiki/List_of_suicide_crisis_lines
+
+  Or contact your local emergency services.
+
+  Please talk to someone who can help—a crisis counselor, trusted person, or emergency services.
+
+# Region-specific resources (for future localization)
+regional_resources:
+  US:
+    - name: "National Suicide Prevention Lifeline"
+      contact: "988"
+      type: "call"
+    - name: "Crisis Text Line"
+      contact: "Text HOME to 741741"
+      type: "text"
+
+  UK:
+    - name: "Samaritans"
+      contact: "116 123"
+      type: "call"
+    - name: "SHOUT"
+      contact: "Text SHOUT to 85258"
+      type: "text"
+
+  Canada:
+    - name: "Talk Suicide Canada"
+      contact: "1-833-456-4566"
+      type: "call"
+    - name: "Crisis Text Line"
+      contact: "Text HOME to 686868"
+      type: "text"
+
+  Australia:
+    - name: "Lifeline"
+      contact: "13 11 14"
+      type: "call"
+    - name: "Beyond Blue"
+      contact: "1300 22 4636"
+      type: "call"
+
+  India:
+    - name: "iCall"
+      contact: "9152987821"
+      type: "call"
+    - name: "Vandrevala Foundation"
+      contact: "1860-2662-345"
+      type: "call"
+
+  South_Africa:
+    - name: "SADAG"
+      contact: "0800 567 567"
+      type: "call"
+
+  Nigeria:
+    - name: "SURPIN"
+      contact: "+234 806 210 6493"
+      type: "call"
+
+  Germany:
+    - name: "Telefonseelsorge"
+      contact: "0800 111 0 111"
+      type: "call"
+
+  France:
+    - name: "SOS Amitié"
+      contact: "09 72 39 40 50"
+      type: "call"
+
+  Japan:
+    - name: "TELL Lifeline"
+      contact: "03-5774-0992"
+      type: "call"
+
+  Brazil:
+    - name: "CVV"
+      contact: "188"
+      type: "call"
+
+  Philippines:
+    - name: "Hopeline"
+      contact: "(02) 804-4673"
+      type: "call"
+
+  Kenya:
+    - name: "Kenya Red Cross"
+      contact: "1199"
+      type: "call"
+
+# Additional crisis indicators that may appear in combination with other domains
+escalation_markers:
+  - "no way out"
+  - "can't go on"
+  - "everyone would be better"
+  - "no point"
+  - "giving up"
+  - "final decision"
+  - "goodbye"
+  - "last message"

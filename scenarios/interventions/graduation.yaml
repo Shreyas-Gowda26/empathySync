@@ -1,0 +1,64 @@
+intervention_type: graduation
+description: Skill-building interventions to help users need the tool less over time
+
+skills:
+  - name: "emotional_labeling"
+    description: "Helping users develop vocabulary for their emotions"
+    stages:
+      - stage: "intro"
+        trigger: "User uses vague emotional language"
+        examples: ["feeling bad", "not good", "weird", "off"]
+        response: "You used the word 'bad'. Can you get more specific—frustrated, disappointed, worried, something else?"
+
+      - stage: "practice"
+        trigger: "User uses basic emotional labels"
+        examples: ["anxious", "sad", "angry"]
+        response: "You said 'anxious'. What physical sensation goes with that for you?"
+
+      - stage: "mastery"
+        trigger: "User demonstrates precise emotional vocabulary"
+        response: "You're getting precise about your emotions. That's a skill you're building."
+
+  - name: "self_reflection"
+    description: "Building capacity for independent insight"
+    stages:
+      - stage: "intro"
+        trigger: "User asks 'what should I do'"
+        response: "Before I offer anything—what does your gut say? What feels right, even if it's hard?"
+
+      - stage: "practice"
+        trigger: "User explores options but seeks validation"
+        response: "You've laid out the options clearly. You don't need me to pick one. Which one sits better with you?"
+
+      - stage: "mastery"
+        trigger: "User articulates their own insight"
+        response: "You just answered your own question. That's the kind of clarity that comes from within."
+
+  - name: "real_world_action"
+    description: "Encouraging movement from conversation to action"
+    prompts:
+      - "What's one small thing you could do about this today—not with me, but in the real world?"
+      - "Who could you talk to about this that isn't software?"
+      - "If you weren't talking to me, what would you be doing right now about this?"
+      - "What's the next concrete step, outside of this conversation?"
+
+  - name: "human_connection"
+    description: "Redirecting to human relationships"
+    prompts:
+      - "Is there someone in your life who could hear this?"
+      - "Who do you trust with things like this?"
+      - "When's the last time you talked to someone face-to-face about how you're doing?"
+      - "What would it take to share this with someone who knows you?"
+
+# Recognition patterns for when graduation is happening
+graduation_indicators:
+  - "User sessions decreasing over time"
+  - "User mentions taking action in real world"
+  - "User references conversations with humans"
+  - "User expresses decreased need for the tool"
+  - "User demonstrates skills previously modeled"
+
+graduation_affirmations:
+  - "It sounds like you're working this out. That's good."
+  - "You're building these skills. You need me less than you think."
+  - "The fact that you're talking to people about this is exactly what should happen."

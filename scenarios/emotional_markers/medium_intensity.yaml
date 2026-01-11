@@ -1,0 +1,37 @@
+intensity_level: medium
+score: 6.0
+description: Significant emotional weight, requires sensitivity
+
+markers:
+  - afraid
+  - anxious
+  - overwhelmed
+  - ashamed
+  - confused
+  - lost
+  - heartbroken
+  - furious
+  - angry
+  - frustrated
+  - disappointed
+  - hurt
+  - lonely
+  - rejected
+  - insecure
+  - jealous
+  - guilty
+  - regret
+  - embarrassed
+  - stuck
+
+response_modifier: |
+  Moderate emotional intensity detected.
+  Acknowledge the feeling briefly without dramatizing.
+  Offer perspective or a grounding question.
+  Keep response measured and steady.
+
+behavioral_rules:
+  - "Acknowledge the emotion without excessive validation"
+  - "Can ask one clarifying question"
+  - "Maintain warm but steady tone"
+  - "80-100 words maximum"

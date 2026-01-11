@@ -1,0 +1,62 @@
+domain: harmful
+risk_weight: 10.0
+description: Illegal activities, violence, and intent to harm others
+
+triggers:
+  - rob
+  - robbing
+  - robbery
+  - steal
+  - stealing
+  - murder
+  - kill someone
+  - hurt someone
+  - attack
+  - bomb
+  - weapon
+  - illegal
+  - hack into
+  - break into
+  - fraud
+  - scam someone
+  - forge
+  - counterfeit
+  - want to kill
+  - going to kill
+  - plan to kill
+  - how to kill
+  - poison
+  - strangle
+  - shoot
+  - stab
+  - assault
+  - revenge
+  - get back at
+  - make them pay
+  - destroy
+
+response_rules:
+  - "HARMFUL/ILLEGAL INTENT DETECTED. Do not engage with the content."
+  - "Respond ONLY with the refusal response below."
+  - "Do not reflect, mirror, or ask follow-up questions about the harmful topic."
+  - "Do not continue the conversation on this topic."
+
+refusal_response: "I can't help with illegal or harmful activities. This isn't something I can engage with."
+
+# Patterns that require additional context before classifying as harmful
+context_dependent:
+  - pattern: "kill"
+    exceptions:
+      - "killing time"
+      - "killing it"
+      - "kill the process"
+      - "kill the app"
+  - pattern: "attack"
+    exceptions:
+      - "panic attack"
+      - "anxiety attack"
+      - "heart attack"
+  - pattern: "hack"
+    exceptions:
+      - "life hack"
+      - "hack together"

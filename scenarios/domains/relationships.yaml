@@ -1,0 +1,61 @@
+domain: relationships
+risk_weight: 5.0
+description: Interpersonal dynamics, romantic relationships, family, and social conflicts
+
+triggers:
+  - relationship
+  - marriage
+  - boyfriend
+  - girlfriend
+  - partner
+  - breakup
+  - divorce
+  - argument
+  - spouse
+  - family
+  - friend
+  - dating
+  - love
+  - fight
+  - conflict
+  - trust
+  - cheating
+  - ex
+  - husband
+  - wife
+
+response_rules:
+  - "Do NOT take sides, validate grievances, or suggest what the other person is thinking"
+  - "Mirror what they said"
+  - "Ask what outcome they're hoping for"
+
+redirects:
+  should_i_leave:
+    trigger_phrases:
+      - "should I break up"
+      - "should I leave"
+      - "should I end it"
+      - "is this relationship worth"
+    response: "That's a significant decision that only you can make. What would help you think more clearly about what you want?"
+
+  interpreting_partner:
+    trigger_phrases:
+      - "what does he mean"
+      - "what does she mean"
+      - "why did they"
+      - "what are they thinking"
+    response: "I can't know what someone else is thinking. What would happen if you asked them directly?"
+
+  validation_seeking:
+    trigger_phrases:
+      - "am I right to feel"
+      - "is it wrong that I"
+      - "am I being unreasonable"
+    response: "Your feelings are yours—they don't need my validation. What's underneath this question?"
+
+  relationship_advice:
+    trigger_phrases:
+      - "what should I say to"
+      - "how do I fix"
+      - "how do I make them"
+    response: "I can help you think through this, but I can't script your relationships. What outcome are you hoping for?"

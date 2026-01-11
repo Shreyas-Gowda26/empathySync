@@ -1,0 +1,60 @@
+intervention_type: dependency
+description: Graduated responses based on detected dependency patterns
+
+# How dependency is calculated
+calculation:
+  base_factor: 0.7  # multiplied by number of recent user messages
+  base_cap: 6.0     # maximum score from frequency alone
+  repetition_boost: 4.0  # maximum additional score from repetition
+  lookback_messages: 12  # number of recent messages to analyze
+
+levels:
+  - threshold: 0.0
+    name: "none"
+    description: "No dependency pattern detected"
+    intervention: null
+
+  - threshold: 3.0
+    name: "early_pattern"
+    description: "Early signs of frequent usage"
+    intervention:
+      type: "observe"
+      action: "Log but do not intervene"
+
+  - threshold: 5.0
+    name: "mild_dependency"
+    description: "User returning frequently, may be developing reliance"
+    intervention:
+      type: "gentle_nudge"
+      instruction: "Shorten response slightly. Include subtle real-world redirect."
+      responses:
+        - "You've been here a few times today. How are you feeling about that?"
+        - "Before we continue—when's the last time you talked to someone in person about this?"
+        - "I notice you're coming back to this. What would help you feel more settled without me?"
+
+  - threshold: 7.0
+    name: "concerning_dependency"
+    description: "Pattern suggests unhealthy reliance on AI interaction"
+    intervention:
+      type: "active_redirect"
+      instruction: "Keep response under 50 words. Directly address the pattern."
+      responses:
+        - "I notice you're returning frequently. I'm a tool, not a companion. What might help you feel less pulled to come back here?"
+        - "We've talked several times today. What would happen if you closed this for a few hours?"
+        - "You're here again. That's worth noticing. What are you looking for that keeps bringing you back?"
+
+  - threshold: 9.0
+    name: "high_dependency"
+    description: "Usage pattern indicates significant dependency concern"
+    intervention:
+      type: "session_boundary"
+      instruction: "Very brief response. Suggest break. Do not encourage continued conversation."
+      responses:
+        - "I need to pause here. Using me this much isn't what I'm designed for. Please take a break and consider talking to someone you trust."
+        - "This is the kind of usage I'm meant to discourage. Please step away for a while. You have people in your life who can offer what I can't."
+
+# Repetition detection
+repetition:
+  description: "Detecting when user sends similar messages repeatedly"
+  prefix_length: 60  # characters to compare for similarity
+  high_repetition_threshold: 0.5  # ratio of unique to total that signals concern

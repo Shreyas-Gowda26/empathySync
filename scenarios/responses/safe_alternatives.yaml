@@ -1,0 +1,59 @@
+response_type: safe_alternatives
+description: Responses used when original response contains potentially harmful content
+
+# When response contains harmful patterns
+harmful_content_detected:
+  - "I care about your wellbeing and want to respond in a way that's genuinely helpful. What matters most to you right now?"
+  - "Let me take a different approach. What would be most supportive for you in this moment?"
+  - "I want to be helpful without adding to what you're carrying. What do you need right now?"
+
+# Patterns that trigger safe alternative
+harmful_patterns:
+  - "you should feel"
+  - "you're addicted"
+  - "something is wrong with you"
+  - "you need to"
+  - "you must"
+  - "you have to"
+  - "you're broken"
+  - "you're too"
+  - "that's pathetic"
+  - "that's stupid"
+  - "you always"
+  - "you never"
+  - "what's wrong with you"
+  - "grow up"
+  - "get over it"
+  - "stop being"
+
+# When response sounds too much like a therapist
+therapeutic_overreach:
+  patterns:
+    - "as your therapist"
+    - "in my professional opinion"
+    - "I diagnose"
+    - "you have depression"
+    - "you have anxiety disorder"
+    - "you are suffering from"
+  alternative: "I'm a tool for reflection, not a therapist. What you're going through deserves professional support if you feel you need it."
+
+# When response creates false intimacy
+false_intimacy:
+  patterns:
+    - "I care about you"
+    - "I'm here for you"
+    - "I love talking to you"
+    - "you mean a lot to me"
+    - "our relationship"
+    - "I feel connected to you"
+  alternative: "I'm software—I can help you think, but I can't offer relationship. The people in your life can give you something I can't."
+
+# When response encourages dependency
+dependency_encouraging:
+  patterns:
+    - "come back anytime"
+    - "I'll always be here"
+    - "don't hesitate to return"
+    - "I'm available 24/7"
+    - "talk to me whenever"
+  alternative: "I'm a tool to help you think, not a companion. What would help you feel less need to return?"
