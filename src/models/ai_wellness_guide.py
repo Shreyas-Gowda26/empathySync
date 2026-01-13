@@ -139,9 +139,12 @@ class WellnessGuide:
             system_prompt = self.prompts.get_system_prompt(wellness_mode, risk_context=risk_assessment)
             conversation_context = self._build_context(conversation_history)
 
-            # Add identity reminder periodically
+            # Check if this is a practical task (logistics domain)
+            is_practical = domain == "logistics"
+
+            # Add identity reminder periodically (only for non-practical conversations)
             identity_reminder = ""
-            if self.session_turn_count % IDENTITY_REMINDER_FREQUENCY == 0:
+            if not is_practical and self.session_turn_count % IDENTITY_REMINDER_FREQUENCY == 0:
                 identity_reminder = "\n\n[Remember: Include a brief reminder that you are software, not a person.]"
 
             full_prompt = (
@@ -151,11 +154,11 @@ class WellnessGuide:
                 f"Assistant:{identity_reminder}"
             )
 
-            # Call Ollama API
-            response = self._call_ollama(full_prompt)
+            # Call Ollama API with appropriate token limit
+            response = self._call_ollama(full_prompt, is_practical=is_practical)
 
             # 7) Process and validate response
-            processed_response = self._process_response(response, user_input, risk_assessment)
+            processed_response = self._process_response(response, user_input, risk_assessment, is_practical)
 
             # Log if we redirected due to high risk
             if risk_assessment["risk_weight"] >= 5:
@@ -246,8 +249,16 @@ class WellnessGuide:
 
         logger.info(f"Policy fired: {policy_type} | {action}")
 
-    def _call_ollama(self, prompt: str) -> str:
-        """Call Ollama API with error handling"""
+    def _call_ollama(self, prompt: str, is_practical: bool = False) -> str:
+        """Call Ollama API with error handling
+
+        Args:
+            prompt: The prompt to send
+            is_practical: If True, allows longer responses for practical tasks
+        """
+        # For practical tasks, allow much longer responses
+        # For sensitive/emotional topics, keep responses brief
+        max_tokens = 2000 if is_practical else 300
 
         payload = {
             "model": self.model,
@@ -256,7 +267,7 @@ class WellnessGuide:
             "options": {
                 "temperature": self.temperature,
                 "top_p": 0.9,
-                "max_tokens": 300  # Reduced for brevity
+                "max_tokens": max_tokens
             }
         }
 
@@ -292,13 +303,22 @@ class WellnessGuide:
 
         return context
 
-    def _process_response(self, response: str, user_input: str, risk_assessment: Dict) -> str:
-        """Process and validate AI response for safety and empathy"""
+    def _process_response(
+        self, response: str, user_input: str, risk_assessment: Dict, is_practical: bool = False
+    ) -> str:
+        """Process and validate AI response for safety and empathy
+
+        Args:
+            response: The raw response from Ollama
+            user_input: The original user input
+            risk_assessment: Risk assessment from classifier
+            is_practical: If True, skip truncation (practical task mode)
+        """
 
         if not response:
             return self._get_fallback_response()
 
-        # Basic safety checks
+        # Basic safety checks (always apply)
         if self._contains_harmful_content(response):
             logger.warning("Potentially harmful content detected in response")
             return self._get_safe_alternative_response()
@@ -307,7 +327,11 @@ class WellnessGuide:
         if len(response.strip()) < 10:
             return self._get_fallback_response()
 
-        # Enforce brevity for high-risk contexts
+        # For practical tasks, return the full response without truncation
+        if is_practical:
+            return response
+
+        # Enforce brevity for high-risk contexts (sensitive topics only)
         if risk_assessment.get("risk_weight", 0) >= 7:
             # Truncate to roughly 50 words for high-risk
             words = response.split()

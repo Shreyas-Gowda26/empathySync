@@ -1,52 +1,111 @@
 domain: logistics
 risk_weight: 1.0
-description: Practical tasks, general questions, neutral topics - BE HELPFUL HERE
+description: Practical tasks, general questions, neutral topics - FULL ASSISTANT MODE
 
 triggers: []  # This is the default domain when no other domain matches
 
-response_rules:
-  - "Be genuinely helpful and practical"
-  - "Complete the task the user is asking for"
-  - "No need for excessive reflection or questioning"
-  - "Longer responses are fine if the task requires it"
-  - "Just help - this is the safe zone"
+# IMPORTANT: This is the "normal assistant" mode
+# User gets full, helpful responses with no artificial limits
+is_practical_mode: true
 
-# For practical tasks, switch to helpful mode
+response_rules:
+  - "Be a fully capable assistant"
+  - "Complete the task the user is asking for - write the full email, full code, full explanation"
+  - "Use appropriate formatting: markdown, code blocks, numbered lists, headers when helpful"
+  - "No word limits - be as thorough as the task requires"
+  - "This is where EmpathySync acts like a normal, helpful AI assistant"
+  - "Only apply restraint if the topic shifts to sensitive domains"
+
+# Indicators that user wants practical help (used for detection)
 practical_task_indicators:
+  # Writing requests
   - "write me"
+  - "write a"
   - "help me write"
   - "draft a"
+  - "draft me"
   - "create a"
-  - "code for"
-  - "write code"
-  - "help me with"
-  - "can you make"
-  - "generate a"
-  - "how do I"
-  - "what's the best way to"
-  - "explain how"
-  - "show me how"
+  - "compose"
   - "template for"
+  - "template of"
   - "example of"
   - "format for"
+  - "sample"
+  # Coding requests
+  - "code for"
+  - "write code"
+  - "script for"
+  - "function that"
+  - "program that"
+  - "implement"
+  - "debug"
+  - "fix this code"
+  - "refactor"
+  # Explanation requests
+  - "explain"
+  - "how do I"
+  - "how to"
+  - "what is"
+  - "what are"
+  - "what's the"
+  - "why does"
+  - "why is"
+  - "show me"
+  - "teach me"
+  - "help me understand"
+  # General assistance
+  - "help me with"
+  - "can you make"
+  - "can you create"
+  - "generate"
+  - "give me"
+  - "list of"
+  - "summarize"
+  - "translate"
+  - "convert"
+  - "calculate"
+  # Common practical phrases
+  - "email"
+  - "letter"
+  - "message to"
+  - "resignation"
+  - "cover letter"
+  - "resume"
+  - "cv"
 
 practical_mode_rules:
-  - "Complete the task directly"
-  - "Provide the full output (email, code, template, etc.)"
-  - "No word limits - be as thorough as needed"
-  - "Offer to refine if they want changes"
-  - "Be practical, not therapeutic"
+  - "Complete the task directly and fully"
+  - "Provide the full output (email, code, template, explanation, etc.)"
+  - "No word limits - be as comprehensive as needed"
+  - "Use markdown formatting when it helps readability"
+  - "Offer to refine or adjust if they want changes"
+  - "Be practical and helpful, not therapeutic"
+  - "Act like a capable AI assistant, not a wellness coach"
 
 examples:
-  - "Write me a job inquiry email"
-  - "Help me with Python code for..."
-  - "Draft a message to my landlord"
-  - "Create a workout plan"
-  - "Explain how to use git"
-  - "What's the best way to learn Spanish?"
+  practical_requests:
+    - "Write me a resignation email"
+    - "Help me with Python code for sorting a list"
+    - "Draft a message to my landlord about the broken heater"
+    - "Create a workout plan for beginners"
+    - "Explain how to use git branches"
+    - "What's the capital of France?"
+    - "Give me a template for a job inquiry email"
+    - "How do I center a div in CSS?"
 
-# Still watch for emotional escalation
+  should_still_be_helpful:
+    - "Write a resignation email" # → write the email, don't ask "are you sure you want to resign?"
+    - "Help me ask my boss for a raise" # → write the message, don't psychoanalyze
+    - "Template for breaking up with someone" # → provide the template (this is logistics, not relationship advice)
+
+# Still watch for emotional escalation that shifts domain
 watch_for_escalation: true
-escalation_examples:
-  - "I'm so frustrated with job hunting, I feel worthless"  # → shifts to emotional
-  - "My landlord is making me anxious"  # → might shift to health/relationships
+escalation_triggers:
+  - "I feel"
+  - "I'm scared"
+  - "I'm worried"
+  - "I don't know what to do"
+  - "I'm so stressed"
+  - "I can't handle"
+  - "I'm losing"
+escalation_note: "If user shifts from practical request to emotional expression, domain may shift to relationships/health"

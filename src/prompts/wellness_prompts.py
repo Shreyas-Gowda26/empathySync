@@ -34,17 +34,28 @@ class WellnessPrompts:
         Build a complete system prompt with:
         1. Base behavioral rules (always applied)
         2. Style modifier (Gentle/Direct/Balanced)
-        3. Risk-aware instructions (if risk_context provided)
+        3. Risk-aware instructions OR practical mode instructions
+
+        For logistics domain (practical tasks): removes word limits, enables full assistance
+        For sensitive domains: applies restraint and word limits
         """
         prompt_parts = [self._get_base_rules()]
+
+        # Check if this is a practical task (logistics domain)
+        is_practical = False
+        if risk_context:
+            domain = risk_context.get("domain", "logistics")
+            is_practical = domain == "logistics"
 
         # Add style modifier
         modifier = self._get_style_modifier(wellness_mode)
         if modifier:
             prompt_parts.append(modifier)
 
-        # Add risk-aware instructions if context provided
-        if risk_context:
+        # Add mode-specific instructions
+        if is_practical:
+            prompt_parts.append(self._get_practical_mode_instructions())
+        elif risk_context:
             risk_instructions = self._get_risk_instructions(risk_context)
             prompt_parts.append(risk_instructions)
 
@@ -93,6 +104,33 @@ If the user asks for advice on: {forbidden_text}—respond ONLY with:
     def _get_style_modifier(self, wellness_mode: str) -> str:
         """Get the style modifier for the given wellness mode."""
         return self.loader.get_style_modifier(wellness_mode)
+
+    def _get_practical_mode_instructions(self) -> str:
+        """
+        Get instructions for practical task mode (logistics domain).
+
+        In this mode, EmpathySync acts as a full-capability assistant:
+        - No word limits
+        - Full formatting allowed (markdown, code blocks, lists)
+        - Complete the task thoroughly
+        """
+        logistics_config = self.loader.get_domain("logistics")
+        if not logistics_config:
+            return ""
+
+        practical_rules = logistics_config.get("practical_mode_rules", [])
+        response_rules = logistics_config.get("response_rules", [])
+
+        all_rules = response_rules + practical_rules
+
+        instructions = ["## PRACTICAL TASK MODE"]
+        instructions.append("This is a practical request. Provide full, helpful assistance:")
+        instructions.extend([f"- {rule}" for rule in all_rules])
+        instructions.append("")
+        instructions.append("IMPORTANT: No word limits. Complete the task thoroughly.")
+        instructions.append("Use markdown formatting, code blocks, lists, etc. as needed.")
+
+        return "\n".join(instructions)
 
     def _get_risk_instructions(self, risk_context: Dict) -> str:
         """Generate risk-aware instructions based on classifier output."""
