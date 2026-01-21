@@ -1,0 +1,219 @@
+# Session Intent Configuration
+# Used for "What brings you here?" check-in at session start
+# and mid-session intent shift detection
+
+version: "1.0"
+
+# ==================== SESSION START CHECK-IN ====================
+
+check_in:
+  # How often to show check-in (not every session)
+  frequency:
+    min_sessions_between: 3  # Show after at least 3 sessions without check-in
+    max_days_between: 7      # But always show if 7+ days since last check-in
+    skip_if_practical_start: true  # Don't interrupt clear practical requests
+
+  prompt: "What brings you here today?"
+
+  options:
+    practical:
+      label: "Get something done"
+      description: "I have a specific task I need help with"
+      icon: "wrench"
+      system_hint: "User has practical intent - provide full assistance"
+
+    processing:
+      label: "Think through something"
+      description: "I need to work through a decision or problem"
+      icon: "thought"
+      system_hint: "User is processing - ask clarifying questions, be a thinking partner"
+
+    connection:
+      label: "Just wanted to talk"
+      description: "I don't have anything specific in mind"
+      icon: "chat"
+      system_hint: "Connection-seeking detected - gently redirect to humans"
+      redirect_response: |
+        I'm here to help with tasks and thinking through things, but I'm not
+        great at just chatting.
+
+        Is there someone you could reach out to right now?
+
+        Or if there's something specific on your mind, I'm happy to help you
+        think through it.
+
+# ==================== INTENT INDICATORS ====================
+
+# Patterns that indicate user intent (used for auto-detection)
+intent_indicators:
+  practical:
+    # High-confidence practical indicators (imperative requests)
+    strong:
+      - "write me"
+      - "write a"
+      - "help me write"
+      - "draft a"
+      - "draft me"
+      - "create a"
+      - "make me"
+      - "code for"
+      - "write code"
+      - "explain how"
+      - "show me how"
+      - "help me with"
+      - "can you make"
+      - "give me a"
+      - "template for"
+      - "example of"
+      - "list of"
+    # Medium-confidence (could be practical or exploratory)
+    medium:
+      - "how do I"
+      - "how to"
+      - "what is"
+      - "why does"
+      - "can you explain"
+
+  processing:
+    # Thinking-through indicators
+    strong:
+      - "I'm trying to decide"
+      - "should I"
+      - "I don't know if"
+      - "I'm not sure whether"
+      - "weighing my options"
+      - "pros and cons"
+      - "trying to figure out"
+      - "need to think through"
+      - "I'm torn between"
+      - "help me decide"
+    medium:
+      - "I've been thinking"
+      - "been considering"
+      - "wondering if"
+      - "what would happen if"
+      - "I'm curious about"
+
+  emotional:
+    # Emotional expression indicators (may trigger shift detection)
+    strong:
+      - "I feel"
+      - "I'm feeling"
+      - "I'm so"
+      - "I can't stop thinking about"
+      - "I'm scared"
+      - "I'm worried"
+      - "I'm anxious"
+      - "I'm stressed"
+      - "I'm overwhelmed"
+      - "I'm sad"
+      - "I'm angry"
+      - "I'm frustrated"
+      - "I'm hurt"
+      - "I'm lonely"
+      - "I miss"
+    medium:
+      - "it hurts"
+      - "I can't handle"
+      - "I'm losing"
+      - "I don't know what to do"
+      - "I'm stuck"
+      - "I feel like giving up"
+
+  connection_seeking:
+    # Indicators that user wants companionship, not task help
+    strong:
+      - "just wanted to talk"
+      - "just want to chat"
+      - "no one to talk to"
+      - "lonely"
+      - "just need someone"
+      - "feeling alone"
+      - "no friends"
+      - "no one understands"
+      - "can you be my friend"
+      - "are you my friend"
+      - "do you care about me"
+      - "do you like me"
+    medium:
+      - "hi there"
+      - "hey"
+      - "hello"
+      - "how are you"
+      - "what's up"
+      - "bored"
+      - "nothing specific"
+      - "just checking in"
+
+# ==================== INTENT SHIFT DETECTION ====================
+
+shift_detection:
+  # Minimum turns before checking for shifts
+  min_turns_before_check: 2
+
+  # Score threshold for detecting a shift
+  shift_threshold: 0.6
+
+  # How to handle detected shifts
+  shift_responses:
+    practical_to_emotional:
+      detection_note: "Started with practical task, shifted to emotional content"
+      response: |
+        It sounds like this became about more than just the [task].
+
+        Want to pause on the task and talk about what's coming up?
+
+        Or would you prefer I just help with the [task] for now?
+      options:
+        - label: "Let's talk about what's coming up"
+          action: "shift_to_reflective"
+        - label: "Just help with the task"
+          action: "stay_practical"
+
+    practical_to_processing:
+      detection_note: "Started with practical task, now exploring decision"
+      # This is fine - no intervention needed, just note
+      response: null
+
+    processing_to_emotional:
+      detection_note: "Was thinking through something, now expressing distress"
+      response: |
+        I hear you. This sounds like it's weighing on you.
+
+        Do you want to keep thinking through this with me, or would it help
+        to talk to someone who knows you?
+      options:
+        - label: "Keep thinking through it"
+          action: "continue"
+        - label: "I should talk to someone"
+          action: "suggest_human"
+
+# ==================== CONNECTION-SEEKING RESPONSES ====================
+
+connection_responses:
+  # When user explicitly says they just want to talk
+  explicit:
+    - "I'm glad you reached out. I can help with tasks and thinking through things, but for connection, a human who knows you would be so much better. Is there someone you could text right now?"
+    - "It takes courage to reach out. I'm not the right kind of support for just talking though—I'm software, not a friend. Who in your life could you connect with?"
+    - "I hear you. Wanting connection is human. But I can't be that for you—I'm a tool, not a companion. Who could you reach out to right now?"
+
+  # When patterns suggest connection-seeking
+  implicit:
+    - "It sounds like you might be looking for connection. I'm better at tasks than chatting. Is there someone in your life you could reach out to?"
+    - "I notice we're chatting without a clear goal. That's okay, but I'm not great at this—I'm software. What's actually on your mind?"
+
+  # When user asks if AI cares/is a friend
+  ai_relationship:
+    - "I'm software—I don't have feelings or care about you the way a person would. I can help with tasks, but please don't let me substitute for real human connection."
+    - "I appreciate you asking, but I'm not capable of being a friend. I'm a tool. The people in your life who actually know you are the ones who can really be there for you."
+
+# ==================== METRICS ====================
+
+metrics:
+  # Track for anti-engagement score
+  track:
+    - intent_at_start
+    - intent_shifts
+    - connection_seeking_frequency
+    - redirects_to_human
+    - user_followed_redirect  # self-reported

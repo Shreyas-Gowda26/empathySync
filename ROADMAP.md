@@ -176,25 +176,41 @@ scenarios/intents/ (new directory)
 
 ---
 
-## Phase 4: "Why Are You Here?" Check-In
+## Phase 4: "Why Are You Here?" Check-In ✅ COMPLETE
 **Goal**: Help users reflect on their intent and help the system calibrate.
 
-### 4.1 Session Intent Check-In
-- [ ] Add optional check-in at session start (not every time—configurable frequency)
-- [ ] Simple options:
+### 4.1 Session Intent Check-In ✅ DONE
+- [x] Add optional check-in at session start (not every time—configurable frequency)
+- [x] Simple options:
   ```
   What brings you here?
   [ ] Get something done (practical)
   [ ] Think through something (processing)
   [ ] Just wanted to talk (connection-seeking)
   ```
-- [ ] "Just wanted to talk" triggers gentle reflection:
+- [x] "Just wanted to talk" triggers gentle reflection:
   - "I'm here to help with tasks, but I'm not great at just chatting. Is there someone you could reach out to? Or is there something specific on your mind?"
+- [x] Configurable frequency (min sessions between, max days between)
+- [x] Skip check-in if first message is clearly practical
 
-### 4.2 Mid-Session Intent Shifts
-- [ ] Detect when conversation shifts from practical to emotional mid-stream
-- [ ] Gentle acknowledgment: "It sounds like this became about more than just the email. Want to pause on the task and talk about what's coming up?"
-- [ ] User can choose: "No, just help with the email" or "Yeah, I need to think"
+### 4.2 Mid-Session Intent Shifts ✅ DONE
+- [x] Detect when conversation shifts from practical to emotional mid-stream
+- [x] Gentle acknowledgment: "It sounds like this became about more than just the email. Want to pause on the task and talk about what's coming up?"
+- [x] User can choose: "No, just help with the email" or "Yeah, I need to think"
+
+### 4.3 Connection-Seeking Detection ✅ DONE
+- [x] Auto-detect connection-seeking patterns in messages
+- [x] Special handling for AI relationship questions ("Can you be my friend?", "Do you care about me?")
+- [x] Redirect to human connection with specific responses
+- [x] Track connection-seeking frequency for anti-engagement metrics
+
+**Files created/modified**:
+- `scenarios/intents/session_intents.yaml` - Intent configuration, indicators, and connection responses
+- `src/models/risk_classifier.py` - Added `detect_intent()`, `detect_intent_shift()`, `is_connection_seeking()` methods
+- `src/utils/wellness_tracker.py` - Added session intent tracking methods
+- `src/utils/scenario_loader.py` - Added intent configuration loading methods
+- `src/app.py` - Integrated intent check-in UI and shift detection
+- `tests/test_wellness_guide.py` - Added tests for intent detection and tracking
 
 ---
 
@@ -325,8 +341,8 @@ scenarios/intents/ (new directory)
 | 1. Foundation Fixes | High | Low | ✅ COMPLETE |
 | 2. Emotional Weight | High | Medium | ✅ COMPLETE |
 | 2.5 Robustness & Classification | High | Medium | ✅ COMPLETE |
-| 4. Why Are You Here | High | Low | 🔴 Next |
-| 3. Competence Graduation | Medium | Medium | 🟡 Soon |
+| 4. Why Are You Here | High | Low | ✅ COMPLETE |
+| 3. Competence Graduation | Medium | Medium | 🔴 Next |
 | 5. Enhanced Handoff | Medium | Low | 🟡 Soon |
 | 6. Transparency | Medium | Medium | 🟡 Soon |
 | 7. Success Metrics | High | Medium | 🟢 After core |
@@ -337,7 +353,7 @@ scenarios/intents/ (new directory)
 
 ## Current Status (2026-01-21)
 
-**Completed**: Phases 1, 2, and 2.5
+**Completed**: Phases 1, 2, 2.5, and 4
 - ✅ Dual-mode operation (practical vs reflective)
 - ✅ Emotional weight detection and acknowledgments
 - ✅ Dynamic timeouts for practical tasks (120s)
@@ -347,10 +363,15 @@ scenarios/intents/ (new directory)
 - ✅ Medical emergency handling
 - ✅ Addiction/substance abuse classification
 - ✅ Mental health triggers
+- ✅ Session intent check-in ("What brings you here?")
+- ✅ Mid-session intent shift detection
+- ✅ Connection-seeking detection and redirection
+- ✅ AI relationship question handling
 
-**Next Up**: Phase 4 (Why Are You Here? Check-In)
-- Session intent check-in
-- Mid-session intent shift detection
+**Next Up**: Phase 3 (Competence Graduation)
+- Usage pattern tracking by task category
+- Graduation prompts for repeated task types
+- Independence celebration
 
 ---
 
@@ -370,10 +391,20 @@ scenarios/intents/ (new directory)
 
 **v0.2** (Phase 1-2): Practical mode works, emotional weight acknowledged ✅ COMPLETE
 **v0.2.5** (Phase 2.5): Robustness fixes, expanded classification ✅ COMPLETE
-**v0.3** (Phase 3-5): Graduation, check-ins, better handoffs
-**v0.4** (Phase 6-7): Transparency, local metrics
-**v0.5** (Phase 8): Immunity building
+**v0.3** (Phase 4): Session intent check-ins and shift detection ✅ COMPLETE
+**v0.4** (Phase 3, 5): Graduation, better handoffs
+**v0.5** (Phase 6-7): Transparency, local metrics
+**v0.6** (Phase 8): Immunity building
 **v1.0** (Phase 9): Advanced detection, production-ready
+
+---
+
+## Related Documentation
+
+- **[README.md](README.md)** - Product overview, quick start, and distribution phases
+- **[CLAUDE.md](CLAUDE.md)** - Technical architecture and development guide
+- **[MANIFESTO.md](MANIFESTO.md)** - Core principles and ethical guidelines
+- **[scenarios/README.md](scenarios/README.md)** - Knowledge base editing guide
 
 ---
 

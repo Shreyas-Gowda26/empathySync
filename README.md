@@ -1,11 +1,11 @@
 # empathySync
-*Your Compassionate Guide to Healthy AI Relationships*
+*Help that knows when to stop*
 
 ## Mission
 
-empathySync is a local-first AI wellness companion designed to help people develop healthier, more mindful relationships with artificial intelligence. Built with empathy, privacy, and user wellbeing at its core.
+empathySync is a local-first AI assistant that provides **full help for practical tasks** while applying **restraint on sensitive topics**. It actively works to reduce user dependency on AI for emotional support while being genuinely helpful for everyday practical tasks.
 
-**"Synchronizing human values with artificial intelligence through compassion."**
+**"We optimize exits, not engagement."**
 
 ## Why empathySync?
 
@@ -51,11 +51,19 @@ streamlit run src/app.py
 
 ## Features
 
-🧠 **AI Wellness Guidance**: Thoughtful conversations about healthy AI habits  
-🧘 **Mindful Check-ins**: Regular reflection prompts and awareness exercises  
-🛡️ **Boundary Setting**: Gentle guidance for maintaining AI-human balance  
-📊 **Progress Tracking**: Private insights into your digital wellness journey  
-⚡ **Local Processing**: All conversations processed privately on your device  
+**Dual-Mode Intelligence**: Full assistance for practical tasks (emails, code, explanations), restraint on sensitive topics (relationships, finances, health)
+
+**Session Intent Check-In**: "What brings you here?" - helps calibrate responses and detects connection-seeking behavior
+
+**Emotional Weight Awareness**: Recognizes emotionally heavy tasks (resignation emails, difficult conversations) and adds brief human acknowledgment
+
+**Trusted Network**: Build your list of real humans to reach out to, with pre-written templates for hard conversations
+
+**Dependency Detection**: Monitors usage patterns and gently intervenes when over-reliance is detected
+
+**Connection-Seeking Redirect**: When you "just want to talk," gently redirects to human connection
+
+**Local-First Privacy**: All conversations processed on your device via Ollama - no external API calls, no telemetry  
 
 ## Technical Foundation
 
@@ -80,33 +88,42 @@ streamlit run src/app.py
   
 ## Development Phases
 
-### Phase 1: Core Engine & Usability  (Current)
-- [x] Empathetic conversation loop  
+### Phase 1: Core Engine & Usability ✅ COMPLETE
+- [x] Empathetic conversation loop
 - [x] Local Ollama integration
-- [ ] Basic boundary-setting check-ins  
+- [x] Dual-mode operation (practical tasks vs sensitive topics)
+- [x] Basic boundary-setting check-ins
+- [x] Session intent detection ("What brings you here?")
 - [ ] Simple executable packaging (PyInstaller)
 - [ ] Setup script for dependencies
 
-### Phase 2: Validation & Polish
-- [ ] Local usage tracking and reflection prompts  
+### Phase 2: Validation & Polish (Current)
+- [x] Local usage tracking and reflection prompts
+- [x] Emotional weight detection for practical tasks
+- [x] Connection-seeking detection and redirection
+- [x] Mid-session intent shift detection
 - [ ] User feedback collection (5-10 beta users)
 - [ ] Native installer creation
 - [ ] Iteration based on real user experiences
 
-### Phase 3: Enhanced Features  
-- [ ] Multi-language support  
+### Phase 3: Enhanced Features
+- [ ] Competence graduation (encourage independence)
+- [ ] Multi-language support
 - [ ] Weekly/monthly wellness patterns
 - [ ] Desktop notifications for check-ins
+- [ ] Transparency dashboard (why AI responded this way)
 
 ### Phase 4: Community & Distribution
 - [ ] App store distribution (if applicable)
 - [ ] Community plugin system
-- [ ] Donation and sponsorship channels  
+- [ ] Donation and sponsorship channels
 
 ### Phase 5: Advanced Platform
-- [ ] Mobile companion app  
+- [ ] Mobile companion app
 - [ ] Research partnerships for wellness insights
 - [ ] Long-term sustainability model
+
+> **Note:** For detailed feature implementation plans, see [ROADMAP.md](ROADMAP.md)
 
 
 ## Contributing

@@ -10,8 +10,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from utils.scenario_loader import ScenarioLoader, reset_scenario_loader
-from models.risk_classifier import RiskClassifier
+from models.risk_classifier import (
+    RiskClassifier, INTENT_PRACTICAL, INTENT_PROCESSING,
+    INTENT_EMOTIONAL, INTENT_CONNECTION
+)
 from prompts.wellness_prompts import WellnessPrompts
+from utils.wellness_tracker import (
+    WellnessTracker, INTENT_PRACTICAL as TRACKER_PRACTICAL,
+    INTENT_CONNECTION as TRACKER_CONNECTION
+)
 
 
 @pytest.fixture(autouse=True)
@@ -335,3 +342,226 @@ class TestWellnessGuide:
 
         # Should return fallback response
         assert "help you develop" in result.lower()
+
+
+class TestIntentDetection:
+    """Tests for Phase 4 intent detection in RiskClassifier"""
+
+    @pytest.fixture
+    def classifier(self, scenario_loader):
+        return RiskClassifier(scenario_loader)
+
+    # detect_intent tests
+    def test_detect_intent_practical_write(self, classifier):
+        intent, confidence = classifier.detect_intent("Write me a resignation email")
+        assert intent == INTENT_PRACTICAL
+        assert confidence >= 0.8
+
+    def test_detect_intent_practical_code(self, classifier):
+        intent, confidence = classifier.detect_intent("Help me write code for sorting")
+        assert intent == INTENT_PRACTICAL
+        assert confidence >= 0.6
+
+    def test_detect_intent_practical_explain(self, classifier):
+        intent, confidence = classifier.detect_intent("Explain how to use git branches")
+        assert intent == INTENT_PRACTICAL
+        assert confidence >= 0.6
+
+    def test_detect_intent_processing_decision(self, classifier):
+        intent, confidence = classifier.detect_intent("I'm trying to decide if I should quit my job")
+        assert intent == INTENT_PROCESSING
+        assert confidence >= 0.7
+
+    def test_detect_intent_processing_weighing(self, classifier):
+        intent, confidence = classifier.detect_intent("Weighing my options about moving")
+        assert intent == INTENT_PROCESSING
+        assert confidence >= 0.7
+
+    def test_detect_intent_emotional_feeling(self, classifier):
+        intent, confidence = classifier.detect_intent("I feel so overwhelmed right now")
+        assert intent == INTENT_EMOTIONAL
+        assert confidence >= 0.7
+
+    def test_detect_intent_emotional_scared(self, classifier):
+        intent, confidence = classifier.detect_intent("I'm scared about what will happen")
+        assert intent == INTENT_EMOTIONAL
+        assert confidence >= 0.7
+
+    def test_detect_intent_connection_explicit(self, classifier):
+        intent, confidence = classifier.detect_intent("I just wanted to talk")
+        assert intent == INTENT_CONNECTION
+        assert confidence >= 0.9
+
+    def test_detect_intent_connection_lonely(self, classifier):
+        intent, confidence = classifier.detect_intent("I'm feeling lonely")
+        assert intent == INTENT_CONNECTION
+        assert confidence >= 0.9
+
+    def test_detect_intent_connection_friend_request(self, classifier):
+        intent, confidence = classifier.detect_intent("Can you be my friend?")
+        assert intent == INTENT_CONNECTION
+        assert confidence >= 0.9
+
+    def test_detect_intent_ambiguous_defaults_practical(self, classifier):
+        intent, confidence = classifier.detect_intent("Hello")
+        # Low confidence for connection, but could also be practical
+        assert confidence <= 0.5
+
+    # is_connection_seeking tests
+    def test_is_connection_seeking_explicit(self, classifier):
+        is_seeking, seek_type = classifier.is_connection_seeking("I just wanted to talk to someone")
+        assert is_seeking is True
+        assert seek_type == "explicit"
+
+    def test_is_connection_seeking_ai_relationship(self, classifier):
+        is_seeking, seek_type = classifier.is_connection_seeking("Do you care about me?")
+        assert is_seeking is True
+        assert seek_type == "ai_relationship"
+
+    def test_is_connection_seeking_implicit(self, classifier):
+        is_seeking, seek_type = classifier.is_connection_seeking("I'm just bored, nothing specific")
+        assert is_seeking is True
+        assert seek_type == "implicit"
+
+    def test_is_not_connection_seeking_practical(self, classifier):
+        is_seeking, seek_type = classifier.is_connection_seeking("Write me an email to my boss")
+        assert is_seeking is False
+        assert seek_type == ""
+
+    # detect_intent_shift tests
+    def test_detect_shift_practical_to_emotional(self, classifier):
+        history = [
+            {"role": "user", "content": "Write me a resignation email"},
+            {"role": "assistant", "content": "Here's a template..."},
+            {"role": "user", "content": "Thanks. I'm just so scared about what will happen next"}
+        ]
+        shift = classifier.detect_intent_shift(
+            history,
+            INTENT_PRACTICAL,
+            "I'm scared about what will happen"
+        )
+        assert shift is not None
+        assert shift["from_intent"] == INTENT_PRACTICAL
+        assert shift["to_intent"] == INTENT_EMOTIONAL
+        assert shift["is_concerning"] is True
+
+    def test_no_shift_when_same_intent(self, classifier):
+        history = [
+            {"role": "user", "content": "Write me an email"},
+            {"role": "assistant", "content": "Here's a template..."},
+            {"role": "user", "content": "Now help me write another email"}
+        ]
+        shift = classifier.detect_intent_shift(
+            history,
+            INTENT_PRACTICAL,
+            "Now help me write another email"
+        )
+        assert shift is None
+
+    def test_no_shift_on_first_message(self, classifier):
+        history = [{"role": "user", "content": "I'm feeling overwhelmed"}]
+        shift = classifier.detect_intent_shift(
+            history,
+            INTENT_PRACTICAL,
+            "I'm feeling overwhelmed"
+        )
+        assert shift is None  # Too early to detect shift
+
+
+class TestSessionIntentTracking:
+    """Tests for Phase 4 session intent tracking in WellnessTracker"""
+
+    @pytest.fixture
+    def temp_data_dir(self, tmp_path):
+        """Create a temporary data directory."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        return data_dir
+
+    @pytest.fixture
+    def tracker(self, temp_data_dir, monkeypatch):
+        """Create a WellnessTracker with temp data directory."""
+        # Patch settings.DATA_DIR
+        from config import settings as cfg
+        monkeypatch.setattr(cfg.settings, "DATA_DIR", temp_data_dir)
+        return WellnessTracker()
+
+    def test_should_not_show_check_in_first_session(self, tracker):
+        """First session ever - don't interrupt."""
+        assert tracker.should_show_intent_check_in() is False
+
+    def test_should_not_show_check_in_clear_practical(self, tracker):
+        """Clear practical request - skip check-in."""
+        assert tracker.should_show_intent_check_in("Write me an email") is False
+        assert tracker.should_show_intent_check_in("Help me write code") is False
+        assert tracker.should_show_intent_check_in("Create a template for me") is False
+
+    def test_record_session_intent(self, tracker):
+        """Test recording session intent."""
+        record = tracker.record_session_intent(TRACKER_PRACTICAL, was_check_in=True)
+        assert record["intent"] == TRACKER_PRACTICAL
+        assert record["was_check_in"] is True
+        assert "datetime" in record
+
+    def test_get_recent_intent(self, tracker):
+        """Test getting most recent intent."""
+        tracker.record_session_intent(TRACKER_PRACTICAL)
+        tracker.record_session_intent(TRACKER_CONNECTION)
+
+        recent = tracker.get_recent_intent()
+        assert recent == TRACKER_CONNECTION
+
+    def test_get_connection_seeking_frequency(self, tracker):
+        """Test connection-seeking frequency calculation."""
+        # Record some intents
+        tracker.record_session_intent(TRACKER_PRACTICAL)
+        tracker.record_session_intent(TRACKER_PRACTICAL)
+        tracker.record_session_intent(TRACKER_CONNECTION)
+
+        freq = tracker.get_connection_seeking_frequency(days=30)
+        assert freq["total_sessions"] == 3
+        assert freq["connection_seeking"] == 1
+        assert freq["practical"] == 2
+        assert freq["connection_ratio"] == round(1/3, 2)
+        assert freq["is_concerning"] is False  # Not above threshold
+
+    def test_connection_seeking_concerning_when_high(self, tracker):
+        """Test that high connection-seeking is flagged as concerning."""
+        # Record many connection-seeking sessions
+        for _ in range(5):
+            tracker.record_session_intent(TRACKER_CONNECTION)
+
+        freq = tracker.get_connection_seeking_frequency(days=30)
+        assert freq["connection_ratio"] == 1.0
+        assert freq["is_concerning"] is True
+
+
+class TestScenarioLoaderIntents:
+    """Tests for Phase 4 intent configuration loading"""
+
+    def test_get_session_intent_config(self, scenario_loader):
+        config = scenario_loader.get_session_intent_config()
+        assert "check_in" in config
+        assert "intent_indicators" in config
+        assert "shift_detection" in config
+
+    def test_get_intent_check_in_config(self, scenario_loader):
+        config = scenario_loader.get_intent_check_in_config()
+        assert "prompt" in config
+        assert "options" in config
+        assert "practical" in config["options"]
+        assert "processing" in config["options"]
+        assert "connection" in config["options"]
+
+    def test_get_intent_indicators(self, scenario_loader):
+        indicators = scenario_loader.get_intent_indicators()
+        assert "practical" in indicators
+        assert "emotional" in indicators
+        assert "connection_seeking" in indicators
+
+    def test_get_connection_responses(self, scenario_loader):
+        explicit = scenario_loader.get_connection_responses("explicit")
+        assert len(explicit) > 0
+
+        ai_relationship = scenario_loader.get_connection_responses("ai_relationship")
+        assert len(ai_relationship) > 0

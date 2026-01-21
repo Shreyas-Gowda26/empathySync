@@ -337,6 +337,46 @@ class ScenarioLoader:
         ack_config = self.get_acknowledgment_config()
         return ack_config.get("category_matching", {})
 
+    # ==================== INTENTS ====================
+
+    def get_all_intents(self) -> Dict[str, Dict]:
+        """Load all intent configurations."""
+        return self._load_directory("intents")
+
+    def get_session_intent_config(self) -> Dict:
+        """Get session intent check-in configuration."""
+        intents = self.get_all_intents()
+        return intents.get("session_intents", {})
+
+    def get_intent_check_in_config(self) -> Dict:
+        """Get the check-in configuration for session start."""
+        config = self.get_session_intent_config()
+        return config.get("check_in", {})
+
+    def get_intent_indicators(self) -> Dict[str, Dict[str, List[str]]]:
+        """Get intent indicators for auto-detection."""
+        config = self.get_session_intent_config()
+        return config.get("intent_indicators", {})
+
+    def get_intent_shift_config(self) -> Dict:
+        """Get configuration for intent shift detection."""
+        config = self.get_session_intent_config()
+        return config.get("shift_detection", {})
+
+    def get_connection_responses(self, response_type: str = "explicit") -> List[str]:
+        """
+        Get connection-seeking response templates.
+
+        Args:
+            response_type: 'explicit', 'implicit', or 'ai_relationship'
+
+        Returns:
+            List of response strings
+        """
+        config = self.get_session_intent_config()
+        responses = config.get("connection_responses", {})
+        return responses.get(response_type, [])
+
     # ==================== UTILITY METHODS ====================
 
     def clear_cache(self) -> None:

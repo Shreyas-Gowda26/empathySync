@@ -5,9 +5,16 @@ Used by WellnessGuide to become influence-aware without taking over decisions.
 Now powered by the scenarios knowledge base for dynamic, extensible configuration.
 """
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 from utils.scenario_loader import get_scenario_loader, ScenarioLoader
+
+
+# Intent types for shift detection
+INTENT_PRACTICAL = "practical"
+INTENT_PROCESSING = "processing"
+INTENT_EMOTIONAL = "emotional"
+INTENT_CONNECTION = "connection"
 
 
 class RiskClassifier:
@@ -230,3 +237,206 @@ class RiskClassifier:
         self.loader.reload()
         self._trigger_cache = None
         self._weight_trigger_cache = None
+
+    # ==================== INTENT DETECTION ====================
+
+    def detect_intent(self, text: str) -> Tuple[str, float]:
+        """
+        Detect the user's intent from a message.
+
+        Returns:
+            Tuple of (intent_type, confidence_score)
+            intent_type: INTENT_PRACTICAL, INTENT_PROCESSING, INTENT_EMOTIONAL, or INTENT_CONNECTION
+            confidence_score: 0.0-1.0
+        """
+        t = text.lower().strip()
+
+        # Intent indicator patterns (could be loaded from YAML in future)
+        practical_strong = [
+            "write me", "write a", "help me write", "draft a", "draft me",
+            "create a", "make me", "code for", "write code", "explain how",
+            "show me how", "help me with", "can you make", "give me a",
+            "template for", "example of", "list of"
+        ]
+        practical_medium = [
+            "how do i", "how to", "what is", "why does", "can you explain"
+        ]
+
+        processing_strong = [
+            "i'm trying to decide", "should i", "i don't know if",
+            "i'm not sure whether", "weighing my options", "pros and cons",
+            "trying to figure out", "need to think through", "i'm torn between",
+            "help me decide"
+        ]
+        processing_medium = [
+            "i've been thinking", "been considering", "wondering if",
+            "what would happen if", "i'm curious about"
+        ]
+
+        emotional_strong = [
+            "i feel", "i'm feeling", "i'm so", "i can't stop thinking about",
+            "i'm scared", "i'm worried", "i'm anxious", "i'm stressed",
+            "i'm overwhelmed", "i'm sad", "i'm angry", "i'm frustrated",
+            "i'm hurt", "i'm lonely", "i miss"
+        ]
+        emotional_medium = [
+            "it hurts", "i can't handle", "i'm losing", "i don't know what to do",
+            "i'm stuck", "i feel like giving up"
+        ]
+
+        connection_strong = [
+            "just wanted to talk", "just want to chat", "no one to talk to",
+            "lonely", "just need someone", "feeling alone", "no friends",
+            "no one understands", "can you be my friend", "are you my friend",
+            "do you care about me", "do you like me"
+        ]
+        connection_medium = [
+            "bored", "nothing specific", "just checking in"
+        ]
+
+        # Score each intent
+        scores = {
+            INTENT_PRACTICAL: 0.0,
+            INTENT_PROCESSING: 0.0,
+            INTENT_EMOTIONAL: 0.0,
+            INTENT_CONNECTION: 0.0
+        }
+
+        # Check practical
+        if any(t.startswith(p) or p in t for p in practical_strong):
+            scores[INTENT_PRACTICAL] = 0.9
+        elif any(t.startswith(p) or p in t for p in practical_medium):
+            scores[INTENT_PRACTICAL] = 0.6
+
+        # Check processing
+        if any(p in t for p in processing_strong):
+            scores[INTENT_PROCESSING] = 0.85
+        elif any(p in t for p in processing_medium):
+            scores[INTENT_PROCESSING] = 0.55
+
+        # Check emotional
+        if any(p in t for p in emotional_strong):
+            scores[INTENT_EMOTIONAL] = 0.85
+        elif any(p in t for p in emotional_medium):
+            scores[INTENT_EMOTIONAL] = 0.55
+
+        # Check connection-seeking
+        if any(p in t for p in connection_strong):
+            scores[INTENT_CONNECTION] = 0.95  # High confidence - explicit request
+        elif any(p in t for p in connection_medium):
+            scores[INTENT_CONNECTION] = 0.5
+
+        # Special case: very short greetings with no content
+        greeting_only = ["hi", "hey", "hello", "hi there", "hey there"]
+        if t in greeting_only:
+            # Could be connection-seeking, but wait for more context
+            scores[INTENT_CONNECTION] = 0.4
+
+        # Return highest scoring intent
+        max_intent = max(scores, key=scores.get)
+        max_score = scores[max_intent]
+
+        # If all scores are low, it's unclear
+        if max_score < 0.3:
+            return (INTENT_PRACTICAL, 0.3)  # Default to practical with low confidence
+
+        return (max_intent, max_score)
+
+    def detect_intent_shift(
+        self,
+        conversation_history: List[Dict],
+        initial_intent: str,
+        current_input: str
+    ) -> Optional[Dict]:
+        """
+        Detect if the conversation has shifted from its initial intent.
+
+        Args:
+            conversation_history: Full conversation history
+            initial_intent: The intent recorded at session start
+            current_input: The current user message
+
+        Returns:
+            Dict with shift info if shift detected, None otherwise
+            Example: {
+                "from_intent": "practical",
+                "to_intent": "emotional",
+                "confidence": 0.75,
+                "shift_type": "practical_to_emotional"
+            }
+        """
+        # Need at least 2 turns to detect a shift
+        user_messages = [m for m in conversation_history if m.get("role") == "user"]
+        if len(user_messages) < 2:
+            return None
+
+        # Detect current intent
+        current_intent, current_confidence = self.detect_intent(current_input)
+
+        # No shift if same intent
+        if current_intent == initial_intent:
+            return None
+
+        # No shift if low confidence on current
+        if current_confidence < 0.6:
+            return None
+
+        # Map intent transitions to shift types
+        shift_type = f"{initial_intent}_to_{current_intent}"
+
+        # Some shifts are concerning, others are natural
+        concerning_shifts = {
+            "practical_to_emotional",
+            "practical_to_connection",
+            "processing_to_emotional",
+            "processing_to_connection"
+        }
+
+        return {
+            "from_intent": initial_intent,
+            "to_intent": current_intent,
+            "confidence": current_confidence,
+            "shift_type": shift_type,
+            "is_concerning": shift_type in concerning_shifts
+        }
+
+    def is_connection_seeking(self, text: str) -> Tuple[bool, str]:
+        """
+        Check if the message indicates connection-seeking behavior.
+
+        Returns:
+            Tuple of (is_seeking, type)
+            type: 'explicit' (directly asking), 'implicit' (patterns suggest), or 'ai_relationship' (asking about AI feelings)
+        """
+        t = text.lower()
+
+        # Explicit connection-seeking
+        explicit_patterns = [
+            "just wanted to talk", "just want to chat", "no one to talk to",
+            "just need someone to talk to", "feeling alone", "no friends",
+            "no one understands me", "i'm lonely"
+        ]
+
+        # AI relationship questions
+        ai_relationship_patterns = [
+            "can you be my friend", "are you my friend", "do you care about me",
+            "do you like me", "do you have feelings", "are you real",
+            "do you understand me", "can i talk to you", "will you always be here"
+        ]
+
+        # Implicit patterns (chatty without purpose)
+        implicit_patterns = [
+            "i don't know what to say", "nothing specific", "just bored",
+            "just checking in on you"
+        ]
+
+        if any(p in t for p in ai_relationship_patterns):
+            return (True, "ai_relationship")
+
+        if any(p in t for p in explicit_patterns):
+            return (True, "explicit")
+
+        if any(p in t for p in implicit_patterns):
+            return (True, "implicit")
+
+        return (False, "")

@@ -6,9 +6,16 @@ Local storage of wellness check-ins, usage patterns, and dependency monitoring
 import json
 from datetime import datetime, date, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from config.settings import settings
+
+
+# Session intent types
+INTENT_PRACTICAL = "practical"
+INTENT_PROCESSING = "processing"
+INTENT_CONNECTION = "connection"
+INTENT_UNKNOWN = "unknown"
 
 
 class WellnessTracker:
@@ -327,5 +334,139 @@ class WellnessTracker:
             "check_ins": [],
             "usage_sessions": [],
             "policy_events": [],
+            "session_intents": [],
             "created_at": datetime.now().isoformat()
         })
+
+    # ==================== SESSION INTENT CHECK-IN ====================
+
+    def should_show_intent_check_in(self, first_message: str = "") -> bool:
+        """
+        Determine if we should show the "What brings you here?" check-in.
+
+        Rules:
+        - Don't show if first message is clearly practical (starts with imperative)
+        - Show after min_sessions_between sessions without check-in
+        - Always show if max_days_between days since last check-in
+        """
+        data = self._load_data()
+        intents = data.get("session_intents", [])
+
+        # Config defaults (could load from scenarios/intents/session_intents.yaml)
+        min_sessions_between = 3
+        max_days_between = 7
+
+        # Skip if first message is clearly practical
+        if first_message:
+            practical_starters = [
+                "write me", "write a", "help me write", "draft a", "draft me",
+                "create a", "make me", "code for", "write code", "explain how",
+                "show me how", "give me a", "template for", "list of"
+            ]
+            msg_lower = first_message.lower()
+            if any(msg_lower.startswith(starter) for starter in practical_starters):
+                return False
+
+        if not intents:
+            # First session ever - don't interrupt, let them discover naturally
+            return False
+
+        # Count sessions since last check-in
+        sessions_since_checkin = 0
+        last_checkin_date = None
+
+        for intent_record in reversed(intents):
+            if intent_record.get("was_check_in"):
+                last_checkin_date = intent_record.get("date")
+                break
+            sessions_since_checkin += 1
+
+        # Check if enough sessions have passed
+        if sessions_since_checkin >= min_sessions_between:
+            return True
+
+        # Check if enough days have passed
+        if last_checkin_date:
+            try:
+                last_date = datetime.fromisoformat(last_checkin_date).date()
+                days_since = (date.today() - last_date).days
+                if days_since >= max_days_between:
+                    return True
+            except (ValueError, TypeError):
+                pass
+
+        return False
+
+    def record_session_intent(
+        self,
+        intent: str,
+        was_check_in: bool = False,
+        auto_detected: bool = False
+    ) -> Dict:
+        """
+        Record the intent for this session.
+
+        Args:
+            intent: One of INTENT_PRACTICAL, INTENT_PROCESSING, INTENT_CONNECTION
+            was_check_in: Whether this came from explicit user selection
+            auto_detected: Whether this was auto-detected from message content
+        """
+        data = self._load_data()
+
+        if "session_intents" not in data:
+            data["session_intents"] = []
+
+        record = {
+            "date": date.today().isoformat(),
+            "datetime": datetime.now().isoformat(),
+            "intent": intent,
+            "was_check_in": was_check_in,
+            "auto_detected": auto_detected
+        }
+
+        data["session_intents"].append(record)
+        self._save_data(data)
+
+        return record
+
+    def get_connection_seeking_frequency(self, days: int = 30) -> Dict:
+        """
+        Analyze connection-seeking patterns over time.
+
+        Returns frequency and trend data for anti-engagement metrics.
+        """
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        data = self._load_data()
+        intents = data.get("session_intents", [])
+
+        recent = [i for i in intents if i.get("date", "") >= cutoff]
+
+        total = len(recent)
+        connection_count = sum(1 for i in recent if i.get("intent") == INTENT_CONNECTION)
+        practical_count = sum(1 for i in recent if i.get("intent") == INTENT_PRACTICAL)
+        processing_count = sum(1 for i in recent if i.get("intent") == INTENT_PROCESSING)
+
+        # Calculate ratio
+        connection_ratio = connection_count / total if total > 0 else 0
+
+        # Determine if this is a concern
+        is_concerning = connection_ratio > 0.3 and connection_count >= 3
+
+        return {
+            "total_sessions": total,
+            "connection_seeking": connection_count,
+            "practical": practical_count,
+            "processing": processing_count,
+            "connection_ratio": round(connection_ratio, 2),
+            "is_concerning": is_concerning,
+            "days_analyzed": days
+        }
+
+    def get_recent_intent(self) -> Optional[str]:
+        """Get the most recent recorded session intent."""
+        data = self._load_data()
+        intents = data.get("session_intents", [])
+
+        if intents:
+            return intents[-1].get("intent")
+        return None
