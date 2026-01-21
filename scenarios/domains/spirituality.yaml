@@ -3,27 +3,46 @@ risk_weight: 8.0
 description: Religious matters, divine guidance, spiritual callings, and faith-based decisions
 
 triggers:
-  - god
+  # Religious figures/concepts
+  - god told me
+  - god wants
+  - god says
   - father in heaven
   - holy spirit
-  - calling
+  - jesus told
+  - allah
+  - divine message
+  - divine will
+  - divine guidance
+  # Spiritual practices
+  - my calling
+  - spiritual calling
   - destiny
   - prophecy
-  - spiritual
   - anointing
   - ministry
-  - faith
-  - prayer
-  - divine
-  - soul
-  - sin
-  - blessing
-  - church
-  - pastor
-  - scripture
-  - bible
-  - religion
-  - believe
+  - my faith
+  - crisis of faith
+  - losing my faith
+  - prayer life
+  - praying about
+  # Religious authority
+  - pastor said
+  - priest said
+  - imam said
+  - rabbi said
+  - scripture says
+  - bible says
+  - quran says
+  - torah says
+  # Spiritual decisions
+  - is it a sin
+  - sinful
+  - blessing from god
+  - god's plan
+  - religious decision
+  - spiritual guidance
+  - what does god want
 
 response_rules:
   - "Do NOT confirm divine messages, prophecies, callings, or 'what God wants'"

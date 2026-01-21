@@ -6,7 +6,7 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 
 ---
 
-## Phase 1: Foundation Fixes (Current Sprint)
+## Phase 1: Foundation Fixes ✅ COMPLETE
 **Goal**: Fix the core practical/sensitive distinction so the system actually works as intended.
 
 ### 1.1 Two-Pass Detection System ✅ DONE
@@ -44,38 +44,97 @@ scenarios/intents/ (new directory)
 
 ---
 
-## Phase 2: Emotional Weight Layer
+## Phase 2: Emotional Weight Layer ✅ COMPLETE
 **Goal**: Recognize that some practical tasks carry emotional weight and handle them with appropriate acknowledgment.
 
-### 2.1 Emotional Weight Detection
+### 2.1 Emotional Weight Detection ✅ DONE
 **Problem**: "Write a resignation email" is practical but emotionally heavy. "Write me a grocery list" is not.
 
 **Implementation**:
-- [ ] Add `emotional_weight` field to domain/task classification
-- [ ] Create `scenarios/emotional_weight/` with categories:
-  - High weight: resignation, breakup, difficult conversation, complaint, apology
-  - Medium weight: negotiation, request, boundary-setting
-  - Low weight: informational, routine, creative
+- [x] Add `emotional_weight` field to domain/task classification
+- [x] Create `scenarios/emotional_weight/task_weights.yaml` with categories:
+  - High weight (48 triggers): resignation, breakup, difficult conversation, apology, grief
+  - Medium weight (27 triggers): negotiation, complaint, vulnerable asks
+  - Low weight: default for all other logistics tasks
 
 **New classification output**:
 ```python
 {
     "domain": "logistics",
-    "intent": "practical",
-    "emotional_weight": "high",  # NEW
+    "emotional_weight": "high_weight",
+    "emotional_weight_score": 8.0,
     "emotional_intensity": 0,
     "dependency_risk": 0,
     "risk_weight": 1.0
 }
 ```
 
-### 2.2 Weighted Practical Responses
-- [ ] For high emotional weight + practical intent:
+### 2.2 Weighted Practical Responses ✅ DONE
+- [x] For high emotional weight + practical intent:
   - Complete the task fully (no restrictions)
   - Add brief human acknowledgment at the end (not therapeutic, just human)
-  - Example: "Here's the template. These conversations are hard—you'll find your words when the time comes."
-- [ ] Make acknowledgments optional/configurable
-- [ ] Store acknowledgment templates in `scenarios/responses/acknowledgments.yaml`
+  - Example: "Here's the template. These transitions are hard. You'll find your words when the time comes."
+- [x] Category-specific acknowledgments (endings, apologies, grief, relationship_endings, etc.)
+- [x] Store acknowledgment templates in `scenarios/responses/acknowledgments.yaml`
+
+**Files created/modified**:
+- `scenarios/emotional_weight/task_weights.yaml` - Weight categories and triggers
+- `scenarios/responses/acknowledgments.yaml` - Acknowledgment templates by category
+- `src/utils/scenario_loader.py` - Added emotional weight and acknowledgment methods
+- `src/models/risk_classifier.py` - Added `_assess_emotional_weight()` method
+- `src/prompts/wellness_prompts.py` - Added `get_acknowledgment()` method
+- `src/models/ai_wellness_guide.py` - Added `_add_acknowledgment_if_needed()` method
+
+---
+
+## Phase 2.5: Robustness & Classification Fixes ✅ COMPLETE
+**Goal**: Fix timeout issues, improve fallback handling, and expand domain classification accuracy.
+
+### 2.5.1 Timeout & Fallback Fixes ✅ DONE
+**Problem**: Practical tasks were timing out (30s limit too short for model loading + generation).
+
+**Implementation**:
+- [x] Dynamic timeout based on task type: 120s for practical, 45s for reflective
+- [x] Mode-aware fallback responses (practical failures get "Technical issue" not "What's on your mind?")
+- [x] Added practical fallback categories in `scenarios/responses/fallbacks.yaml`
+- [x] Quick practical detection heuristic before try block for exception handling
+
+**Files modified**:
+- `src/models/ai_wellness_guide.py` - Dynamic timeout, mode-aware `_get_fallback_response()`
+- `scenarios/responses/fallbacks.yaml` - Added `practical`, `practical_api_error`, `practical_empty` categories
+
+### 2.5.2 Domain Classification Expansion ✅ DONE
+**Problem**: "friend is addicted" was classified as `relationships` (matching "friend") instead of `health`.
+
+**Implementation**:
+- [x] Priority-based trigger matching: domains sorted by `risk_weight` (highest first)
+- [x] Health domain expanded with 60+ new triggers:
+  - Substance abuse: `addicted`, `addiction`, `cocaine`, `heroin`, `rehab`, `withdrawal`, `sober`, etc.
+  - Mental health: `depression`, `anxiety`, `PTSD`, `trauma`, `eating disorder`, `psychiatrist`, etc.
+  - Medical emergencies: `bleeding`, `ambulance`, `911`, `CPR`, `chest pain`, `seizure`, etc.
+- [x] Crisis domain expanded with life-threatening triggers:
+  - `she's dying`, `stopped breathing`, `heart stopped`, `losing too much blood`
+- [x] Money domain expanded with gambling triggers
+- [x] Relationships triggers made more specific (e.g., `friend` → `friend is upset`, `friendship problem`)
+- [x] Spirituality triggers made more specific (e.g., `god` → `god told me`, `god's plan`)
+- [x] Harmful triggers made more specific to avoid false positives (e.g., `rob` → `rob someone`)
+
+**Files modified**:
+- `src/utils/scenario_loader.py` - `get_all_triggers_flat()` now sorts by risk_weight
+- `scenarios/domains/health.yaml` - Added 60+ triggers, `medical_emergency` redirect
+- `scenarios/domains/crisis.yaml` - Added life-threatening emergency triggers, updated crisis response
+- `scenarios/domains/money.yaml` - Added gambling triggers
+- `scenarios/domains/relationships.yaml` - Made triggers contextual
+- `scenarios/domains/spirituality.yaml` - Made triggers contextual
+- `scenarios/domains/harmful.yaml` - Made triggers more specific (fixed "problem" → "harmful" bug)
+
+### 2.5.3 New Domain Redirects ✅ DONE
+- [x] `medical_emergency` - "Call 911 immediately" for bleeding/ambulance/emergency
+- [x] `substance_abuse` - SAMHSA helpline redirect
+- [x] `helping_someone_with_addiction` - Resources for families/friends
+- [x] `mental_health_concern` - Professional support redirect
+- [x] `crisis_adjacent` - 988 crisis line for suicidal thoughts
+- [x] `gambling` - National Council on Problem Gambling
 
 ---
 
@@ -263,8 +322,9 @@ scenarios/intents/ (new directory)
 
 | Phase | Impact | Effort | Priority |
 |-------|--------|--------|----------|
-| 1. Foundation Fixes | High | Low | ✅ DONE |
-| 2. Emotional Weight | High | Medium | 🔴 Next |
+| 1. Foundation Fixes | High | Low | ✅ COMPLETE |
+| 2. Emotional Weight | High | Medium | ✅ COMPLETE |
+| 2.5 Robustness & Classification | High | Medium | ✅ COMPLETE |
 | 4. Why Are You Here | High | Low | 🔴 Next |
 | 3. Competence Graduation | Medium | Medium | 🟡 Soon |
 | 5. Enhanced Handoff | Medium | Low | 🟡 Soon |
@@ -272,6 +332,25 @@ scenarios/intents/ (new directory)
 | 7. Success Metrics | High | Medium | 🟢 After core |
 | 8. Immunity Building | Medium | Low | 🟢 After core |
 | 9. Advanced Detection | High | High | 🔵 Long-term |
+
+---
+
+## Current Status (2026-01-21)
+
+**Completed**: Phases 1, 2, and 2.5
+- ✅ Dual-mode operation (practical vs reflective)
+- ✅ Emotional weight detection and acknowledgments
+- ✅ Dynamic timeouts for practical tasks (120s)
+- ✅ Mode-aware fallback responses
+- ✅ Expanded domain classification (health, crisis, money, relationships, spirituality)
+- ✅ Priority-based trigger matching (higher risk domains checked first)
+- ✅ Medical emergency handling
+- ✅ Addiction/substance abuse classification
+- ✅ Mental health triggers
+
+**Next Up**: Phase 4 (Why Are You Here? Check-In)
+- Session intent check-in
+- Mid-session intent shift detection
 
 ---
 
@@ -289,7 +368,8 @@ scenarios/intents/ (new directory)
 
 ## Version Targets
 
-**v0.2** (Phase 1-2): Practical mode works, emotional weight acknowledged
+**v0.2** (Phase 1-2): Practical mode works, emotional weight acknowledged ✅ COMPLETE
+**v0.2.5** (Phase 2.5): Robustness fixes, expanded classification ✅ COMPLETE
 **v0.3** (Phase 3-5): Graduation, check-ins, better handoffs
 **v0.4** (Phase 6-7): Transparency, local metrics
 **v0.5** (Phase 8): Immunity building

@@ -153,12 +153,29 @@ The `RiskClassifier` produces:
 ```python
 {
     "domain": str,              # money, health, relationships, spirituality, crisis, harmful, logistics
+    "emotional_weight": str,    # high_weight, medium_weight, low_weight (for practical tasks)
+    "emotional_weight_score": float,  # 0-10 scale
     "emotional_intensity": float,  # 0-10 scale
     "dependency_risk": float,      # 0-10 scale (from conversation patterns)
     "risk_weight": float,          # Combined 0-10 risk score
     "intervention": dict           # Present if dependency threshold met
 }
 ```
+
+### Emotional Weight (Practical Tasks Only)
+
+Separate from emotional intensity, emotional weight measures how "heavy" a practical task is:
+- **Emotional intensity**: How emotionally charged is the USER right now?
+- **Emotional weight**: How emotionally heavy is the TASK itself?
+
+| Weight Level | Score | Examples | Acknowledgment |
+|--------------|-------|----------|----------------|
+| high_weight | 8.0 | Resignation, breakup, apology, condolence | Warm acknowledgment appended |
+| medium_weight | 5.0 | Negotiation, complaint, asking for help | Brief acknowledgment (optional) |
+| low_weight | 2.0 | Grocery list, code help, general questions | None |
+
+For high-weight practical tasks, a brief human acknowledgment is appended:
+> "Here's your resignation email.\n\n---\n\nThese transitions are hard. You'll find your words when the time comes."
 
 **Dependency Scoring** (12-message lookback):
 - Base factor: frequency × 0.7 (capped at 6.0)

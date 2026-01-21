@@ -12,10 +12,16 @@ from utils.scenario_loader import get_scenario_loader, ScenarioLoader
 
 class RiskClassifier:
     """
-    Detect rough domain, emotional intensity, and dependency risk
+    Detect rough domain, emotional intensity, dependency risk, and emotional weight
     based on the current user input and recent conversation history.
 
     Uses the scenarios knowledge base for triggers, weights, and thresholds.
+
+    Emotional weight is separate from emotional intensity:
+    - Emotional intensity: How emotionally charged is the USER right now?
+    - Emotional weight: How emotionally heavy is the TASK itself?
+
+    A user can calmly ask for a resignation email (low intensity, high weight).
     """
 
     def __init__(self, scenario_loader: Optional[ScenarioLoader] = None):
@@ -28,6 +34,7 @@ class RiskClassifier:
         """
         self.loader = scenario_loader or get_scenario_loader()
         self._trigger_cache: Optional[Dict[str, str]] = None
+        self._weight_trigger_cache: Optional[Dict[str, str]] = None
 
     def _get_triggers(self) -> Dict[str, str]:
         """Get cached trigger -> domain mapping."""
@@ -41,26 +48,34 @@ class RiskClassifier:
         conversation_history: List[Dict]
     ) -> Dict:
         """
-        Return a simple risk assessment dictionary.
+        Return a comprehensive risk assessment dictionary.
 
         Example:
         {
-            "domain": "spirituality",
-            "emotional_intensity": 7.0,
+            "domain": "logistics",
+            "emotional_intensity": 2.0,
+            "emotional_weight": "high_weight",
+            "emotional_weight_score": 8.0,
             "dependency_risk": 3.0,
-            "risk_weight": 8.1,
+            "risk_weight": 1.5,
             "intervention": {...}  # if dependency threshold met
         }
+
+        Note: emotional_weight is for the TASK, not the user's emotional state.
+        A user can calmly ask for a resignation email (low intensity, high weight).
         """
         domain = self._detect_domain(user_input)
         emotional_intensity = self._measure_emotional_intensity(user_input)
         dependency_risk = self._assess_dependency(conversation_history)
+        emotional_weight, weight_score = self._assess_emotional_weight(user_input)
 
         risk_weight = self._combine_scores(domain, emotional_intensity, dependency_risk)
 
         result = {
             "domain": domain,
             "emotional_intensity": emotional_intensity,
+            "emotional_weight": emotional_weight,
+            "emotional_weight_score": weight_score,
             "dependency_risk": dependency_risk,
             "risk_weight": risk_weight
         }
@@ -102,6 +117,40 @@ class RiskClassifier:
 
         # Default neutral score
         return self.loader.get_emotional_score("neutral")
+
+    def _get_weight_triggers(self) -> Dict[str, str]:
+        """Get cached emotional weight trigger -> level mapping."""
+        if self._weight_trigger_cache is None:
+            weight_triggers = self.loader.get_emotional_weight_triggers()
+            self._weight_trigger_cache = {}
+            for level, triggers in weight_triggers.items():
+                for trigger in triggers:
+                    self._weight_trigger_cache[trigger.lower()] = level
+        return self._weight_trigger_cache
+
+    def _assess_emotional_weight(self, text: str) -> tuple:
+        """
+        Assess the emotional weight of a TASK (not the user's emotional state).
+
+        A resignation email is high-weight even if the user asks calmly.
+        A grocery list is low-weight even if the user is stressed.
+
+        Returns:
+            tuple: (weight_level, weight_score)
+                   weight_level: 'high_weight', 'medium_weight', or 'low_weight'
+                   weight_score: float 0-10
+        """
+        t = text.lower()
+        weight_triggers = self._get_weight_triggers()
+
+        # Check for high-weight triggers first
+        for trigger, level in weight_triggers.items():
+            if trigger in t:
+                score = self.loader.get_emotional_weight_score(level)
+                return (level, score)
+
+        # Default to low weight
+        return ("low_weight", self.loader.get_emotional_weight_score("low_weight"))
 
     def _assess_dependency(self, history: List[Dict]) -> float:
         """
@@ -180,3 +229,4 @@ class RiskClassifier:
         """Reload scenarios from disk (useful for hot-reloading)."""
         self.loader.reload()
         self._trigger_cache = None
+        self._weight_trigger_cache = None

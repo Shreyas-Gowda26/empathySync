@@ -1,0 +1,172 @@
+# Emotional Weight for Practical Tasks
+#
+# Some practical tasks (logistics domain) carry emotional weight.
+# "Write me a resignation email" is practical, but emotionally heavy.
+# "Write me a grocery list" is practical and emotionally neutral.
+#
+# This file helps detect when practical tasks deserve a brief human
+# acknowledgment at the end, without becoming therapeutic.
+
+weight_type: task_weights
+description: Emotional weight categories for practical tasks
+
+# HIGH WEIGHT: Tasks that typically involve significant life moments
+# These deserve a brief acknowledgment after completing the task
+high_weight:
+  description: "Practical tasks with significant emotional stakes"
+  weight_score: 8.0
+
+  triggers:
+    # Endings and separations
+    - "resignation"
+    - "resigning"
+    - "quitting"
+    - "leaving job"
+    - "two weeks notice"
+    - "breaking up"
+    - "break up"
+    - "breakup"
+    - "ending relationship"
+    - "goodbye"
+    - "farewell"
+    - "cutting contact"
+    - "cutting off"
+    - "no contact"
+    - "estrangement"
+
+    # Difficult conversations
+    - "confront"
+    - "confronting"
+    - "boundary"
+    - "boundaries"
+    - "setting limits"
+    - "saying no"
+    - "turning down"
+    - "rejecting"
+    - "rejection letter"
+    - "firing"
+    - "letting go"
+    - "termination"
+
+    # Apologies and accountability
+    - "apology"
+    - "apologize"
+    - "apologizing"
+    - "I'm sorry"
+    - "making amends"
+    - "taking responsibility"
+
+    # Loss and grief
+    - "condolence"
+    - "sympathy"
+    - "passed away"
+    - "death"
+    - "funeral"
+    - "memorial"
+    - "eulogy"
+
+    # Major life changes
+    - "divorce"
+    - "separation"
+    - "custody"
+    - "moving away"
+    - "leaving home"
+
+    # Health disclosures
+    - "telling them about my diagnosis"
+    - "sharing my condition"
+    - "coming out"
+
+  acknowledgment_style: "warm"
+  examples:
+    - "Write a resignation email"
+    - "Help me draft a breakup text"
+    - "Template for telling my parents I'm cutting contact"
+    - "Write a condolence message"
+    - "Draft an apology to my friend"
+
+# MEDIUM WEIGHT: Tasks that may carry some emotional stakes
+# Brief acknowledgment optional, depends on context
+medium_weight:
+  description: "Practical tasks with moderate emotional stakes"
+  weight_score: 5.0
+
+  triggers:
+    # Negotiations and asks
+    - "asking for a raise"
+    - "salary negotiation"
+    - "negotiate"
+    - "negotiating"
+    - "counter offer"
+    - "asking for promotion"
+
+    # Complaints and disputes
+    - "complaint"
+    - "complaining"
+    - "dispute"
+    - "disagreement"
+    - "conflict"
+    - "mediation"
+
+    # Requests that feel vulnerable
+    - "asking for help"
+    - "asking for money"
+    - "loan request"
+    - "favor"
+    - "recommendation"
+    - "reference"
+
+    # Sensitive work situations
+    - "hr complaint"
+    - "harassment"
+    - "hostile"
+    - "toxic"
+    - "unfair treatment"
+
+    # Family dynamics
+    - "family meeting"
+    - "intervention"
+    - "difficult parent"
+    - "difficult sibling"
+
+  acknowledgment_style: "brief"
+  examples:
+    - "Help me ask my boss for a raise"
+    - "Draft a complaint to HR"
+    - "Write a message asking my friend for a loan"
+
+# LOW WEIGHT: Routine practical tasks
+# No acknowledgment needed - just complete the task
+low_weight:
+  description: "Routine practical tasks with minimal emotional stakes"
+  weight_score: 2.0
+
+  triggers: []  # Low weight is the default for logistics domain
+
+  acknowledgment_style: "none"
+  examples:
+    - "Write me a grocery list"
+    - "Explain how git works"
+    - "Help me with this Python code"
+    - "What's the capital of France?"
+    - "Draft an email to my landlord about repairs"
+
+# Configuration for acknowledgment behavior
+acknowledgment_config:
+  # Only add acknowledgments for high weight by default
+  # Medium weight acknowledgments are optional (user can enable)
+  default_threshold: 8.0
+
+  # Acknowledgments should be:
+  # - Brief (1-2 sentences max)
+  # - Human, not therapeutic
+  # - At the end, after completing the task
+  # - Never asking "are you okay?" or probing emotions
+
+  rules:
+    - "Complete the practical task FIRST, fully"
+    - "Add acknowledgment AFTER the task is done"
+    - "Keep acknowledgment to 1-2 sentences"
+    - "Be human, not therapeutic"
+    - "Never probe or ask about feelings"
+    - "Acknowledgment is optional - user can skip"

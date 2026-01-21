@@ -3,37 +3,54 @@ risk_weight: 10.0
 description: Illegal activities, violence, and intent to harm others
 
 triggers:
-  - rob
+  # Theft/robbery - use specific phrases to avoid matching "problem", "microbe", etc.
+  - rob someone
+  - rob a
+  - rob the
   - robbing
   - robbery
-  - steal
+  - steal from
+  - steal money
+  - steal a
   - stealing
+  - shoplift
+  # Violence
   - murder
   - kill someone
+  - kill him
+  - kill her
+  - kill them
   - hurt someone
-  - attack
-  - bomb
+  - bomb a
+  - bomb the
+  - make a bomb
   - weapon
-  - illegal
+  - illegal drugs
+  - illegal activity
+  # Cybercrime
   - hack into
+  - hack someone
   - break into
-  - fraud
+  # Fraud
+  - commit fraud
   - scam someone
-  - forge
+  - forge documents
   - counterfeit
+  # Violent intent
   - want to kill
   - going to kill
   - plan to kill
   - how to kill
-  - poison
+  - poison someone
   - strangle
-  - shoot
-  - stab
-  - assault
-  - revenge
+  - shoot someone
+  - stab someone
+  - assault someone
+  # Revenge
+  - get revenge
   - get back at
   - make them pay
-  - destroy
+  - destroy their
 
 response_rules:
   - "HARMFUL/ILLEGAL INTENT DETECTED. Do not engage with the content."

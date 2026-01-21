@@ -1,8 +1,9 @@
 domain: health
 risk_weight: 7.0
-description: Medical concerns, symptoms, diagnoses, and health-related anxiety
+description: Medical concerns, symptoms, diagnoses, mental health, substance abuse, and health-related anxiety
 
 triggers:
+  # Medical
   - doctor
   - hospital
   - symptom
@@ -21,6 +22,78 @@ triggers:
   - condition
   - surgery
   - test results
+  # Substance abuse / addiction
+  - addicted
+  - addiction
+  - addict
+  - substance abuse
+  - drug problem
+  - drug use
+  - alcoholic
+  - alcoholism
+  - drinking problem
+  - cocaine
+  - heroin
+  - meth
+  - opioid
+  - fentanyl
+  - overdose
+  - rehab
+  - rehabilitation
+  - detox
+  - withdrawal
+  - sober
+  - sobriety
+  - relapse
+  - recovery
+  - 12 step
+  - AA meeting
+  - NA meeting
+  # Mental health
+  - depression
+  - depressed
+  - anxiety
+  - anxious
+  - bipolar
+  - schizophrenia
+  - psychosis
+  - OCD
+  - PTSD
+  - trauma
+  - eating disorder
+  - anorexia
+  - bulimia
+  - self-harm
+  - mental health
+  - mental illness
+  - psychiatrist
+  - psychologist
+  - counselor
+  - antidepressant
+  - insomnia
+  - suicidal thoughts
+  # Medical emergencies (non-life-threatening urgency)
+  - bleeding
+  - injured
+  - injury
+  - broke my
+  - broken bone
+  - sprain
+  - allergic reaction
+  - can't breathe
+  - chest pain
+  - seizure
+  - fainted
+  - unconscious
+  - ambulance
+  - emergency room
+  - ER
+  - urgent care
+  - "911"
+  - call 911
+  - paramedic
+  - first aid
+  - CPR
 
 response_rules:
   - "Do NOT interpret symptoms, suggest treatments, or comment on diagnoses"
@@ -28,6 +101,19 @@ response_rules:
   - "Redirect to medical professionals"
 
 redirects:
+  medical_emergency:
+    trigger_phrases:
+      - "bleeding"
+      - "ambulance"
+      - "emergency"
+      - "can't breathe"
+      - "chest pain"
+      - "unconscious"
+      - "not breathing"
+      - "seizure"
+      - "overdose"
+    response: "If this is an emergency, call 911 (or your local emergency number) immediately. I cannot provide medical advice—emergency responders can guide you while help is on the way. Please call now."
+
   symptom_inquiry:
     trigger_phrases:
       - "what does this symptom mean"
@@ -57,3 +143,40 @@ redirects:
       - "can't stop thinking about being sick"
       - "afraid something is wrong"
     response: "Health anxiety is real and difficult. The worry itself is worth addressing. Have you been able to share these concerns with a doctor or counselor?"
+
+  substance_abuse:
+    trigger_phrases:
+      - "addicted to"
+      - "addiction"
+      - "can't stop using"
+      - "drug problem"
+      - "drinking problem"
+      - "substance abuse"
+    response: "Addiction is a medical issue, not a character flaw. This needs professional support, not AI advice. SAMHSA's helpline (1-800-662-4357) offers free, confidential help 24/7. Is there someone in your life you could reach out to?"
+
+  helping_someone_with_addiction:
+    trigger_phrases:
+      - "friend is addicted"
+      - "friend who is addicted"
+      - "someone I know is addicted"
+      - "family member addicted"
+      - "loved one struggling with"
+      - "help my friend with addiction"
+      - "advice for someone addicted"
+    response: "Supporting someone with addiction is hard. This is outside what I can safely help with—it needs professional guidance. SAMHSA (1-800-662-4357) also helps families and friends. Who in your life could you talk to about this?"
+
+  mental_health_concern:
+    trigger_phrases:
+      - "I think I have depression"
+      - "I might be depressed"
+      - "anxiety is overwhelming"
+      - "can't cope"
+      - "mental health struggling"
+    response: "What you're describing matters and deserves proper support. Have you been able to talk to a mental health professional? If not, that would be a meaningful first step."
+
+  crisis_adjacent:
+    trigger_phrases:
+      - "suicidal thoughts"
+      - "thinking about ending"
+      - "don't want to be here"
+    response: "I hear you, and I'm concerned. Please reach out to a crisis line right now: 988 (US) or findahelpline.com. You deserve real human support, not software."

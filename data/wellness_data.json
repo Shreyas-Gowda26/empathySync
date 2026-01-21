@@ -26,6 +26,30 @@
       "domain": "money",
       "risk_weight": 7.180000000000001,
       "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-01-13T14:03:08.863641",
+      "date": "2026-01-13",
+      "policy_type": "high_risk_response",
+      "domain": "relationships",
+      "risk_weight": 6.180000000000001,
+      "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-01-13T14:04:59.841231",
+      "date": "2026-01-13",
+      "policy_type": "high_risk_response",
+      "domain": "relationships",
+      "risk_weight": 6.32,
+      "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-01-21T22:54:52.186807",
+      "date": "2026-01-21",
+      "policy_type": "high_risk_response",
+      "domain": "relationships",
+      "risk_weight": 6.46,
+      "action_taken": "Response generated with high-risk guardrails"
     }
   ]
 }

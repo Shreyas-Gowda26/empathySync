@@ -20,8 +20,17 @@ triggers:
   - expenses
   - financial
   - money problems
+  - money problem
   - broke
   - afford
+  # Gambling (financial + addiction crossover)
+  - gambling
+  - gamble
+  - betting
+  - bet money
+  - casino
+  - lost money gambling
+  - sports betting
 
 response_rules:
   - "Do NOT give financial advice or opinions on investments/debt/spending"
@@ -51,3 +60,11 @@ redirects:
       - "big purchase"
       - "worth the money"
     response: "Major purchases deserve more than my input. What would someone who knows your financial situation well say about this?"
+
+  gambling:
+    trigger_phrases:
+      - "gambling"
+      - "lost money betting"
+      - "can't stop gambling"
+      - "betting problem"
+    response: "Gambling concerns involve both finances and wellbeing. The National Council on Problem Gambling (1-800-522-4700) offers free, confidential support. Is there someone you trust you could talk to about this?"

@@ -267,3 +267,75 @@ If the user asks for advice on: {forbidden_text}—respond ONLY with:
     def reload_scenarios(self) -> None:
         """Reload scenarios from disk (useful for hot-reloading)."""
         self.loader.reload()
+
+    # ==================== ACKNOWLEDGMENTS ====================
+
+    def get_acknowledgment(self, user_input: str, emotional_weight: str) -> Optional[str]:
+        """
+        Get an appropriate acknowledgment for an emotionally weighted practical task.
+
+        Args:
+            user_input: The user's original input
+            emotional_weight: 'high_weight', 'medium_weight', or 'low_weight'
+
+        Returns:
+            An acknowledgment string, or None if no acknowledgment is needed
+        """
+        # Only add acknowledgments for high weight by default
+        # Medium weight acknowledgments could be enabled via config
+        if emotional_weight not in ["high_weight", "medium_weight"]:
+            return None
+
+        # Get the acknowledgment style for this weight level
+        style = self.loader.get_acknowledgment_style_for_weight(emotional_weight)
+        if style == "none":
+            return None
+
+        # Try to find a category-specific acknowledgment
+        category = self._detect_acknowledgment_category(user_input)
+
+        # Get acknowledgments for this style and category
+        acknowledgments = self.loader.get_acknowledgment_by_category(style, category)
+
+        if acknowledgments:
+            return random.choice(acknowledgments)
+
+        # Fallback to general
+        general = self.loader.get_acknowledgment_by_category(style, "general")
+        return random.choice(general) if general else None
+
+    def _detect_acknowledgment_category(self, text: str) -> str:
+        """
+        Detect which acknowledgment category best fits the user's input.
+
+        Args:
+            text: The user's input
+
+        Returns:
+            Category name (e.g., 'endings', 'apologies', 'grief', 'general')
+        """
+        t = text.lower()
+        category_mapping = self.loader.get_acknowledgment_category_mapping()
+
+        for keyword, category in category_mapping.items():
+            # Convert underscores to spaces for matching
+            keyword_variants = [keyword, keyword.replace("_", " ")]
+            for variant in keyword_variants:
+                if variant in t:
+                    return category
+
+        return "general"
+
+    def format_acknowledgment(self, acknowledgment: str) -> str:
+        """
+        Format an acknowledgment for appending to a response.
+
+        Args:
+            acknowledgment: The acknowledgment text
+
+        Returns:
+            Formatted acknowledgment with separator
+        """
+        ack_config = self.loader.get_acknowledgment_config()
+        format_template = ack_config.get("append_format", "\n\n---\n\n{acknowledgment}")
+        return format_template.format(acknowledgment=acknowledgment)

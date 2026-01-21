@@ -1,0 +1,134 @@
+# Acknowledgment Templates for Emotionally Weighted Practical Tasks
+#
+# These are brief, human acknowledgments added AFTER completing a practical task
+# that carries emotional weight. They are NOT therapeutic - just human.
+#
+# Format: Complete the task fully, then add one of these at the end.
+
+response_type: acknowledgments
+description: Brief human acknowledgments for emotionally heavy practical tasks
+
+# WARM acknowledgments for HIGH weight tasks
+# Used for: resignation, breakup, condolence, apology, major endings
+warm:
+  description: "Warm but brief acknowledgments for heavy moments"
+
+  # Generic endings/transitions
+  endings:
+    - "These transitions are hard. You'll find your words when the time comes."
+    - "Big changes take courage. You've got this."
+    - "Endings are heavy. Take your time with this."
+
+  # Difficult conversations
+  difficult_conversations:
+    - "Hard conversations are hard. That's just true."
+    - "Setting boundaries takes guts. This is a good step."
+    - "These words are yours to say when you're ready."
+
+  # Apologies
+  apologies:
+    - "Owning our mistakes isn't easy. This is a good start."
+    - "Taking responsibility is brave. You're doing the right thing."
+
+  # Loss and grief
+  grief:
+    - "There are no perfect words for loss. These will do."
+    - "Grief is its own language. Say what feels true."
+
+  # Relationship endings
+  relationship_endings:
+    - "Endings are rarely clean. Be gentle with yourself."
+    - "This is hard no matter how you say it. You've got this."
+
+  # Coming out / disclosures
+  disclosures:
+    - "Sharing this part of yourself takes courage."
+    - "You get to decide when and how. This is just a draft."
+
+  # Fallback for any high-weight task
+  general:
+    - "This one carries weight. Take your time."
+    - "Heavy stuff. You'll know when you're ready."
+    - "Not an easy one. But you've got the words now."
+
+# BRIEF acknowledgments for MEDIUM weight tasks
+# Used for: negotiations, complaints, vulnerable asks
+brief:
+  description: "Quick, light acknowledgments for moderately weighted tasks"
+
+  negotiations:
+    - "Asking is the hardest part. Now you have the words."
+    - "You've earned the right to ask."
+
+  complaints:
+    - "Speaking up matters. This is a good template."
+    - "Documenting is smart. Adjust as needed."
+
+  asks:
+    - "Asking for help is a skill. You're using it well."
+    - "Vulnerability is strength. You've got this."
+
+  general:
+    - "Good template. Adjust to fit your voice."
+    - "Solid draft. Make it yours."
+
+# Configuration
+config:
+  # How to select acknowledgments
+  selection: "random_from_category"
+
+  # Matching rules
+  category_matching:
+    # Keywords that map to specific categories
+    resignation: "endings"
+    quitting: "endings"
+    leaving: "endings"
+    goodbye: "endings"
+    farewell: "endings"
+
+    breakup: "relationship_endings"
+    breaking_up: "relationship_endings"
+    ending_relationship: "relationship_endings"
+    divorce: "relationship_endings"
+
+    apology: "apologies"
+    apologize: "apologies"
+    sorry: "apologies"
+
+    condolence: "grief"
+    sympathy: "grief"
+    passed_away: "grief"
+    death: "grief"
+    funeral: "grief"
+    eulogy: "grief"
+
+    coming_out: "disclosures"
+    diagnosis: "disclosures"
+    telling_them: "disclosures"
+
+    boundary: "difficult_conversations"
+    confront: "difficult_conversations"
+    saying_no: "difficult_conversations"
+
+    raise: "negotiations"
+    negotiate: "negotiations"
+    promotion: "negotiations"
+
+    complaint: "complaints"
+    hr: "complaints"
+    harassment: "complaints"
+
+    asking_for: "asks"
+    favor: "asks"
+    loan: "asks"
+    help: "asks"
+
+  # Fallback if no category matches
+  fallback_category: "general"
+
+  # Format for appending
+  append_format: "\n\n---\n\n{acknowledgment}"
+
+  # User can disable acknowledgments
+  user_configurable: true
+  default_enabled: true

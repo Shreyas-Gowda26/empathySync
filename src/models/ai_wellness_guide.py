@@ -79,6 +79,11 @@ class WellnessGuide:
 
         self.session_turn_count += 1
 
+        # Quick check if this looks like a practical request (for fallback purposes)
+        # This is a fast heuristic - full classification happens in the try block
+        practical_indicators = ["write", "code", "explain", "help me", "create", "draft", "cv", "resume", "email", "template"]
+        is_likely_practical = any(ind in user_input.lower() for ind in practical_indicators)
+
         try:
             # 1) Check if cooldown should be enforced
             if wellness_tracker:
@@ -160,6 +165,13 @@ class WellnessGuide:
             # 7) Process and validate response
             processed_response = self._process_response(response, user_input, risk_assessment, is_practical)
 
+            # 8) Add acknowledgment for emotionally weighted practical tasks
+            if is_practical:
+                emotional_weight = risk_assessment.get("emotional_weight", "low_weight")
+                processed_response = self._add_acknowledgment_if_needed(
+                    processed_response, user_input, emotional_weight
+                )
+
             # Log if we redirected due to high risk
             if risk_assessment["risk_weight"] >= 5:
                 self._log_policy("high_risk_response", domain, risk_assessment["risk_weight"],
@@ -169,7 +181,40 @@ class WellnessGuide:
 
         except Exception as e:
             logger.error(f"Error generating response: {str(e)}")
-            return self._get_fallback_response()
+            return self._get_fallback_response(is_practical=is_likely_practical)
+
+    def _add_acknowledgment_if_needed(
+        self,
+        response: str,
+        user_input: str,
+        emotional_weight: str
+    ) -> str:
+        """
+        Add a brief human acknowledgment for emotionally weighted practical tasks.
+
+        This is NOT therapeutic - just a brief human acknowledgment that some
+        practical tasks carry emotional weight.
+
+        Args:
+            response: The AI's response
+            user_input: The user's original input
+            emotional_weight: 'high_weight', 'medium_weight', or 'low_weight'
+
+        Returns:
+            Response with acknowledgment appended (if appropriate)
+        """
+        # Only add acknowledgments for high-weight tasks by default
+        if emotional_weight == "low_weight":
+            return response
+
+        # Get an acknowledgment
+        acknowledgment = self.prompts.get_acknowledgment(user_input, emotional_weight)
+
+        if acknowledgment:
+            formatted = self.prompts.format_acknowledgment(acknowledgment)
+            return response + formatted
+
+        return response
 
     def _check_dependency_intervention(
         self,
@@ -254,11 +299,15 @@ class WellnessGuide:
 
         Args:
             prompt: The prompt to send
-            is_practical: If True, allows longer responses for practical tasks
+            is_practical: If True, allows longer responses and timeout for practical tasks
         """
         # For practical tasks, allow much longer responses
         # For sensitive/emotional topics, keep responses brief
         max_tokens = 2000 if is_practical else 300
+
+        # Practical tasks need more time: model loading (~15s) + longer generation
+        # Reflective responses are brief and need less time
+        timeout_seconds = 120 if is_practical else 45
 
         payload = {
             "model": self.model,
@@ -275,7 +324,7 @@ class WellnessGuide:
             response = requests.post(
                 self.ollama_url,
                 json=payload,
-                timeout=30
+                timeout=timeout_seconds
             )
             response.raise_for_status()
 
@@ -316,7 +365,7 @@ class WellnessGuide:
         """
 
         if not response:
-            return self._get_fallback_response()
+            return self._get_fallback_response(is_practical=is_practical)
 
         # Basic safety checks (always apply)
         if self._contains_harmful_content(response):
@@ -325,7 +374,7 @@ class WellnessGuide:
 
         # Ensure response is meaningful
         if len(response.strip()) < 10:
-            return self._get_fallback_response()
+            return self._get_fallback_response(is_practical=is_practical)
 
         # For practical tasks, return the full response without truncation
         if is_practical:
@@ -359,11 +408,20 @@ class WellnessGuide:
         text_lower = text.lower()
         return any(pattern in text_lower for pattern in harmful_patterns)
 
-    def _get_fallback_response(self) -> str:
-        """Safe fallback response when AI is unavailable"""
-        fallback = self.prompts.get_fallback_response("general")
+    def _get_fallback_response(self, is_practical: bool = False) -> str:
+        """Safe fallback response when AI is unavailable
+
+        Args:
+            is_practical: If True, use practical-mode fallbacks instead of reflective ones
+        """
+        category = "practical" if is_practical else "general"
+        fallback = self.prompts.get_fallback_response(category)
         if fallback:
             return fallback
+
+        # Hardcoded fallbacks as last resort
+        if is_practical:
+            return "Technical issue - please try your request again."
         return ("I want to help you think through this, but I'm having trouble right now. "
                 "What's the main thing on your mind?")
 

@@ -10,19 +10,29 @@ triggers:
   - partner
   - breakup
   - divorce
-  - argument
+  - argument with
   - spouse
-  - family
-  - friend
+  - family issues
+  - family problem
+  - friendship problem
+  - friend is upset
+  - friend is mad
   - dating
-  - love
-  - fight
-  - conflict
-  - trust
+  - love life
+  - in love
+  - falling in love
+  - fight with
+  - conflict with
+  - trust issues
   - cheating
-  - ex
+  - my ex
   - husband
   - wife
+  - romantic
+  - crush on
+  - attracted to
+  - jealous
+  - betrayed
 
 response_rules:
   - "Do NOT take sides, validate grievances, or suggest what the other person is thinking"

@@ -250,6 +250,93 @@ class ScenarioLoader:
         responses = self.get_all_responses()
         return responses.get("base_prompt", {})
 
+    def get_acknowledgments(self) -> Dict:
+        """Get acknowledgment templates for emotionally weighted tasks."""
+        responses = self.get_all_responses()
+        return responses.get("acknowledgments", {})
+
+    def get_acknowledgment_by_category(self, style: str, category: str) -> List[str]:
+        """
+        Get acknowledgment templates for a specific style and category.
+
+        Args:
+            style: 'warm' or 'brief'
+            category: e.g., 'endings', 'apologies', 'grief', 'general'
+
+        Returns:
+            List of acknowledgment strings
+        """
+        acknowledgments = self.get_acknowledgments()
+        style_data = acknowledgments.get(style, {})
+        return style_data.get(category, style_data.get("general", []))
+
+    def get_acknowledgment_config(self) -> Dict:
+        """Get acknowledgment configuration."""
+        acknowledgments = self.get_acknowledgments()
+        return acknowledgments.get("config", {})
+
+    # ==================== EMOTIONAL WEIGHT ====================
+
+    def get_all_emotional_weights(self) -> Dict[str, Dict]:
+        """Load all emotional weight configurations."""
+        return self._load_directory("emotional_weight")
+
+    def get_task_weights(self) -> Dict:
+        """Get task weight configuration."""
+        weights = self.get_all_emotional_weights()
+        return weights.get("task_weights", {})
+
+    def get_emotional_weight_triggers(self) -> Dict[str, List[str]]:
+        """
+        Get emotional weight triggers grouped by weight level.
+
+        Returns:
+            Dict with 'high_weight' and 'medium_weight' trigger lists
+        """
+        task_weights = self.get_task_weights()
+        return {
+            "high_weight": task_weights.get("high_weight", {}).get("triggers", []),
+            "medium_weight": task_weights.get("medium_weight", {}).get("triggers", [])
+        }
+
+    def get_emotional_weight_score(self, level: str) -> float:
+        """
+        Get the weight score for an emotional weight level.
+
+        Args:
+            level: 'high_weight', 'medium_weight', or 'low_weight'
+
+        Returns:
+            Weight score (0-10)
+        """
+        task_weights = self.get_task_weights()
+        level_config = task_weights.get(level, {})
+        return level_config.get("weight_score", 2.0)
+
+    def get_acknowledgment_style_for_weight(self, level: str) -> str:
+        """
+        Get the acknowledgment style for an emotional weight level.
+
+        Args:
+            level: 'high_weight', 'medium_weight', or 'low_weight'
+
+        Returns:
+            'warm', 'brief', or 'none'
+        """
+        task_weights = self.get_task_weights()
+        level_config = task_weights.get(level, {})
+        return level_config.get("acknowledgment_style", "none")
+
+    def get_acknowledgment_category_mapping(self) -> Dict[str, str]:
+        """
+        Get the keyword to category mapping for acknowledgments.
+
+        Returns:
+            Dict mapping keywords to acknowledgment categories
+        """
+        ack_config = self.get_acknowledgment_config()
+        return ack_config.get("category_matching", {})
+
     # ==================== UTILITY METHODS ====================
 
     def clear_cache(self) -> None:
@@ -264,12 +351,24 @@ class ScenarioLoader:
         """
         Get a flat mapping of trigger word -> domain.
         Useful for quick lookups.
+
+        IMPORTANT: Domains are processed in order of risk_weight (highest first).
+        This ensures "friend is addicted" matches health (7.0) before relationships (5.0).
         """
         triggers = self.get_domain_triggers()
+        weights = self.get_domain_weights()
+
+        # Sort domains by risk_weight (highest first) so high-risk triggers take priority
+        sorted_domains = sorted(triggers.keys(), key=lambda d: weights.get(d, 1.0), reverse=True)
+
         flat = {}
-        for domain, words in triggers.items():
+        for domain in sorted_domains:
+            words = triggers.get(domain, [])
             for word in words:
-                flat[word.lower()] = domain
+                # Only add if not already present (higher-priority domain wins)
+                word_lower = word.lower()
+                if word_lower not in flat:
+                    flat[word_lower] = domain
         return flat
 
 

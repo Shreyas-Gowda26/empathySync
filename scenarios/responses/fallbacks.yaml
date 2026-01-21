@@ -24,7 +24,25 @@ unclear_input:
   - "I'm not quite following. What's the main thing you'd like to think through?"
   - "Help me understand better—what would be most useful for you right now?"
 
-# General safe fallback
+# General safe fallback (for reflective/emotional mode)
 general:
   - "I'm here to help you develop a healthier relationship with AI and technology. What would you like to explore?"
   - "Let's take this step by step. What's most important to you right now?"
+
+# Practical task fallbacks (for logistics domain)
+# When a practical request fails, acknowledge it's a technical issue, not a therapy pause
+practical:
+  - "I'm having technical trouble right now. Please try your request again in a moment."
+  - "Something went wrong on my end. Could you try asking again? Your practical request should work fine."
+  - "Technical issue - please try again. I should be able to help with that."
+  - "I couldn't process that request. Please try again and I'll do my best to complete it."
+
+# API errors for practical tasks
+practical_api_error:
+  - "I'm having trouble connecting right now. Please check that Ollama is running and try again."
+  - "Connection issue - please verify Ollama is running and try your request again."
+
+# Empty response for practical tasks
+practical_empty:
+  - "I wasn't able to generate a response. Could you try rephrasing your request?"
+  - "That didn't work as expected. Try asking again, perhaps with more detail about what you need."
