@@ -12,6 +12,7 @@ import json
 import random
 from pathlib import Path
 from datetime import datetime, date
+from typing import Dict
 
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent))
@@ -128,11 +129,36 @@ def display_trusted_network_setup():
 
 
 def display_bring_someone_in(domain: str = "general"):
-    """Enhanced human handoff panel."""
+    """Enhanced context-aware human handoff panel (Phase 5)."""
     network = st.session_state.trusted_network
+    tracker = st.session_state.wellness_tracker
+    guide = st.session_state.wellness_guide
     people = network.get_all_people()
 
     st.markdown("### Bring Someone In")
+
+    # Get session context for smart template selection
+    emotional_weight = None
+    session_intent = st.session_state.get("session_intent")
+    dependency_score = 0
+
+    if guide.last_risk_assessment:
+        emotional_weight = guide.last_risk_assessment.get("emotional_weight")
+        dependency_score = guide.last_risk_assessment.get("dependency_risk", 0)
+
+    # Get context-aware handoff
+    contextual = network.get_contextual_handoff(
+        emotional_weight=emotional_weight,
+        session_intent=session_intent,
+        domain=domain,
+        dependency_score=dependency_score,
+        is_late_night=tracker.is_late_night_session(),
+        sessions_today=tracker.get_wellness_summary().get("sessions_today", 0)
+    )
+
+    # Show context-aware intro prompt
+    if contextual.get("intro_prompt"):
+        st.info(contextual["intro_prompt"])
 
     # Suggest someone if we have people
     if people:
@@ -147,12 +173,25 @@ def display_bring_someone_in(domain: str = "general"):
 
     st.markdown("---")
 
-    # Template selection
+    # Smart template selection based on context
+    context_category = contextual.get("context", "general")
+
+    # Map context to template options
+    context_template_map = {
+        "after_difficult_task": ["need_to_talk", "asking_for_help", "hard_conversation"],
+        "processing_decision": ["need_to_talk", "asking_for_help", "checking_in"],
+        "after_sensitive_topic": ["need_to_talk", "hard_conversation", "reconnecting"],
+        "high_usage_pattern": ["checking_in", "reconnecting", "need_to_talk"],
+        "general": ["need_to_talk", "reconnecting", "checking_in", "hard_conversation", "asking_for_help"]
+    }
+
+    template_options = context_template_map.get(context_category, context_template_map["general"])
+
     st.markdown("**Need help starting the conversation?**")
 
     template_type = st.selectbox(
         "What kind of message?",
-        ["need_to_talk", "reconnecting", "checking_in", "hard_conversation", "asking_for_help"],
+        template_options,
         format_func=lambda x: {
             "need_to_talk": "I need to talk",
             "reconnecting": "Reconnecting after silence",
@@ -163,18 +202,23 @@ def display_bring_someone_in(domain: str = "general"):
         label_visibility="collapsed"
     )
 
-    template = network.get_reach_out_template(template_type)
+    # Get message template - prefer contextual if available, fallback to standard
+    if contextual.get("message_template"):
+        base_message = contextual["message_template"]
+    else:
+        template = network.get_reach_out_template(template_type)
+        base_message = template['template']
 
     # Build message with context from conversation
     if st.session_state.messages:
         user_msgs = [m["content"] for m in st.session_state.messages if m["role"] == "user"]
         if user_msgs:
-            context = user_msgs[-1][:100]
-            full_message = f"{template['template']}\n\nI've been thinking about: {context}..."
+            context_snippet = user_msgs[-1][:100]
+            full_message = f"{base_message}\n\nI've been thinking about: {context_snippet}..."
         else:
-            full_message = template['template']
+            full_message = base_message
     else:
-        full_message = template['template']
+        full_message = base_message
 
     message = st.text_area(
         "Message to send:",
@@ -191,14 +235,140 @@ def display_bring_someone_in(domain: str = "general"):
 
     with col2:
         if st.button("I reached out!", use_container_width=True, type="primary"):
-            # Log the reach out
-            person_name = suggested['name'] if people and suggested else "someone"
-            network.log_reach_out(person_name, method="message", topic=domain)
+            # Log the reach out with context
+            person_name = suggested['name'] if people and 'suggested' in dir() and suggested else "someone"
+
+            # Log in TrustedNetwork with handoff context
+            network.log_handoff_initiated(
+                context=context_category,
+                domain=domain,
+                person_name=person_name,
+                message_sent=message
+            )
+
+            # Also log in WellnessTracker for metrics
+            tracker.log_handoff_event(
+                event_type="initiated",
+                context=context_category,
+                domain=domain,
+                details={"person_name": person_name}
+            )
 
             # Show exit celebration
             celebration = network.get_exit_celebration(chose_human=True)
             st.success(celebration)
             st.balloons()
+
+
+def display_handoff_follow_up(pending_handoff: Dict):
+    """Display handoff follow-up prompt (Phase 5)."""
+    network = st.session_state.trusted_network
+    tracker = st.session_state.wellness_tracker
+    loader = get_scenario_loader()
+
+    st.markdown("---")
+    st.markdown("### Quick check-in")
+
+    context = pending_handoff.get("context", "general")
+    follow_up_prompts = loader.get_handoff_follow_up_prompts(context)
+    prompt = random.choice(follow_up_prompts) if follow_up_prompts else "Did you reach out to someone?"
+
+    st.markdown(f"*{prompt}*")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        if st.button("Yes, I reached out", use_container_width=True, type="primary"):
+            st.session_state.show_handoff_outcome = True
+            st.session_state.pending_handoff_for_outcome = pending_handoff
+            tracker.mark_handoff_follow_up_shown(pending_handoff.get("datetime"))
+            st.rerun()
+
+    with col2:
+        if st.button("Not yet", use_container_width=True):
+            tracker.log_handoff_event(
+                event_type="follow_up",
+                context=context,
+                outcome="not_yet"
+            )
+            tracker.mark_handoff_follow_up_shown(pending_handoff.get("datetime"))
+            celebration = network.get_handoff_celebration("not_yet")
+            st.info(celebration)
+            st.session_state.show_handoff_follow_up = False
+            st.rerun()
+
+    with col3:
+        if st.button("Skip", use_container_width=True):
+            tracker.mark_handoff_follow_up_shown(pending_handoff.get("datetime"))
+            st.session_state.show_handoff_follow_up = False
+            st.rerun()
+
+
+def display_handoff_outcome():
+    """Display outcome selection for handoff follow-up (Phase 5)."""
+    network = st.session_state.trusted_network
+    tracker = st.session_state.wellness_tracker
+    pending = st.session_state.get("pending_handoff_for_outcome", {})
+    context = pending.get("context", "general")
+
+    st.markdown("---")
+    st.markdown("### How did it go?")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        if st.button("Really helpful", use_container_width=True, type="primary"):
+            tracker.log_handoff_event(
+                event_type="reached_out",
+                context=context,
+                outcome="very_helpful"
+            )
+            tracker.log_handoff_event(
+                event_type="outcome_reported",
+                context=context,
+                outcome="very_helpful"
+            )
+            celebration = network.get_handoff_celebration("very_helpful")
+            st.success(celebration)
+            st.balloons()
+            st.session_state.show_handoff_outcome = False
+            st.session_state.pending_handoff_for_outcome = None
+            st.session_state.show_handoff_follow_up = False
+
+    with col2:
+        if st.button("Somewhat helpful", use_container_width=True):
+            tracker.log_handoff_event(
+                event_type="reached_out",
+                context=context,
+                outcome="somewhat_helpful"
+            )
+            tracker.log_handoff_event(
+                event_type="outcome_reported",
+                context=context,
+                outcome="somewhat_helpful"
+            )
+            celebration = network.get_handoff_celebration("reached_out")
+            st.success(celebration)
+            st.session_state.show_handoff_outcome = False
+            st.session_state.pending_handoff_for_outcome = None
+            st.session_state.show_handoff_follow_up = False
+
+    with col3:
+        if st.button("Not very helpful", use_container_width=True):
+            tracker.log_handoff_event(
+                event_type="reached_out",
+                context=context,
+                outcome="not_helpful"
+            )
+            tracker.log_handoff_event(
+                event_type="outcome_reported",
+                context=context,
+                outcome="not_helpful"
+            )
+            st.info("Not every conversation lands. The willingness to try is what counts.")
+            st.session_state.show_handoff_outcome = False
+            st.session_state.pending_handoff_for_outcome = None
+            st.session_state.show_handoff_follow_up = False
 
 
 def display_intent_check_in():
@@ -344,6 +514,117 @@ def display_intent_shift_prompt(shift_info: dict):
             st.rerun()
 
 
+def display_graduation_prompt(category: str, prompt_text: str):
+    """Display a graduation prompt suggesting skill-building."""
+    tracker = st.session_state.wellness_tracker
+    loader = get_scenario_loader()
+
+    st.markdown("---")
+    st.info(prompt_text)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Show me some tips", use_container_width=True, type="primary"):
+            st.session_state.show_skill_tips = category
+            tracker.record_graduation_accepted(category)
+            st.rerun()
+    with col2:
+        if st.button("Just help me", use_container_width=True):
+            tracker.record_graduation_dismissal(category)
+            st.session_state.graduation_shown_this_session = True
+            st.rerun()
+
+
+def display_skill_tips(category: str):
+    """Display skill tips for a task category."""
+    loader = get_scenario_loader()
+    tips = loader.get_skill_tips(category)
+
+    if not tips:
+        return
+
+    st.markdown("---")
+    st.markdown("### Quick tips for doing this yourself")
+
+    for tip in tips:
+        with st.expander(tip.get("title", "Tip"), expanded=True):
+            st.markdown(tip.get("content", ""))
+
+    st.markdown("---")
+    if st.button("Got it, thanks!", use_container_width=True):
+        st.session_state.show_skill_tips = None
+        st.rerun()
+
+
+def display_independence_button():
+    """Display the 'I did it myself!' button in sidebar."""
+    tracker = st.session_state.wellness_tracker
+    loader = get_scenario_loader()
+
+    # Get button labels
+    labels = loader.get_independence_button_labels()
+    label = labels[0] if labels else "I did it myself!"
+
+    if st.button(label, use_container_width=True, help="Did you complete a task on your own?"):
+        st.session_state.show_independence_form = True
+        st.rerun()
+
+
+def display_independence_form():
+    """Display form for recording independence."""
+    tracker = st.session_state.wellness_tracker
+    loader = get_scenario_loader()
+
+    st.markdown("### Nice work!")
+    st.markdown("What did you do on your own?")
+
+    categories = loader.get_graduation_categories()
+    category_options = ["general"] + list(categories.keys())
+    category_labels = {
+        "general": "Something else",
+        "email_drafting": "Wrote an email",
+        "code_help": "Solved a coding problem",
+        "explanations": "Figured something out",
+        "writing_general": "Wrote something",
+        "summarizing": "Summarized content"
+    }
+
+    category = st.selectbox(
+        "Category",
+        category_options,
+        format_func=lambda x: category_labels.get(x, x.replace("_", " ").title()),
+        label_visibility="collapsed"
+    )
+
+    notes = st.text_input("Notes (optional)", placeholder="e.g., 'Wrote the meeting recap myself'")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Record it!", use_container_width=True, type="primary"):
+            tracker.record_independence(category, notes)
+
+            # Show celebration
+            celebrations = loader.get_independence_celebrations()
+            if celebrations:
+                celebration = random.choice(celebrations)
+                st.success(celebration)
+
+            # Check for milestone
+            stats = tracker.get_independence_stats()
+            if stats.get("is_milestone"):
+                st.balloons()
+                count = stats.get("total_recent", 0)
+                st.info(f"You've done {count} things on your own recently. Your skills are growing.")
+
+            st.session_state.show_independence_form = False
+            st.rerun()
+
+    with col2:
+        if st.button("Cancel", use_container_width=True):
+            st.session_state.show_independence_form = False
+            st.rerun()
+
+
 def display_reality_check():
     """Display the reality check panel."""
     tracker = st.session_state.wellness_tracker
@@ -442,6 +723,17 @@ def display_chat_interface(wellness_mode):
     if st.session_state.get("pending_shift") and not st.session_state.get("acknowledged_shift"):
         display_intent_shift_prompt(st.session_state.pending_shift)
 
+    # Phase 3: Show skill tips if requested
+    if st.session_state.get("show_skill_tips"):
+        display_skill_tips(st.session_state.show_skill_tips)
+
+    # Phase 3: Show graduation prompt if pending
+    if st.session_state.get("pending_graduation") and not st.session_state.get("show_skill_tips"):
+        grad = st.session_state.pending_graduation
+        display_graduation_prompt(grad["category"], grad["prompt"])
+        st.session_state.pending_graduation = None
+        st.session_state.graduation_shown_this_session = True
+
     # Chat input
     if prompt := st.chat_input("What are you thinking through?"):
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -500,6 +792,39 @@ def display_chat_interface(wellness_mode):
                 st.markdown(response)
 
         st.session_state.messages.append({"role": "assistant", "content": response})
+
+        # Phase 3: Track task category for practical tasks
+        if guide.last_risk_assessment:
+            domain = guide.last_risk_assessment.get("domain", "")
+            if domain == "logistics":
+                # Detect and track task category
+                task_category, confidence = classifier.detect_task_category(prompt)
+                if task_category and confidence >= 0.6:
+                    stats = tracker.record_task_category(task_category)
+                    st.session_state.last_task_category = task_category
+
+                    # Check if we should show graduation prompt
+                    if not st.session_state.get("graduation_shown_this_session"):
+                        loader = get_scenario_loader()
+                        category_config = loader.get_graduation_category(task_category)
+                        if category_config:
+                            threshold = category_config.get("threshold", 10)
+                            settings = loader.get_graduation_settings()
+                            max_dismissals = settings.get("max_dismissals", 3)
+
+                            should_show, reason = tracker.should_show_graduation_prompt(
+                                task_category,
+                                threshold,
+                                max_dismissals
+                            )
+                            if should_show:
+                                prompts = loader.get_graduation_prompts(task_category)
+                                if prompts:
+                                    st.session_state.pending_graduation = {
+                                        "category": task_category,
+                                        "prompt": random.choice(prompts)
+                                    }
+                                    tracker.record_graduation_shown(task_category)
 
         if guide.last_policy_action or st.session_state.get("pending_shift"):
             st.rerun()
@@ -562,8 +887,28 @@ def main():
         st.session_state.show_connection_redirect = False
     if "pending_shift" not in st.session_state:
         st.session_state.pending_shift = None
+    # Phase 3: Graduation tracking
+    if "pending_graduation" not in st.session_state:
+        st.session_state.pending_graduation = None
+    if "graduation_shown_this_session" not in st.session_state:
+        st.session_state.graduation_shown_this_session = False
+    if "show_skill_tips" not in st.session_state:
+        st.session_state.show_skill_tips = None
+    if "last_task_category" not in st.session_state:
+        st.session_state.last_task_category = None
+    if "show_independence_form" not in st.session_state:
+        st.session_state.show_independence_form = False
     if "acknowledged_shift" not in st.session_state:
         st.session_state.acknowledged_shift = False
+    # Phase 5: Handoff tracking
+    if "show_handoff_follow_up" not in st.session_state:
+        st.session_state.show_handoff_follow_up = False
+    if "show_handoff_outcome" not in st.session_state:
+        st.session_state.show_handoff_outcome = False
+    if "pending_handoff_for_outcome" not in st.session_state:
+        st.session_state.pending_handoff_for_outcome = None
+    if "pending_handoff_info" not in st.session_state:
+        st.session_state.pending_handoff_info = None
 
     # Header
     st.markdown("# empathySync")
@@ -578,6 +923,20 @@ def main():
     if st.session_state.get("show_intent_check_in") and not st.session_state.messages:
         display_intent_check_in()
         # Still show the rest of the UI below, just with the check-in modal
+
+    # Phase 5: Check for pending handoff follow-ups
+    if not st.session_state.get("show_handoff_follow_up") and not st.session_state.get("show_handoff_outcome"):
+        tracker = st.session_state.wellness_tracker
+        should_show, pending = tracker.should_show_handoff_follow_up()
+        if should_show and pending:
+            st.session_state.show_handoff_follow_up = True
+            st.session_state.pending_handoff_info = pending
+
+    # Phase 5: Show handoff follow-up if pending
+    if st.session_state.get("show_handoff_outcome"):
+        display_handoff_outcome()
+    elif st.session_state.get("show_handoff_follow_up") and st.session_state.get("pending_handoff_info"):
+        display_handoff_follow_up(st.session_state.pending_handoff_info)
 
     # Check if network is empty - prompt setup
     network = st.session_state.trusted_network
@@ -642,6 +1001,13 @@ def main():
             with st.expander("Bring someone in", expanded=False):
                 display_bring_someone_in(current_domain)
 
+            # Phase 3: Independence button and form
+            st.markdown("---")
+            if st.session_state.get("show_independence_form"):
+                display_independence_form()
+            else:
+                display_independence_button()
+
             # Session info
             if guide.session_turn_count > 0:
                 st.caption(f"This session: {guide.session_turn_count} turns")
@@ -667,6 +1033,17 @@ def main():
                     tracker = st.session_state.wellness_tracker
                     st.session_state.show_intent_check_in = tracker.should_show_intent_check_in()
                     st.session_state.show_connection_redirect = False
+                    # Phase 3: Reset graduation state
+                    st.session_state.pending_graduation = None
+                    st.session_state.graduation_shown_this_session = False
+                    st.session_state.show_skill_tips = None
+                    st.session_state.last_task_category = None
+                    st.session_state.show_independence_form = False
+                    # Phase 5: Reset handoff state
+                    st.session_state.show_handoff_follow_up = False
+                    st.session_state.show_handoff_outcome = False
+                    st.session_state.pending_handoff_for_outcome = None
+                    st.session_state.pending_handoff_info = None
                     st.rerun()
             with col2:
                 if st.button("Export", use_container_width=True):

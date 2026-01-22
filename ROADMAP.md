@@ -138,11 +138,11 @@ scenarios/intents/ (new directory)
 
 ---
 
-## Phase 3: Competence Graduation
+## Phase 3: Competence Graduation ✅ COMPLETE
 **Goal**: Prevent skill atrophy by gently encouraging user independence over time.
 
-### 3.1 Usage Pattern Tracking (Local)
-- [ ] Extend `WellnessTracker` to track task categories:
+### 3.1 Usage Pattern Tracking (Local) ✅ DONE
+- [x] Extend `WellnessTracker` to track task categories:
   ```python
   {
     "task_patterns": {
@@ -152,27 +152,38 @@ scenarios/intents/ (new directory)
     }
   }
   ```
-- [ ] All data stays in `data/wellness_data.json`
+- [x] All data stays in `data/wellness_data.json`
 
-### 3.2 Graduation Prompts
-- [ ] Create `scenarios/graduation/practical_skills.yaml`:
-  ```yaml
-  email_drafting:
-    threshold: 10  # After 10 similar requests
-    prompts:
-      - "You've drafted several emails with me. Want some tips for writing these faster on your own?"
-      - "I notice you're getting good at these—want a quick framework you can use without me?"
-    skill_tips:
-      - "Start with the ask, then context, then close"
-      - "Keep paragraphs to 2-3 sentences max"
-  ```
-- [ ] Graduation prompts are suggestions, never restrictions
-- [ ] User can dismiss with "just help me" and system respects it
+### 3.2 Graduation Prompts ✅ DONE
+- [x] Create `scenarios/graduation/practical_skills.yaml` with 5 categories:
+  - `email_drafting` (threshold: 8)
+  - `code_help` (threshold: 10)
+  - `explanations` (threshold: 12)
+  - `writing_general` (threshold: 8)
+  - `summarizing` (threshold: 6)
+- [x] Each category includes:
+  - Strong/medium pattern indicators for detection
+  - Graduation prompts suggesting skill-building
+  - Skill tips with practical frameworks
+  - Celebration messages for independence
+- [x] Graduation prompts are suggestions, never restrictions
+- [x] User can dismiss with "just help me" and system respects it
+- [x] Max 3 dismissals before system stops suggesting for that category
 
-### 3.3 Independence Celebration
-- [ ] Track when users complete tasks without asking for help (self-reported)
-- [ ] Optional: "I did it myself!" button in UI
-- [ ] Positive reinforcement: "Nice—you wrote that one yourself."
+### 3.3 Independence Celebration ✅ DONE
+- [x] Track when users complete tasks without asking for help (self-reported)
+- [x] "I did it myself!" button in sidebar
+- [x] Positive reinforcement with celebration messages
+- [x] Milestone detection (every 5 independent completions)
+- [x] Independence stats tracking by category
+
+**Files created/modified**:
+- `scenarios/graduation/practical_skills.yaml` - Task categories, thresholds, prompts, tips
+- `src/models/risk_classifier.py` - Added `detect_task_category()` and `get_graduation_info()` methods
+- `src/utils/wellness_tracker.py` - Added task pattern tracking and independence logging methods
+- `src/utils/scenario_loader.py` - Added graduation configuration loading methods
+- `src/app.py` - Integrated graduation prompts, skill tips UI, and independence button
+- `tests/test_wellness_guide.py` - Added comprehensive graduation tests
 
 ---
 
@@ -214,26 +225,44 @@ scenarios/intents/ (new directory)
 
 ---
 
-## Phase 5: Enhanced Human Handoff
+## Phase 5: Enhanced Human Handoff ✅ COMPLETE
 **Goal**: Make the "bring someone in" feature more contextual and useful.
 
-### 5.1 Context-Aware Templates
-- [ ] Extend `TrustedNetwork` templates based on conversation context:
-  ```yaml
-  templates:
-    after_difficult_task:
-      - "Hey, I just drafted a hard email about [X]. Could use someone to talk to."
-    processing_decision:
-      - "I'm thinking through [X] and could use your perspective."
-    checking_in:
-      - "Haven't talked in a while. Free to catch up?"
-  ```
-- [ ] Auto-suggest relevant templates based on session content
+### 5.1 Context-Aware Templates ✅ DONE
+- [x] Create `scenarios/handoff/contextual_templates.yaml` with context categories:
+  - `after_difficult_task`: For high emotional weight tasks (resignation, apology, etc.)
+  - `processing_decision`: When user is working through a decision
+  - `after_sensitive_topic`: When conversation touched relationships, health, money, etc.
+  - `high_usage_pattern`: When user is using the tool frequently
+  - `general`: Default templates
+- [x] Each category includes:
+  - Intro prompts explaining why this handoff is suggested
+  - Domain-specific message templates (e.g., health-specific for health topics)
+  - Follow-up prompts for self-reporting
+- [x] Auto-suggest relevant templates based on session content:
+  - Detects emotional weight, session intent, domain, dependency score
+  - Prioritizes templates by context relevance
 
-### 5.2 Handoff Tracking
-- [ ] Track (locally) when users initiate handoffs
-- [ ] Optional self-report: "Did you reach out? How did it go?"
-- [ ] Use for success metrics (completely private, local-only)
+### 5.2 Handoff Tracking ✅ DONE
+- [x] Track (locally) when users initiate handoffs
+- [x] Store handoff context (what triggered it, domain, person, message preview)
+- [x] Optional self-report flow:
+  - "Did you reach out?" (Yes / Not yet / Skip)
+  - "How did it go?" (Really helpful / Somewhat helpful / Not very helpful)
+- [x] Celebration messages for positive outcomes
+- [x] Success metrics:
+  - Reach-out rate (handoffs completed / initiated)
+  - Helpful rate (helpful outcomes / total outcomes)
+  - Health indicator (reach_out_rate >= 0.3 and helpful_rate >= 0.5)
+- [x] Follow-up prompts with rate limiting (max 2/week, 24-hour delay)
+
+**Files created/modified**:
+- `scenarios/handoff/contextual_templates.yaml` - Context rules, templates, follow-up options
+- `src/utils/scenario_loader.py` - Added handoff configuration loading methods
+- `src/utils/trusted_network.py` - Added context-aware handoff selection and tracking
+- `src/utils/wellness_tracker.py` - Added handoff event logging and success metrics
+- `src/app.py` - Enhanced "Bring Someone In" UI with context-awareness and follow-up
+- `tests/test_wellness_guide.py` - Added Phase 5 handoff tests
 
 ---
 
@@ -342,18 +371,18 @@ scenarios/intents/ (new directory)
 | 2. Emotional Weight | High | Medium | ✅ COMPLETE |
 | 2.5 Robustness & Classification | High | Medium | ✅ COMPLETE |
 | 4. Why Are You Here | High | Low | ✅ COMPLETE |
-| 3. Competence Graduation | Medium | Medium | 🔴 Next |
-| 5. Enhanced Handoff | Medium | Low | 🟡 Soon |
-| 6. Transparency | Medium | Medium | 🟡 Soon |
-| 7. Success Metrics | High | Medium | 🟢 After core |
+| 3. Competence Graduation | Medium | Medium | ✅ COMPLETE |
+| 5. Enhanced Handoff | Medium | Low | ✅ COMPLETE |
+| 6. Transparency | Medium | Medium | 🔴 Next |
+| 7. Success Metrics | High | Medium | 🟡 Soon |
 | 8. Immunity Building | Medium | Low | 🟢 After core |
 | 9. Advanced Detection | High | High | 🔵 Long-term |
 
 ---
 
-## Current Status (2026-01-21)
+## Current Status (2026-01-22)
 
-**Completed**: Phases 1, 2, 2.5, and 4
+**Completed**: Phases 1, 2, 2.5, 3, 4, and 5
 - ✅ Dual-mode operation (practical vs reflective)
 - ✅ Emotional weight detection and acknowledgments
 - ✅ Dynamic timeouts for practical tasks (120s)
@@ -367,11 +396,17 @@ scenarios/intents/ (new directory)
 - ✅ Mid-session intent shift detection
 - ✅ Connection-seeking detection and redirection
 - ✅ AI relationship question handling
+- ✅ Task category tracking (email, code, explanations, writing, summarizing)
+- ✅ Graduation prompts with skill tips
+- ✅ "I did it myself!" independence celebration
+- ✅ Milestone tracking for user independence
+- ✅ Context-aware handoff templates (after_difficult_task, processing_decision, etc.)
+- ✅ Handoff tracking and self-report ("Did you reach out?", "How did it go?")
+- ✅ Handoff success metrics (reach-out rate, helpful rate)
 
-**Next Up**: Phase 3 (Competence Graduation)
-- Usage pattern tracking by task category
-- Graduation prompts for repeated task types
-- Independence celebration
+**Next Up**: Phase 6 (Transparency & Explainability)
+- Decision transparency panel ("Why this response?")
+- End-of-session summary
 
 ---
 
@@ -392,7 +427,8 @@ scenarios/intents/ (new directory)
 **v0.2** (Phase 1-2): Practical mode works, emotional weight acknowledged ✅ COMPLETE
 **v0.2.5** (Phase 2.5): Robustness fixes, expanded classification ✅ COMPLETE
 **v0.3** (Phase 4): Session intent check-ins and shift detection ✅ COMPLETE
-**v0.4** (Phase 3, 5): Graduation, better handoffs
+**v0.3.5** (Phase 3): Competence graduation and independence tracking ✅ COMPLETE
+**v0.4** (Phase 5): Enhanced handoffs with context-awareness and tracking ✅ COMPLETE
 **v0.5** (Phase 6-7): Transparency, local metrics
 **v0.6** (Phase 8): Immunity building
 **v1.0** (Phase 9): Advanced detection, production-ready

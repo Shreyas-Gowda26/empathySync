@@ -440,3 +440,66 @@ class RiskClassifier:
             return (True, "implicit")
 
         return (False, "")
+
+    # ==================== TASK CATEGORY DETECTION ====================
+
+    def detect_task_category(self, text: str) -> Tuple[Optional[str], float]:
+        """
+        Detect the category of a practical task for competence graduation.
+
+        This is used to track how often users ask for similar types of help,
+        enabling graduation prompts after repeated requests.
+
+        Args:
+            text: User input text
+
+        Returns:
+            Tuple of (category_name, confidence_score)
+            category_name: 'email_drafting', 'code_help', 'explanations', etc. or None
+            confidence_score: 0.0-1.0
+        """
+        t = text.lower().strip()
+
+        # Load categories from graduation config
+        categories = self.loader.get_graduation_categories()
+
+        best_match = None
+        best_score = 0.0
+
+        for category_name, category_config in categories.items():
+            indicators = category_config.get("indicators", {})
+            strong = indicators.get("strong", [])
+            medium = indicators.get("medium", [])
+            exclude = category_config.get("exclude_if_contains", [])
+
+            # Check exclusions first
+            if any(exc.lower() in t for exc in exclude):
+                continue
+
+            # Check strong indicators
+            if any(ind.lower() in t for ind in strong):
+                score = 0.9
+            # Check medium indicators
+            elif any(ind.lower() in t for ind in medium):
+                score = 0.6
+            else:
+                continue
+
+            if score > best_score:
+                best_score = score
+                best_match = category_name
+
+        return (best_match, best_score) if best_match else (None, 0.0)
+
+    def get_graduation_info(self, category: str) -> Optional[Dict]:
+        """
+        Get graduation configuration for a specific task category.
+
+        Args:
+            category: The task category name (e.g., 'email_drafting')
+
+        Returns:
+            Dict with threshold, prompts, skill_tips, and celebration messages
+            or None if category not found
+        """
+        return self.loader.get_graduation_category(category)

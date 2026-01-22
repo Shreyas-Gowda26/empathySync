@@ -470,3 +470,387 @@ class WellnessTracker:
         if intents:
             return intents[-1].get("intent")
         return None
+
+    # ==================== TASK PATTERN TRACKING (GRADUATION) ====================
+
+    def record_task_category(self, category: str) -> Dict:
+        """
+        Record when a task category is used (for graduation tracking).
+
+        Args:
+            category: e.g., 'email_drafting', 'code_help', 'explanations'
+
+        Returns:
+            Updated stats for this category
+        """
+        data = self._load_data()
+
+        if "task_patterns" not in data:
+            data["task_patterns"] = {}
+
+        if category not in data["task_patterns"]:
+            data["task_patterns"][category] = {
+                "count": 0,
+                "first_use": datetime.now().isoformat(),
+                "uses": [],
+                "graduation_shown_count": 0,
+                "dismissal_count": 0
+            }
+
+        pattern = data["task_patterns"][category]
+        pattern["count"] += 1
+        pattern["last_use"] = datetime.now().isoformat()
+        pattern["uses"].append({
+            "datetime": datetime.now().isoformat(),
+            "date": date.today().isoformat()
+        })
+
+        # Keep only last 100 uses to prevent file bloat
+        if len(pattern["uses"]) > 100:
+            pattern["uses"] = pattern["uses"][-100:]
+
+        self._save_data(data)
+
+        # Return stats including recent count
+        return self._get_category_stats(category, pattern)
+
+    def _get_category_stats(self, category: str, pattern: Dict) -> Dict:
+        """Calculate stats for a category."""
+        uses = pattern.get("uses", [])
+
+        # Count last 7 days
+        week_ago = (date.today() - timedelta(days=7)).isoformat()
+        last_7_days = sum(1 for u in uses if u.get("date", "") >= week_ago)
+
+        # Count last 30 days
+        month_ago = (date.today() - timedelta(days=30)).isoformat()
+        last_30_days = sum(1 for u in uses if u.get("date", "") >= month_ago)
+
+        return {
+            "category": category,
+            "count": pattern.get("count", 0),
+            "last_7_days": last_7_days,
+            "last_30_days": last_30_days,
+            "first_use": pattern.get("first_use"),
+            "last_use": pattern.get("last_use"),
+            "graduation_shown_count": pattern.get("graduation_shown_count", 0),
+            "dismissal_count": pattern.get("dismissal_count", 0)
+        }
+
+    def get_task_patterns(self) -> Dict[str, Dict]:
+        """
+        Get usage stats for all tracked task categories.
+
+        Returns:
+            Dict mapping category name to stats
+        """
+        data = self._load_data()
+        patterns = data.get("task_patterns", {})
+
+        return {
+            category: self._get_category_stats(category, pattern)
+            for category, pattern in patterns.items()
+        }
+
+    def get_category_stats(self, category: str) -> Optional[Dict]:
+        """Get stats for a specific category."""
+        data = self._load_data()
+        patterns = data.get("task_patterns", {})
+
+        if category in patterns:
+            return self._get_category_stats(category, patterns[category])
+        return None
+
+    def should_show_graduation_prompt(
+        self,
+        category: str,
+        threshold: int,
+        max_dismissals: int = 3,
+        max_prompts_per_session: int = 1
+    ) -> Tuple[bool, str]:
+        """
+        Check if we should show a graduation prompt for this category.
+
+        Args:
+            category: The task category
+            threshold: Number of uses before prompting
+            max_dismissals: Stop suggesting after this many dismissals
+            max_prompts_per_session: Max graduation prompts per session
+
+        Returns:
+            Tuple of (should_show, reason)
+        """
+        stats = self.get_category_stats(category)
+
+        if not stats:
+            return False, "no_data"
+
+        # Check if user has dismissed too many times
+        if stats["dismissal_count"] >= max_dismissals:
+            return False, "max_dismissals_reached"
+
+        # Check if threshold is met
+        if stats["count"] < threshold:
+            return False, "below_threshold"
+
+        # Check if we've shown too recently (within last 3 uses)
+        data = self._load_data()
+        patterns = data.get("task_patterns", {})
+        pattern = patterns.get(category, {})
+
+        last_shown = pattern.get("last_graduation_shown")
+        if last_shown:
+            uses_since = stats["count"] - pattern.get("count_at_last_shown", 0)
+            if uses_since < 3:
+                return False, "shown_recently"
+
+        # Check session limit (tracked in session state, not here)
+        # The caller should track this
+
+        return True, "threshold_met"
+
+    def record_graduation_shown(self, category: str) -> None:
+        """Record that we showed a graduation prompt for this category."""
+        data = self._load_data()
+
+        if "task_patterns" not in data or category not in data["task_patterns"]:
+            return
+
+        pattern = data["task_patterns"][category]
+        pattern["graduation_shown_count"] = pattern.get("graduation_shown_count", 0) + 1
+        pattern["last_graduation_shown"] = datetime.now().isoformat()
+        pattern["count_at_last_shown"] = pattern.get("count", 0)
+
+        self._save_data(data)
+
+    def record_graduation_dismissal(self, category: str) -> None:
+        """Record that user dismissed a graduation prompt."""
+        data = self._load_data()
+
+        if "task_patterns" not in data or category not in data["task_patterns"]:
+            return
+
+        pattern = data["task_patterns"][category]
+        pattern["dismissal_count"] = pattern.get("dismissal_count", 0) + 1
+        pattern["last_dismissal"] = datetime.now().isoformat()
+
+        self._save_data(data)
+
+    def record_graduation_accepted(self, category: str) -> None:
+        """Record that user accepted skill tips."""
+        data = self._load_data()
+
+        if "task_patterns" not in data or category not in data["task_patterns"]:
+            return
+
+        pattern = data["task_patterns"][category]
+        if "accepted_tips" not in pattern:
+            pattern["accepted_tips"] = []
+
+        pattern["accepted_tips"].append({
+            "datetime": datetime.now().isoformat()
+        })
+
+        self._save_data(data)
+
+    # ==================== INDEPENDENCE TRACKING ====================
+
+    def record_independence(self, category: str = "general", notes: str = "") -> Dict:
+        """
+        Record when user reports completing a task independently.
+
+        Args:
+            category: Optional task category
+            notes: Optional notes about what they did
+
+        Returns:
+            Independence record
+        """
+        data = self._load_data()
+
+        if "independence_records" not in data:
+            data["independence_records"] = []
+
+        record = {
+            "datetime": datetime.now().isoformat(),
+            "date": date.today().isoformat(),
+            "category": category,
+            "notes": notes
+        }
+
+        data["independence_records"].append(record)
+        self._save_data(data)
+
+        return record
+
+    def get_independence_stats(self, days: int = 30) -> Dict:
+        """
+        Get independence tracking statistics.
+
+        Returns count and trend data for celebrating user independence.
+        """
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        data = self._load_data()
+        records = data.get("independence_records", [])
+
+        recent = [r for r in records if r.get("date", "") >= cutoff]
+
+        # Count by category
+        by_category = {}
+        for record in recent:
+            cat = record.get("category", "general")
+            by_category[cat] = by_category.get(cat, 0) + 1
+
+        # Check for milestone
+        total = len(recent)
+        milestone_count = 5  # Could load from config
+        is_milestone = total > 0 and total % milestone_count == 0
+
+        return {
+            "total_recent": total,
+            "total_all_time": len(records),
+            "by_category": by_category,
+            "days_analyzed": days,
+            "is_milestone": is_milestone
+        }
+
+    def get_recent_independence(self, limit: int = 5) -> List[Dict]:
+        """Get recent independence records."""
+        data = self._load_data()
+        records = data.get("independence_records", [])
+        return records[-limit:] if records else []
+
+    # ==================== HANDOFF TRACKING (PHASE 5) ====================
+
+    def log_handoff_event(
+        self,
+        event_type: str,
+        context: str = None,
+        domain: str = None,
+        outcome: str = None,
+        details: Dict = None
+    ) -> Dict:
+        """
+        Log a handoff event for transparency and metrics.
+
+        Args:
+            event_type: 'initiated', 'reached_out', 'outcome_reported'
+            context: Handoff context (e.g., 'after_difficult_task')
+            domain: Conversation domain
+            outcome: 'very_helpful', 'somewhat_helpful', 'not_helpful'
+            details: Additional details
+
+        Returns:
+            The logged event
+        """
+        # Log as a policy event for transparency
+        self.log_policy_event(
+            policy_type=f"handoff_{event_type}",
+            domain=domain or "general",
+            risk_weight=0,
+            action_taken=f"Handoff {event_type}: {context or 'general'}"
+        )
+
+        data = self._load_data()
+
+        if "handoff_events" not in data:
+            data["handoff_events"] = []
+
+        event = {
+            "datetime": datetime.now().isoformat(),
+            "date": date.today().isoformat(),
+            "event_type": event_type,
+            "context": context,
+            "domain": domain,
+            "outcome": outcome,
+            "details": details
+        }
+
+        data["handoff_events"].append(event)
+
+        # Keep last 200 events
+        if len(data["handoff_events"]) > 200:
+            data["handoff_events"] = data["handoff_events"][-200:]
+
+        self._save_data(data)
+        return event
+
+    def get_handoff_success_metrics(self, days: int = 30) -> Dict:
+        """
+        Calculate handoff success metrics.
+
+        Success = users reaching out to humans and finding it helpful.
+
+        Returns:
+            Dict with success metrics
+        """
+        data = self._load_data()
+        events = data.get("handoff_events", [])
+
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        recent = [e for e in events if e.get("date", "") >= cutoff]
+
+        # Count by event type
+        initiated = sum(1 for e in recent if e.get("event_type") == "initiated")
+        reached_out = sum(1 for e in recent if e.get("event_type") == "reached_out")
+        outcome_reported = sum(1 for e in recent if e.get("event_type") == "outcome_reported")
+
+        # Count outcomes
+        outcomes = [e for e in recent if e.get("outcome")]
+        very_helpful = sum(1 for e in outcomes if e.get("outcome") == "very_helpful")
+        somewhat_helpful = sum(1 for e in outcomes if e.get("outcome") == "somewhat_helpful")
+        not_helpful = sum(1 for e in outcomes if e.get("outcome") == "not_helpful")
+
+        # Calculate success rate
+        total_outcomes = very_helpful + somewhat_helpful + not_helpful
+        helpful_rate = (very_helpful + somewhat_helpful) / total_outcomes if total_outcomes > 0 else 0
+
+        # Calculate reach out rate
+        reach_out_rate = reached_out / initiated if initiated > 0 else 0
+
+        return {
+            "period_days": days,
+            "handoffs_initiated": initiated,
+            "handoffs_completed": reached_out,
+            "reach_out_rate": round(reach_out_rate, 2),
+            "outcomes": {
+                "very_helpful": very_helpful,
+                "somewhat_helpful": somewhat_helpful,
+                "not_helpful": not_helpful
+            },
+            "helpful_rate": round(helpful_rate, 2),
+            "is_healthy": reach_out_rate >= 0.3 and helpful_rate >= 0.5
+        }
+
+    def should_show_handoff_follow_up(self) -> Tuple[bool, Optional[Dict]]:
+        """
+        Check if we should show a handoff follow-up prompt.
+
+        Returns:
+            Tuple of (should_show, pending_handoff_info)
+        """
+        data = self._load_data()
+        events = data.get("handoff_events", [])
+
+        # Find initiated handoffs without follow-up
+        for event in reversed(events):  # Check most recent first
+            if (event.get("event_type") == "initiated"
+                    and not event.get("follow_up_shown")):
+                # Check if enough time has passed (24 hours)
+                event_time = datetime.fromisoformat(event["datetime"])
+                if datetime.now() - event_time >= timedelta(hours=24):
+                    return True, event
+
+        return False, None
+
+    def mark_handoff_follow_up_shown(self, event_datetime: str) -> None:
+        """Mark a handoff event's follow-up as shown."""
+        data = self._load_data()
+        events = data.get("handoff_events", [])
+
+        for event in events:
+            if event.get("datetime") == event_datetime:
+                event["follow_up_shown"] = True
+                event["follow_up_shown_date"] = datetime.now().isoformat()
+                self._save_data(data)
+                return

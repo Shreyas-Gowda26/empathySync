@@ -377,6 +377,248 @@ class ScenarioLoader:
         responses = config.get("connection_responses", {})
         return responses.get(response_type, [])
 
+    # ==================== GRADUATION ====================
+
+    def get_all_graduation_config(self) -> Dict[str, Dict]:
+        """Load all graduation configurations."""
+        return self._load_directory("graduation")
+
+    def get_practical_skills_config(self) -> Dict:
+        """Get practical skills graduation configuration."""
+        graduation = self.get_all_graduation_config()
+        return graduation.get("practical_skills", {})
+
+    def get_graduation_settings(self) -> Dict:
+        """Get global graduation settings."""
+        config = self.get_practical_skills_config()
+        return config.get("settings", {})
+
+    def get_graduation_categories(self) -> Dict[str, Dict]:
+        """
+        Get all task categories for graduation tracking.
+
+        Returns:
+            Dict mapping category name to category config
+        """
+        config = self.get_practical_skills_config()
+        return config.get("categories", {})
+
+    def get_graduation_category(self, category_name: str) -> Optional[Dict]:
+        """
+        Get configuration for a specific task category.
+
+        Args:
+            category_name: e.g., 'email_drafting', 'code_help'
+
+        Returns:
+            Dict with threshold, prompts, skill_tips, celebration
+        """
+        categories = self.get_graduation_categories()
+        return categories.get(category_name)
+
+    def get_graduation_prompts(self, category_name: str) -> List[str]:
+        """Get graduation prompts for a category."""
+        category = self.get_graduation_category(category_name)
+        if category:
+            return category.get("graduation_prompts", [])
+        return []
+
+    def get_skill_tips(self, category_name: str) -> List[Dict]:
+        """Get skill tips for a category."""
+        category = self.get_graduation_category(category_name)
+        if category:
+            return category.get("skill_tips", [])
+        return []
+
+    def get_graduation_celebration(self, category_name: str) -> List[str]:
+        """Get celebration messages for completing tasks independently."""
+        category = self.get_graduation_category(category_name)
+        if category:
+            return category.get("celebration", [])
+        return []
+
+    def get_independence_config(self) -> Dict:
+        """Get independence tracking configuration."""
+        config = self.get_practical_skills_config()
+        return config.get("independence", {})
+
+    def get_independence_celebrations(self) -> List[str]:
+        """Get general independence celebration messages."""
+        independence = self.get_independence_config()
+        return independence.get("celebration_messages", [])
+
+    def get_independence_button_labels(self) -> List[str]:
+        """Get button label options for 'I did it myself'."""
+        independence = self.get_independence_config()
+        return independence.get("button_labels", ["I did it myself!"])
+
+    # ==================== HANDOFF ====================
+
+    def get_all_handoff_config(self) -> Dict[str, Dict]:
+        """Load all handoff configurations."""
+        return self._load_directory("handoff")
+
+    def get_contextual_templates_config(self) -> Dict:
+        """Get contextual handoff templates configuration."""
+        handoff = self.get_all_handoff_config()
+        return handoff.get("contextual_templates", {})
+
+    def get_handoff_settings(self) -> Dict:
+        """Get handoff behavior settings."""
+        config = self.get_contextual_templates_config()
+        return config.get("settings", {})
+
+    def get_handoff_context_rules(self) -> Dict[str, Dict]:
+        """
+        Get context detection rules for handoff templates.
+
+        Returns:
+            Dict mapping context name to rule config
+        """
+        config = self.get_contextual_templates_config()
+        return config.get("context_rules", {})
+
+    def get_handoff_templates(self) -> Dict[str, Dict]:
+        """
+        Get all handoff template categories.
+
+        Returns:
+            Dict mapping category name to template config
+        """
+        config = self.get_contextual_templates_config()
+        return config.get("templates", {})
+
+    def get_handoff_template_category(self, category: str) -> Optional[Dict]:
+        """
+        Get a specific handoff template category.
+
+        Args:
+            category: e.g., 'after_difficult_task', 'processing_decision'
+
+        Returns:
+            Dict with name, description, intro_prompts, messages
+        """
+        templates = self.get_handoff_templates()
+        return templates.get(category)
+
+    def get_handoff_intro_prompts(self, category: str) -> List[str]:
+        """Get intro prompts for a handoff category."""
+        template = self.get_handoff_template_category(category)
+        if template:
+            return template.get("intro_prompts", [])
+        return []
+
+    def get_handoff_messages(self, category: str, domain: str = None) -> List[str]:
+        """
+        Get handoff message templates for a category.
+
+        Args:
+            category: Template category (e.g., 'after_difficult_task')
+            domain: Optional domain for domain-specific messages
+
+        Returns:
+            List of message templates
+        """
+        template = self.get_handoff_template_category(category)
+        if not template:
+            return []
+
+        messages = template.get("messages", [])
+
+        # Check for domain-specific messages first
+        if domain and "by_domain" in template.get("messages", {}):
+            by_domain = template["messages"].get("by_domain", {})
+            domain_messages = by_domain.get(domain, by_domain.get("general", []))
+            if domain_messages:
+                return domain_messages
+
+        # Return general messages
+        result = []
+        for msg_group in messages:
+            if isinstance(msg_group, dict) and "templates" in msg_group:
+                result.extend(msg_group.get("templates", []))
+            elif isinstance(msg_group, str):
+                result.append(msg_group)
+
+        return result
+
+    def get_handoff_follow_up_prompts(self, category: str) -> List[str]:
+        """Get follow-up prompts for a handoff category."""
+        template = self.get_handoff_template_category(category)
+        if template:
+            return template.get("follow_up_prompts", [])
+        return []
+
+    def get_handoff_follow_up_options(self) -> Dict:
+        """Get self-report options for handoff follow-up."""
+        config = self.get_contextual_templates_config()
+        return config.get("follow_up_options", {})
+
+    def get_handoff_celebrations(self, outcome: str = "reached_out") -> List[str]:
+        """
+        Get celebration messages for handoff outcomes.
+
+        Args:
+            outcome: 'reached_out', 'very_helpful', 'not_yet', etc.
+
+        Returns:
+            List of celebration messages
+        """
+        follow_up = self.get_handoff_follow_up_options()
+        celebrations = follow_up.get("celebrations", {})
+        return celebrations.get(outcome, [])
+
+    def detect_handoff_context(
+        self,
+        emotional_weight: str = None,
+        session_intent: str = None,
+        domain: str = None,
+        dependency_score: float = 0,
+        is_late_night: bool = False,
+        sessions_today: int = 0
+    ) -> str:
+        """
+        Detect the appropriate handoff context based on session state.
+
+        Args:
+            emotional_weight: 'high_weight', 'medium_weight', or 'low_weight'
+            session_intent: 'practical', 'processing', 'emotional', 'connection'
+            domain: Current conversation domain
+            dependency_score: User's dependency score (0-10)
+            is_late_night: Whether it's a late night session
+            sessions_today: Number of sessions today
+
+        Returns:
+            Context category name (e.g., 'after_difficult_task')
+        """
+        rules = self.get_handoff_context_rules()
+
+        # Check rules in priority order
+        sorted_rules = sorted(
+            rules.items(),
+            key=lambda x: x[1].get("priority", 10)
+        )
+
+        for context_name, rule in sorted_rules:
+            triggers = rule.get("triggers", [])
+
+            # Check if any triggers match
+            for trigger in triggers:
+                if trigger == "high_emotional_weight_task" and emotional_weight == "high_weight":
+                    return context_name
+                if trigger == "session_intent_processing" and session_intent == "processing":
+                    return context_name
+                if trigger.startswith("domain_") and domain == trigger.replace("domain_", ""):
+                    return context_name
+                if trigger == "high_dependency_score" and dependency_score >= 7:
+                    return context_name
+                if trigger == "late_night_session" and is_late_night:
+                    return context_name
+                if trigger == "multiple_sessions_today" and sessions_today >= 3:
+                    return context_name
+
+        return "general"
+
     # ==================== UTILITY METHODS ====================
 
     def clear_cache(self) -> None:

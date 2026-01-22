@@ -1,0 +1,281 @@
+# Competence Graduation Configuration
+# Goal: Gently encourage user independence over time
+# These are SUGGESTIONS, never restrictions
+
+# Global settings
+settings:
+  # Minimum tasks before any graduation prompt shows
+  min_tasks_before_prompt: 5
+
+  # Don't show graduation prompts more than once per session
+  max_prompts_per_session: 1
+
+  # Days of inactivity before resetting counts (user might have forgotten)
+  reset_after_days: 30
+
+  # How many times user can dismiss before we stop suggesting for this category
+  max_dismissals: 3
+
+# Task categories with detection patterns
+categories:
+  email_drafting:
+    description: "Writing emails, messages, and professional correspondence"
+    threshold: 8  # After 8 similar requests
+
+    # Patterns to detect this category (matched against user input)
+    indicators:
+      strong:
+        - "write me an email"
+        - "draft an email"
+        - "help me write an email"
+        - "compose an email"
+        - "write a message to"
+        - "draft a letter"
+        - "write a professional email"
+        - "email template"
+        - "reply to this email"
+        - "respond to this email"
+      medium:
+        - "write to my"
+        - "message my"
+        - "email about"
+        - "write a note to"
+        - "draft a response"
+
+    graduation_prompts:
+      - "You've drafted quite a few emails with me. Want a quick framework you can use on your own?"
+      - "I notice you're getting good at these. Want some tips for writing emails faster without me?"
+      - "You've been practicing emails. Ready for a simple template to try yourself?"
+
+    skill_tips:
+      - title: "The 3-Part Email Structure"
+        content: |
+          1. **Ask/Purpose** (first line) - What do you need?
+          2. **Context** (1-2 sentences) - Why are you asking?
+          3. **Close** (one line) - Thanks + next step
+
+          Example: "Hi [Name], Could you review the Q3 report by Friday? The client meeting is Monday and I want to incorporate your feedback. Thanks—let me know if you need anything from me."
+
+      - title: "Keep It Scannable"
+        content: |
+          - One idea per paragraph
+          - 2-3 sentences max per paragraph
+          - Bold key dates/asks if it's long
+          - Subject line = action needed
+
+    celebration:
+      - "Nice—you wrote that one yourself."
+      - "Look at you, drafting emails without me."
+      - "That's independence. Well done."
+
+  code_help:
+    description: "Programming questions, debugging, and code writing"
+    threshold: 10
+
+    indicators:
+      strong:
+        - "write me a function"
+        - "help me code"
+        - "debug this"
+        - "fix this code"
+        - "write a script"
+        - "implement a"
+        - "code that does"
+        - "how do I code"
+        - "write python"
+        - "write javascript"
+        - "write a program"
+      medium:
+        - "why isn't this working"
+        - "what's wrong with"
+        - "how to implement"
+        - "syntax for"
+        - "example of"
+
+    graduation_prompts:
+      - "You've been coding a lot with me. Want to try the next one yourself first?"
+      - "Your code questions are getting more advanced. Ready to debug independently?"
+      - "I notice you're getting better at these. Want a debugging checklist to try first?"
+
+    skill_tips:
+      - title: "The Debugging Checklist"
+        content: |
+          Before asking for help, try:
+          1. **Read the error message** - What line? What type?
+          2. **Print/log the variables** - Are they what you expect?
+          3. **Isolate the problem** - Does it work with simpler input?
+          4. **Check the docs** - Is the function doing what you think?
+          5. **Rubber duck it** - Explain the code out loud
+
+      - title: "Problem-Solving Pattern"
+        content: |
+          1. **What** - What should happen?
+          2. **What actually** - What's happening instead?
+          3. **Where** - What line/function is the issue?
+          4. **Why** - What assumption is wrong?
+
+    celebration:
+      - "You figured that out yourself. Nice."
+      - "See? You knew how to do it."
+      - "That's the debugging mindset."
+
+  explanations:
+    description: "Concept explanations, how things work, learning questions"
+    threshold: 12
+
+    indicators:
+      strong:
+        - "explain"
+        - "what is"
+        - "what are"
+        - "how does"
+        - "how do"
+        - "why does"
+        - "tell me about"
+        - "can you explain"
+        - "help me understand"
+        - "what's the difference between"
+      medium:
+        - "I don't understand"
+        - "confused about"
+        - "meaning of"
+        - "definition of"
+
+    graduation_prompts:
+      - "You've been learning a lot. Want some resources to explore on your own?"
+      - "Your questions are getting deeper. Ready to try researching the next one first?"
+      - "I notice you're building knowledge here. Want a strategy for self-learning?"
+
+    skill_tips:
+      - title: "The Learning Loop"
+        content: |
+          1. **Skim first** - Get the big picture
+          2. **Active recall** - Close the source, explain it yourself
+          3. **Test yourself** - Can you use it in an example?
+          4. **Teach it** - Explain to someone (or rubber duck)
+
+      - title: "Good Sources to Check First"
+        content: |
+          - Official documentation (usually best)
+          - Stack Overflow (for specific errors)
+          - Wikipedia (for concepts)
+          - YouTube tutorials (for visual learning)
+          - Ask AI only after trying these
+
+    celebration:
+      - "You found that answer yourself. That's the skill."
+      - "Research skills building. Nice."
+      - "You're getting good at learning on your own."
+
+  writing_general:
+    description: "General writing help (not emails) - essays, posts, content"
+    threshold: 8
+
+    indicators:
+      strong:
+        - "write me a"
+        - "help me write"
+        - "draft a"
+        - "compose a"
+        - "write a blog"
+        - "write a post"
+        - "write an essay"
+        - "write a story"
+        - "write content"
+        - "write copy"
+      medium:
+        - "rewrite this"
+        - "make this better"
+        - "edit this"
+        - "improve this writing"
+
+    # Exclude email-specific patterns (handled by email_drafting)
+    exclude_if_contains:
+      - "email"
+      - "message to"
+      - "letter to"
+
+    graduation_prompts:
+      - "You've been writing a lot with me. Want to try drafting the first version yourself?"
+      - "Your writing is getting stronger. Ready for a framework to work independently?"
+      - "I notice you're developing your voice. Want to write the first draft solo?"
+
+    skill_tips:
+      - title: "The Shitty First Draft"
+        content: |
+          1. **Just write** - Don't edit as you go
+          2. **Get it all out** - Messy is fine
+          3. **Walk away** - Take a break
+          4. **Edit later** - Now make it good
+
+          "The first draft is just you telling yourself the story." — Terry Pratchett
+
+      - title: "Structure First"
+        content: |
+          Before writing:
+          1. **One sentence** - What's the point?
+          2. **Three bullets** - What are the main ideas?
+          3. **Now write** - Fill in around the structure
+
+    celebration:
+      - "You wrote that yourself. It's good."
+      - "Your own words. Nice."
+      - "See? You can write."
+
+  summarizing:
+    description: "Summarizing documents, articles, or content"
+    threshold: 6
+
+    indicators:
+      strong:
+        - "summarize this"
+        - "summarize the"
+        - "give me a summary"
+        - "tldr"
+        - "key points of"
+        - "main takeaways"
+        - "condense this"
+      medium:
+        - "what are the main"
+        - "shorten this"
+        - "brief version"
+
+    graduation_prompts:
+      - "You've been summarizing a lot. Want a quick method to do it yourself?"
+      - "Ready to try summarizing the next one before asking me?"
+
+    skill_tips:
+      - title: "The 3-2-1 Summary"
+        content: |
+          After reading:
+          - **3 main ideas** (one sentence each)
+          - **2 supporting details** (you found interesting)
+          - **1 question** (you still have)
+
+          That's your summary.
+
+    celebration:
+      - "You summarized that yourself. Clean."
+      - "Good summary skills."
+
+# Independence tracking
+independence:
+  # Shown when user reports doing something themselves
+  celebration_messages:
+    - "Nice—you did that yourself. That's the goal."
+    - "Independence looks good on you."
+    - "You didn't need me for that one. Well done."
+    - "That's what we're going for. You've got this."
+    - "See? You knew how all along."
+
+  # Button label options
+  button_labels:
+    - "I did it myself!"
+    - "Figured it out"
+    - "Didn't need help this time"
+
+  # Tracking thresholds
+  tracking:
+    # After this many self-reported completions, show extra celebration
+    milestone_count: 5
+    milestone_message: "You've done {count} things on your own recently. Your skills are growing."

@@ -1,0 +1,261 @@
+# Contextual Handoff Templates
+# Goal: Make "bring someone in" more relevant to what just happened in the session
+
+# Templates are selected based on session context
+# The system auto-suggests the most appropriate template category
+
+# Settings for handoff behavior
+settings:
+  # Show follow-up prompt after handoff (to track if it helped)
+  show_follow_up: true
+
+  # How long to wait before showing follow-up (in hours)
+  follow_up_delay_hours: 24
+
+  # Max follow-ups to show per week (don't nag)
+  max_follow_ups_per_week: 2
+
+  # Track handoff context for success metrics
+  track_context: true
+
+# Context detection rules
+# Maps session state to recommended template category
+context_rules:
+  after_difficult_task:
+    description: "User just completed a high emotional weight task"
+    triggers:
+      - high_emotional_weight_task
+      - resignation_drafted
+      - apology_written
+      - difficult_message_drafted
+    priority: 1
+
+  processing_decision:
+    description: "User is working through a decision"
+    triggers:
+      - session_intent_processing
+      - exploratory_questions
+      - weighing_options
+    priority: 2
+
+  after_sensitive_topic:
+    description: "Conversation touched sensitive domains"
+    triggers:
+      - domain_relationships
+      - domain_health
+      - domain_money
+      - domain_spirituality
+    priority: 3
+
+  high_usage_pattern:
+    description: "User is using the tool frequently"
+    triggers:
+      - multiple_sessions_today
+      - high_dependency_score
+      - late_night_session
+    priority: 4
+
+  general:
+    description: "Default templates for any context"
+    triggers: []
+    priority: 10
+
+# Template categories with context-aware messages
+templates:
+  after_difficult_task:
+    name: "After drafting something hard"
+    description: "For when user just completed an emotionally heavy task"
+
+    intro_prompts:
+      - "You just drafted something hard. It might help to talk it through with someone before sending."
+      - "Heavy email to write. Consider talking to someone who knows the situation before you hit send."
+      - "That was a tough one. Is there someone who could give you perspective?"
+
+    messages:
+      - subject_hint: "the email I'm about to send"
+        templates:
+          - "Hey, I just drafted a hard email and could use a gut check before I send it. Got a few minutes?"
+          - "I'm about to send a difficult message and I'm second-guessing myself. Can I run it by you?"
+          - "I wrote something important and heavy. Would you read it before I send?"
+
+      - subject_hint: "a big decision"
+        templates:
+          - "I'm about to do something big and I want to make sure I'm not missing anything. Can we talk?"
+          - "Made a decision but feeling unsure. Would value your perspective before I act on it."
+
+    follow_up_prompts:
+      - "Did talking it through help?"
+      - "Did you get the perspective you needed?"
+
+  processing_decision:
+    name: "Thinking through something"
+    description: "For when user is processing a decision or dilemma"
+
+    intro_prompts:
+      - "You're weighing something important. The right person might help you think clearer."
+      - "Decision-making is easier with someone who knows you. Who could help?"
+      - "Sometimes saying it out loud to someone helps more than writing it down."
+
+    messages:
+      - subject_hint: "something I'm trying to decide"
+        templates:
+          - "I'm trying to work through a decision and keep going in circles. Could use your perspective."
+          - "There's something I'm weighing and I trust your judgment. Can we talk it through?"
+          - "I need to decide on something and I'm stuck. You usually see things I miss."
+
+      - subject_hint: "what to do next"
+        templates:
+          - "I'm at a crossroads with something and could really use your input."
+          - "Facing a choice and not sure which way to go. Can I think out loud with you?"
+
+    follow_up_prompts:
+      - "Did talking it through help you decide?"
+      - "Any clearer after talking to them?"
+
+  after_sensitive_topic:
+    name: "After discussing something sensitive"
+    description: "For when conversation touched on relationships, health, money, etc."
+
+    intro_prompts:
+      - "We talked about something important to you. Consider sharing it with someone who knows you."
+      - "This kind of thing is worth talking through with a real person."
+      - "I can reflect, but someone who knows you can actually help."
+
+    messages:
+      by_domain:
+        relationships:
+          - "Something came up about [person/situation] and I need to process it. Can we talk?"
+          - "I'm dealing with something in my relationships and could use your ear."
+          - "Need to talk through some stuff about [person]. You always give good perspective."
+
+        health:
+          - "I'm worried about something health-related. Can we talk? I need someone who knows me."
+          - "Going through something with my health and could use support."
+          - "Medical stuff is weighing on me. Would help to talk to someone I trust."
+
+        money:
+          - "I'm dealing with some money stuff and could use a clear head. Can we talk?"
+          - "Financial stress is getting to me. I trust your judgment on these things."
+          - "Need to talk through a money situation. You're good at this."
+
+        spirituality:
+          - "Something's coming up for me spiritually and I'd value your perspective."
+          - "Having some bigger questions lately. Can we talk?"
+          - "I'm wrestling with something and could use your wisdom."
+
+        general:
+          - "Something's been on my mind and I'd rather talk it through with you than type about it."
+          - "I need to talk to someone I trust. Are you free?"
+
+    follow_up_prompts:
+      - "Did you get to talk to them?"
+      - "Did reaching out help?"
+
+  high_usage_pattern:
+    name: "When usage is high"
+    description: "Gentle nudge when user might be over-relying on the tool"
+
+    intro_prompts:
+      - "You've been here a lot lately. Maybe it's time to call someone instead."
+      - "Notice you've been using this tool frequently. Consider reaching out to a person."
+      - "I'm here when you need me, but humans are better at this. Who could you call?"
+
+    messages:
+      - subject_hint: "checking in"
+        templates:
+          - "Hey, it's been a while. Been meaning to reach out. How are you?"
+          - "I've been in my head lately. Would be good to hear a real voice. Free to talk?"
+          - "Miss talking to you. Can we catch up soon?"
+
+      - subject_hint: "just wanting to connect"
+        templates:
+          - "No specific reason, just wanted to hear from you. How's life?"
+          - "Been processing some things alone. Would rather talk to you. Free sometime?"
+
+    follow_up_prompts:
+      - "Did you reach out to someone?"
+      - "Did talking to a person help?"
+
+  general:
+    name: "General check-in"
+    description: "Default templates when no specific context applies"
+
+    intro_prompts:
+      - "Consider who in your life could be part of this conversation."
+      - "Is there someone who could help you think through this?"
+      - "Who knows you well enough to give real perspective here?"
+
+    messages:
+      - subject_hint: "wanting to connect"
+        templates:
+          - "Hey, I've been meaning to reach out. How are you doing, really?"
+          - "Could use someone to talk to. Free sometime this week?"
+          - "Been thinking about you. Let's catch up."
+
+      - subject_hint: "needing perspective"
+        templates:
+          - "I could use your take on something. Got time to talk?"
+          - "Something on my mind and I value your perspective. Can we connect?"
+
+    follow_up_prompts:
+      - "Did you reach out?"
+      - "How did it go?"
+
+# Self-report options after handoff
+follow_up_options:
+  # Shown when following up on a handoff
+  questions:
+    reached_out:
+      prompt: "Did you reach out to someone?"
+      options:
+        - label: "Yes"
+          value: "yes"
+        - label: "Not yet"
+          value: "not_yet"
+        - label: "Decided not to"
+          value: "declined"
+
+    outcome:
+      prompt: "How did it go?"
+      show_if: "reached_out == yes"
+      options:
+        - label: "Really helpful"
+          value: "very_helpful"
+          celebration: "That's what we're going for. Human connection beats software every time."
+        - label: "Somewhat helpful"
+          value: "somewhat_helpful"
+          celebration: "Good. Building that muscle of reaching out matters."
+        - label: "Not very helpful"
+          value: "not_helpful"
+          response: "Not every conversation lands. The willingness to try is what counts."
+        - label: "Skip"
+          value: "skip"
+
+  # Messages based on follow-up responses
+  celebrations:
+    reached_out:
+      - "You reached out. That's the win, regardless of how it went."
+      - "Choosing human connection over software. Well done."
+      - "That's exactly what this tool is for—getting you to real people."
+
+    very_helpful:
+      - "That's what we're going for. Real people beat software every time."
+      - "Glad it helped. Remember that feeling next time you're tempted to stay here."
+      - "Human connection works. Keep building those patterns."
+
+    not_yet:
+      - "No pressure. The door's always open."
+      - "When you're ready. They'd probably be glad to hear from you."
+
+# Success metrics (tracked locally)
+metrics:
+  # What counts as success
+  success_indicators:
+    - handoff_initiated  # User clicked to reach out
+    - reached_out_confirmed  # User confirmed they reached out
+    - outcome_helpful  # User reported it was helpful
+
+  # Anti-success indicators
+  concern_indicators:
+    - multiple_handoffs_no_followthrough  # User keeps clicking but never reaches out
+    - all_outcomes_unhelpful  # User reaches out but it's never helping

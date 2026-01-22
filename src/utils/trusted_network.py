@@ -292,3 +292,243 @@ class TrustedNetwork:
             "reach_outs": [],
             "created_at": datetime.now().isoformat()
         })
+
+    # ==================== CONTEXT-AWARE HANDOFF (PHASE 5) ====================
+
+    def get_contextual_handoff(
+        self,
+        emotional_weight: str = None,
+        session_intent: str = None,
+        domain: str = None,
+        dependency_score: float = 0,
+        is_late_night: bool = False,
+        sessions_today: int = 0
+    ) -> Dict:
+        """
+        Get context-aware handoff template based on session state.
+
+        Args:
+            emotional_weight: 'high_weight', 'medium_weight', or 'low_weight'
+            session_intent: 'practical', 'processing', 'emotional', 'connection'
+            domain: Current conversation domain
+            dependency_score: User's dependency score (0-10)
+            is_late_night: Whether it's a late night session
+            sessions_today: Number of sessions today
+
+        Returns:
+            Dict with context, intro_prompt, and message template
+        """
+        # Detect context
+        context = self.loader.detect_handoff_context(
+            emotional_weight=emotional_weight,
+            session_intent=session_intent,
+            domain=domain,
+            dependency_score=dependency_score,
+            is_late_night=is_late_night,
+            sessions_today=sessions_today
+        )
+
+        # Get intro prompt
+        intro_prompts = self.loader.get_handoff_intro_prompts(context)
+        intro_prompt = random.choice(intro_prompts) if intro_prompts else None
+
+        # Get message templates (domain-aware for after_sensitive_topic)
+        messages = self.loader.get_handoff_messages(context, domain)
+        message = random.choice(messages) if messages else None
+
+        # Get follow-up prompts
+        follow_up_prompts = self.loader.get_handoff_follow_up_prompts(context)
+        follow_up = random.choice(follow_up_prompts) if follow_up_prompts else None
+
+        return {
+            "context": context,
+            "intro_prompt": intro_prompt,
+            "message_template": message,
+            "follow_up_prompt": follow_up,
+            "domain": domain
+        }
+
+    def log_handoff_initiated(
+        self,
+        context: str,
+        domain: str = None,
+        person_name: str = None,
+        message_sent: str = None
+    ) -> Dict:
+        """
+        Log when user initiates a handoff.
+
+        Args:
+            context: The handoff context (e.g., 'after_difficult_task')
+            domain: Current conversation domain
+            person_name: Name of person being reached out to
+            message_sent: The message user is sending
+
+        Returns:
+            The handoff record
+        """
+        data = self._load_data()
+
+        if "handoffs" not in data:
+            data["handoffs"] = []
+
+        handoff = {
+            "id": len(data["handoffs"]) + 1,
+            "datetime": datetime.now().isoformat(),
+            "date": date.today().isoformat(),
+            "context": context,
+            "domain": domain,
+            "person_name": person_name,
+            "message_preview": message_sent[:100] if message_sent else None,
+            "status": "initiated",  # initiated, reached_out, follow_up_pending, completed
+            "outcome": None,  # very_helpful, somewhat_helpful, not_helpful
+            "follow_up_shown": False
+        }
+
+        data["handoffs"].append(handoff)
+        self._save_data(data)
+
+        return handoff
+
+    def record_handoff_outcome(
+        self,
+        handoff_id: int,
+        reached_out: bool,
+        outcome: str = None
+    ) -> Optional[Dict]:
+        """
+        Record the outcome of a handoff.
+
+        Args:
+            handoff_id: ID of the handoff record
+            reached_out: Whether user actually reached out
+            outcome: 'very_helpful', 'somewhat_helpful', 'not_helpful', or None
+
+        Returns:
+            Updated handoff record
+        """
+        data = self._load_data()
+        handoffs = data.get("handoffs", [])
+
+        for handoff in handoffs:
+            if handoff.get("id") == handoff_id:
+                if reached_out:
+                    handoff["status"] = "completed"
+                    handoff["outcome"] = outcome
+                    handoff["reached_out"] = True
+                    handoff["outcome_date"] = datetime.now().isoformat()
+
+                    # Also log as a reach_out for connection health
+                    self.log_reach_out(
+                        handoff.get("person_name", "someone"),
+                        method="message",
+                        topic=handoff.get("domain", "general"),
+                        notes=f"Context: {handoff.get('context')}"
+                    )
+                else:
+                    handoff["status"] = "completed"
+                    handoff["reached_out"] = False
+                    handoff["outcome"] = outcome
+
+                self._save_data(data)
+                return handoff
+
+        return None
+
+    def get_pending_follow_ups(self) -> List[Dict]:
+        """
+        Get handoffs that need follow-up.
+
+        Returns:
+            List of handoff records needing follow-up
+        """
+        data = self._load_data()
+        handoffs = data.get("handoffs", [])
+        settings = self.loader.get_handoff_settings()
+
+        delay_hours = settings.get("follow_up_delay_hours", 24)
+        max_per_week = settings.get("max_follow_ups_per_week", 2)
+
+        # Count follow-ups shown this week
+        week_ago = (datetime.now() - __import__('datetime').timedelta(days=7)).isoformat()
+        follow_ups_this_week = sum(
+            1 for h in handoffs
+            if h.get("follow_up_shown") and h.get("datetime", "") >= week_ago
+        )
+
+        if follow_ups_this_week >= max_per_week:
+            return []
+
+        # Find handoffs needing follow-up
+        pending = []
+        cutoff = (datetime.now() - __import__('datetime').timedelta(hours=delay_hours)).isoformat()
+
+        for handoff in handoffs:
+            if (handoff.get("status") == "initiated"
+                    and not handoff.get("follow_up_shown")
+                    and handoff.get("datetime", "") < cutoff):
+                pending.append(handoff)
+
+        return pending
+
+    def mark_follow_up_shown(self, handoff_id: int) -> None:
+        """Mark a handoff's follow-up as shown."""
+        data = self._load_data()
+        handoffs = data.get("handoffs", [])
+
+        for handoff in handoffs:
+            if handoff.get("id") == handoff_id:
+                handoff["follow_up_shown"] = True
+                handoff["follow_up_shown_date"] = datetime.now().isoformat()
+                self._save_data(data)
+                return
+
+    def get_handoff_stats(self, days: int = 30) -> Dict:
+        """
+        Get handoff statistics for success metrics.
+
+        Returns:
+            Dict with handoff stats
+        """
+        data = self._load_data()
+        handoffs = data.get("handoffs", [])
+
+        cutoff = (datetime.now() - __import__('datetime').timedelta(days=days)).isoformat()
+        recent = [h for h in handoffs if h.get("datetime", "") >= cutoff]
+
+        # Count outcomes
+        initiated = len(recent)
+        reached_out = sum(1 for h in recent if h.get("reached_out"))
+        very_helpful = sum(1 for h in recent if h.get("outcome") == "very_helpful")
+        somewhat_helpful = sum(1 for h in recent if h.get("outcome") == "somewhat_helpful")
+        not_helpful = sum(1 for h in recent if h.get("outcome") == "not_helpful")
+
+        # Count by context
+        by_context = {}
+        for h in recent:
+            ctx = h.get("context", "general")
+            by_context[ctx] = by_context.get(ctx, 0) + 1
+
+        return {
+            "total_initiated": initiated,
+            "total_reached_out": reached_out,
+            "reach_out_rate": reached_out / initiated if initiated > 0 else 0,
+            "outcomes": {
+                "very_helpful": very_helpful,
+                "somewhat_helpful": somewhat_helpful,
+                "not_helpful": not_helpful
+            },
+            "by_context": by_context,
+            "days_analyzed": days
+        }
+
+    def get_handoff_celebration(self, outcome: str = "reached_out") -> str:
+        """Get celebration message for handoff outcome."""
+        celebrations = self.loader.get_handoff_celebrations(outcome)
+        if celebrations:
+            return random.choice(celebrations)
+
+        # Fallback
+        if outcome == "reached_out":
+            return "You reached out. That's what matters."
+        return "Good. Keep building those human connections."

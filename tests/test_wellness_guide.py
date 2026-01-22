@@ -565,3 +565,501 @@ class TestScenarioLoaderIntents:
 
         ai_relationship = scenario_loader.get_connection_responses("ai_relationship")
         assert len(ai_relationship) > 0
+
+
+# ==================== PHASE 3: GRADUATION TESTS ====================
+
+class TestTaskCategoryDetection:
+    """Tests for Phase 3 task category detection in RiskClassifier"""
+
+    @pytest.fixture
+    def classifier(self, scenario_loader):
+        return RiskClassifier(scenario_loader)
+
+    def test_detect_email_drafting(self, classifier):
+        category, confidence = classifier.detect_task_category("Write me an email to my boss")
+        assert category == "email_drafting"
+        assert confidence >= 0.8
+
+    def test_detect_email_drafting_reply(self, classifier):
+        category, confidence = classifier.detect_task_category("Help me reply to this email")
+        assert category == "email_drafting"
+        assert confidence >= 0.6
+
+    def test_detect_code_help(self, classifier):
+        category, confidence = classifier.detect_task_category("Write me a function that sorts numbers")
+        assert category == "code_help"
+        assert confidence >= 0.8
+
+    def test_detect_code_help_debug(self, classifier):
+        category, confidence = classifier.detect_task_category("Debug this code for me")
+        assert category == "code_help"
+        assert confidence >= 0.8
+
+    def test_detect_explanations(self, classifier):
+        category, confidence = classifier.detect_task_category("Explain how async/await works")
+        assert category == "explanations"
+        assert confidence >= 0.8
+
+    def test_detect_explanations_what_is(self, classifier):
+        category, confidence = classifier.detect_task_category("What is machine learning?")
+        assert category == "explanations"
+        assert confidence >= 0.8
+
+    def test_detect_writing_general(self, classifier):
+        category, confidence = classifier.detect_task_category("Write me a blog post about cooking")
+        assert category == "writing_general"
+        assert confidence >= 0.8
+
+    def test_detect_summarizing(self, classifier):
+        category, confidence = classifier.detect_task_category("Summarize this article for me")
+        assert category == "summarizing"
+        assert confidence >= 0.8
+
+    def test_email_excluded_from_general_writing(self, classifier):
+        # Should match email_drafting, not writing_general
+        category, confidence = classifier.detect_task_category("Write me an email about the project")
+        assert category == "email_drafting"
+
+    def test_no_category_for_unmatched(self, classifier):
+        category, confidence = classifier.detect_task_category("Hello, how are you?")
+        assert category is None
+        assert confidence == 0.0
+
+
+class TestScenarioLoaderGraduation:
+    """Tests for Phase 3 graduation configuration loading"""
+
+    def test_get_graduation_settings(self, scenario_loader):
+        settings = scenario_loader.get_graduation_settings()
+        assert "min_tasks_before_prompt" in settings
+        assert "max_prompts_per_session" in settings
+        assert "max_dismissals" in settings
+
+    def test_get_graduation_categories(self, scenario_loader):
+        categories = scenario_loader.get_graduation_categories()
+        assert "email_drafting" in categories
+        assert "code_help" in categories
+        assert "explanations" in categories
+
+    def test_get_graduation_category(self, scenario_loader):
+        category = scenario_loader.get_graduation_category("email_drafting")
+        assert category is not None
+        assert "threshold" in category
+        assert "indicators" in category
+        assert "graduation_prompts" in category
+        assert "skill_tips" in category
+        assert "celebration" in category
+
+    def test_get_graduation_prompts(self, scenario_loader):
+        prompts = scenario_loader.get_graduation_prompts("email_drafting")
+        assert len(prompts) > 0
+        assert isinstance(prompts[0], str)
+
+    def test_get_skill_tips(self, scenario_loader):
+        tips = scenario_loader.get_skill_tips("email_drafting")
+        assert len(tips) > 0
+        assert "title" in tips[0]
+        assert "content" in tips[0]
+
+    def test_get_graduation_celebration(self, scenario_loader):
+        celebration = scenario_loader.get_graduation_celebration("email_drafting")
+        assert len(celebration) > 0
+
+    def test_get_independence_config(self, scenario_loader):
+        config = scenario_loader.get_independence_config()
+        assert "celebration_messages" in config
+        assert "button_labels" in config
+
+    def test_get_independence_celebrations(self, scenario_loader):
+        celebrations = scenario_loader.get_independence_celebrations()
+        assert len(celebrations) > 0
+
+    def test_get_independence_button_labels(self, scenario_loader):
+        labels = scenario_loader.get_independence_button_labels()
+        assert len(labels) > 0
+        assert "I did it myself!" in labels
+
+
+class TestWellnessTrackerGraduation:
+    """Tests for Phase 3 task pattern tracking in WellnessTracker"""
+
+    @pytest.fixture
+    def tracker(self, tmp_path):
+        """Create a WellnessTracker with temporary data directory."""
+        from config.settings import settings
+        original_data_dir = settings.DATA_DIR
+        settings.DATA_DIR = tmp_path
+        tracker = WellnessTracker()
+        yield tracker
+        settings.DATA_DIR = original_data_dir
+
+    def test_record_task_category(self, tracker):
+        """Test recording a task category."""
+        stats = tracker.record_task_category("email_drafting")
+        assert stats["category"] == "email_drafting"
+        assert stats["count"] == 1
+
+    def test_record_task_category_increments(self, tracker):
+        """Test that recording increments count."""
+        tracker.record_task_category("email_drafting")
+        stats = tracker.record_task_category("email_drafting")
+        assert stats["count"] == 2
+
+    def test_get_task_patterns(self, tracker):
+        """Test getting all task patterns."""
+        tracker.record_task_category("email_drafting")
+        tracker.record_task_category("code_help")
+        tracker.record_task_category("email_drafting")
+
+        patterns = tracker.get_task_patterns()
+        assert "email_drafting" in patterns
+        assert "code_help" in patterns
+        assert patterns["email_drafting"]["count"] == 2
+        assert patterns["code_help"]["count"] == 1
+
+    def test_get_category_stats(self, tracker):
+        """Test getting stats for a specific category."""
+        tracker.record_task_category("email_drafting")
+        tracker.record_task_category("email_drafting")
+
+        stats = tracker.get_category_stats("email_drafting")
+        assert stats is not None
+        assert stats["count"] == 2
+        assert "last_7_days" in stats
+        assert "last_30_days" in stats
+
+    def test_should_show_graduation_prompt_below_threshold(self, tracker):
+        """Test that graduation prompt not shown below threshold."""
+        tracker.record_task_category("email_drafting")
+
+        should_show, reason = tracker.should_show_graduation_prompt("email_drafting", threshold=10)
+        assert should_show is False
+        assert reason == "below_threshold"
+
+    def test_should_show_graduation_prompt_at_threshold(self, tracker):
+        """Test that graduation prompt shown at threshold."""
+        for _ in range(10):
+            tracker.record_task_category("email_drafting")
+
+        should_show, reason = tracker.should_show_graduation_prompt("email_drafting", threshold=10)
+        assert should_show is True
+        assert reason == "threshold_met"
+
+    def test_should_not_show_after_max_dismissals(self, tracker):
+        """Test that graduation prompt not shown after max dismissals."""
+        for _ in range(10):
+            tracker.record_task_category("email_drafting")
+
+        # Dismiss 3 times
+        for _ in range(3):
+            tracker.record_graduation_dismissal("email_drafting")
+
+        should_show, reason = tracker.should_show_graduation_prompt(
+            "email_drafting", threshold=10, max_dismissals=3
+        )
+        assert should_show is False
+        assert reason == "max_dismissals_reached"
+
+    def test_record_graduation_shown(self, tracker):
+        """Test recording graduation shown."""
+        tracker.record_task_category("email_drafting")
+        tracker.record_graduation_shown("email_drafting")
+
+        stats = tracker.get_category_stats("email_drafting")
+        assert stats["graduation_shown_count"] == 1
+
+    def test_record_graduation_dismissal(self, tracker):
+        """Test recording graduation dismissal."""
+        tracker.record_task_category("email_drafting")
+        tracker.record_graduation_dismissal("email_drafting")
+
+        stats = tracker.get_category_stats("email_drafting")
+        assert stats["dismissal_count"] == 1
+
+    def test_record_independence(self, tracker):
+        """Test recording independence."""
+        record = tracker.record_independence("email_drafting", "Wrote my own email!")
+        assert record["category"] == "email_drafting"
+        assert record["notes"] == "Wrote my own email!"
+
+    def test_get_independence_stats(self, tracker):
+        """Test getting independence stats."""
+        tracker.record_independence("email_drafting")
+        tracker.record_independence("code_help")
+        tracker.record_independence("email_drafting")
+
+        stats = tracker.get_independence_stats()
+        assert stats["total_recent"] == 3
+        assert stats["by_category"]["email_drafting"] == 2
+        assert stats["by_category"]["code_help"] == 1
+
+    def test_independence_milestone_detection(self, tracker):
+        """Test milestone detection for independence."""
+        # Record 5 independence events (milestone count)
+        for _ in range(5):
+            tracker.record_independence("general")
+
+        stats = tracker.get_independence_stats()
+        assert stats["is_milestone"] is True
+
+    def test_get_recent_independence(self, tracker):
+        """Test getting recent independence records."""
+        tracker.record_independence("email_drafting", "First")
+        tracker.record_independence("code_help", "Second")
+
+        recent = tracker.get_recent_independence(limit=5)
+        assert len(recent) == 2
+        assert recent[-1]["notes"] == "Second"
+
+
+# ==================== PHASE 5: ENHANCED HANDOFF TESTS ====================
+
+
+class TestScenarioLoaderHandoff:
+    """Tests for Phase 5 handoff configuration loading"""
+
+    def test_get_handoff_settings(self, scenario_loader):
+        """Test loading handoff settings."""
+        settings = scenario_loader.get_handoff_settings()
+        assert "show_follow_up" in settings
+        assert "follow_up_delay_hours" in settings
+        assert settings["max_follow_ups_per_week"] == 2
+
+    def test_get_handoff_templates(self, scenario_loader):
+        """Test loading handoff template categories."""
+        templates = scenario_loader.get_handoff_templates()
+        assert "after_difficult_task" in templates
+        assert "processing_decision" in templates
+        assert "general" in templates
+
+    def test_get_handoff_template_category(self, scenario_loader):
+        """Test getting a specific handoff template category."""
+        template = scenario_loader.get_handoff_template_category("after_difficult_task")
+        assert template is not None
+        assert "intro_prompts" in template
+        assert "messages" in template
+        assert "follow_up_prompts" in template
+
+    def test_get_handoff_intro_prompts(self, scenario_loader):
+        """Test getting intro prompts for a handoff category."""
+        prompts = scenario_loader.get_handoff_intro_prompts("after_difficult_task")
+        assert len(prompts) > 0
+        # Should mention drafting something hard
+        assert any("hard" in p.lower() or "draft" in p.lower() for p in prompts)
+
+    def test_get_handoff_messages(self, scenario_loader):
+        """Test getting handoff messages."""
+        messages = scenario_loader.get_handoff_messages("after_difficult_task")
+        assert len(messages) > 0
+
+    def test_get_handoff_messages_by_domain(self, scenario_loader):
+        """Test getting domain-specific handoff messages."""
+        messages = scenario_loader.get_handoff_messages("after_sensitive_topic", "health")
+        assert len(messages) > 0
+        # Should be health-related
+        assert any("health" in m.lower() for m in messages)
+
+    def test_detect_handoff_context_high_weight(self, scenario_loader):
+        """Test context detection for high emotional weight task."""
+        context = scenario_loader.detect_handoff_context(
+            emotional_weight="high_weight"
+        )
+        assert context == "after_difficult_task"
+
+    def test_detect_handoff_context_processing(self, scenario_loader):
+        """Test context detection for processing intent."""
+        context = scenario_loader.detect_handoff_context(
+            session_intent="processing"
+        )
+        assert context == "processing_decision"
+
+    def test_detect_handoff_context_domain(self, scenario_loader):
+        """Test context detection for sensitive domain."""
+        context = scenario_loader.detect_handoff_context(
+            domain="relationships"
+        )
+        assert context == "after_sensitive_topic"
+
+    def test_detect_handoff_context_high_usage(self, scenario_loader):
+        """Test context detection for high usage pattern."""
+        context = scenario_loader.detect_handoff_context(
+            sessions_today=5
+        )
+        assert context == "high_usage_pattern"
+
+    def test_detect_handoff_context_general(self, scenario_loader):
+        """Test default context detection."""
+        context = scenario_loader.detect_handoff_context()
+        assert context == "general"
+
+    def test_get_handoff_follow_up_prompts(self, scenario_loader):
+        """Test getting follow-up prompts."""
+        prompts = scenario_loader.get_handoff_follow_up_prompts("after_difficult_task")
+        assert len(prompts) > 0
+
+    def test_get_handoff_celebrations(self, scenario_loader):
+        """Test getting handoff celebration messages."""
+        celebrations = scenario_loader.get_handoff_celebrations("reached_out")
+        assert len(celebrations) > 0
+
+    def test_get_handoff_celebrations_very_helpful(self, scenario_loader):
+        """Test getting celebration for very helpful outcome."""
+        celebrations = scenario_loader.get_handoff_celebrations("very_helpful")
+        assert len(celebrations) > 0
+
+
+class TestTrustedNetworkHandoff:
+    """Tests for Phase 5 context-aware handoff in TrustedNetwork"""
+
+    @pytest.fixture
+    def network(self, tmp_path):
+        """Create a TrustedNetwork with temp data file."""
+        from utils.trusted_network import TrustedNetwork
+        from config.settings import settings
+        settings.DATA_DIR = tmp_path
+        return TrustedNetwork()
+
+    def test_get_contextual_handoff(self, network):
+        """Test getting context-aware handoff."""
+        handoff = network.get_contextual_handoff(
+            emotional_weight="high_weight",
+            domain="logistics"
+        )
+        assert handoff["context"] == "after_difficult_task"
+        assert handoff.get("intro_prompt") is not None
+
+    def test_get_contextual_handoff_processing(self, network):
+        """Test contextual handoff for processing intent."""
+        handoff = network.get_contextual_handoff(
+            session_intent="processing"
+        )
+        assert handoff["context"] == "processing_decision"
+
+    def test_log_handoff_initiated(self, network):
+        """Test logging handoff initiation."""
+        handoff = network.log_handoff_initiated(
+            context="after_difficult_task",
+            domain="logistics",
+            person_name="Mom",
+            message_sent="Hey, I just drafted a hard email..."
+        )
+        assert handoff["context"] == "after_difficult_task"
+        assert handoff["status"] == "initiated"
+        assert handoff["person_name"] == "Mom"
+
+    def test_record_handoff_outcome(self, network):
+        """Test recording handoff outcome."""
+        # First initiate
+        handoff = network.log_handoff_initiated(
+            context="general",
+            person_name="Friend"
+        )
+
+        # Then record outcome
+        updated = network.record_handoff_outcome(
+            handoff_id=handoff["id"],
+            reached_out=True,
+            outcome="very_helpful"
+        )
+
+        assert updated["status"] == "completed"
+        assert updated["outcome"] == "very_helpful"
+        assert updated["reached_out"] is True
+
+    def test_get_handoff_stats(self, network):
+        """Test getting handoff statistics."""
+        # Log some handoffs
+        network.log_handoff_initiated("context1", person_name="A")
+        h2 = network.log_handoff_initiated("context2", person_name="B")
+        network.record_handoff_outcome(h2["id"], reached_out=True, outcome="very_helpful")
+
+        stats = network.get_handoff_stats()
+        assert stats["total_initiated"] == 2
+        assert stats["total_reached_out"] == 1
+        assert stats["reach_out_rate"] == 0.5
+
+    def test_get_handoff_celebration(self, network):
+        """Test getting handoff celebration message."""
+        celebration = network.get_handoff_celebration("reached_out")
+        assert celebration is not None
+        assert len(celebration) > 0
+
+
+class TestWellnessTrackerHandoff:
+    """Tests for Phase 5 handoff tracking in WellnessTracker"""
+
+    @pytest.fixture
+    def tracker(self, tmp_path):
+        """Create a WellnessTracker with temp data file."""
+        from config.settings import settings
+        settings.DATA_DIR = tmp_path
+        return WellnessTracker()
+
+    def test_log_handoff_event(self, tracker):
+        """Test logging handoff events."""
+        event = tracker.log_handoff_event(
+            event_type="initiated",
+            context="after_difficult_task",
+            domain="logistics"
+        )
+        assert event["event_type"] == "initiated"
+        assert event["context"] == "after_difficult_task"
+
+    def test_log_handoff_reached_out(self, tracker):
+        """Test logging reached out event."""
+        event = tracker.log_handoff_event(
+            event_type="reached_out",
+            context="general",
+            outcome="very_helpful"
+        )
+        assert event["event_type"] == "reached_out"
+        assert event["outcome"] == "very_helpful"
+
+    def test_get_handoff_success_metrics(self, tracker):
+        """Test calculating handoff success metrics."""
+        # Log some handoff events
+        tracker.log_handoff_event("initiated", "context1")
+        tracker.log_handoff_event("initiated", "context2")
+        tracker.log_handoff_event("reached_out", "context1", outcome="very_helpful")
+        tracker.log_handoff_event("outcome_reported", "context1", outcome="very_helpful")
+
+        metrics = tracker.get_handoff_success_metrics()
+        assert metrics["handoffs_initiated"] == 2
+        assert metrics["handoffs_completed"] == 1
+        assert metrics["reach_out_rate"] == 0.5
+        assert metrics["outcomes"]["very_helpful"] == 2
+
+    def test_should_show_handoff_follow_up_no_pending(self, tracker):
+        """Test follow-up check with no pending handoffs."""
+        should_show, pending = tracker.should_show_handoff_follow_up()
+        assert should_show is False
+        assert pending is None
+
+    def test_mark_handoff_follow_up_shown(self, tracker):
+        """Test marking follow-up as shown."""
+        # Log an event
+        event = tracker.log_handoff_event("initiated", "general")
+
+        # Mark as shown
+        tracker.mark_handoff_follow_up_shown(event["datetime"])
+
+        # Verify
+        data = tracker._load_data()
+        events = data.get("handoff_events", [])
+        for e in events:
+            if e.get("datetime") == event["datetime"]:
+                assert e.get("follow_up_shown") is True
+
+    def test_handoff_success_metrics_is_healthy(self, tracker):
+        """Test healthy metric calculation."""
+        # Log handoffs with good outcomes
+        for _ in range(3):
+            tracker.log_handoff_event("initiated", "general")
+            tracker.log_handoff_event("reached_out", "general", outcome="very_helpful")
+            tracker.log_handoff_event("outcome_reported", "general", outcome="very_helpful")
+
+        metrics = tracker.get_handoff_success_metrics()
+        # 3 initiated, 3 reached out = 100% rate
+        # 3 very helpful = 100% helpful rate
+        assert metrics["is_healthy"] is True
