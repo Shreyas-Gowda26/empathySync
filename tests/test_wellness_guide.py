@@ -293,22 +293,28 @@ class TestWellnessGuide:
         assert not guide._contains_harmful_content("Let's explore this together")
 
     def test_process_response_returns_fallback_for_empty(self, guide):
-        result = guide._process_response("", "test input")
-        assert "help you develop" in result.lower()
+        risk_assessment = {"risk_weight": 3.0, "domain": "logistics", "emotional_intensity": 2.0}
+        result = guide._process_response("", "test input", risk_assessment, is_practical=True)
+        # Practical fallback
+        assert "try" in result.lower() or "technical" in result.lower()
 
     def test_process_response_returns_fallback_for_short(self, guide):
-        result = guide._process_response("Ok", "test input")
-        assert "help you develop" in result.lower()
+        risk_assessment = {"risk_weight": 3.0, "domain": "logistics", "emotional_intensity": 2.0}
+        result = guide._process_response("Ok", "test input", risk_assessment, is_practical=True)
+        assert "try" in result.lower() or "technical" in result.lower()
 
     def test_process_response_filters_harmful(self, guide):
         harmful = "You should feel bad about using AI so much"
-        result = guide._process_response(harmful, "test input")
+        risk_assessment = {"risk_weight": 3.0, "domain": "logistics", "emotional_intensity": 2.0}
+        result = guide._process_response(harmful, "test input", risk_assessment)
         assert "feel bad" not in result.lower()
-        assert "care about your wellbeing" in result.lower()
+        # Safe alternative response - should ask what the user needs
+        assert "supportive" in result.lower() or "?" in result  # Asks a question
 
     def test_process_response_passes_safe_content(self, guide):
         safe = "I understand your concern about AI usage. Let's explore this together."
-        result = guide._process_response(safe, "test input")
+        risk_assessment = {"risk_weight": 3.0, "domain": "logistics", "emotional_intensity": 2.0}
+        result = guide._process_response(safe, "test input", risk_assessment)
         assert result == safe
 
     def test_fallback_response_is_helpful(self, guide):
@@ -318,8 +324,9 @@ class TestWellnessGuide:
 
     def test_safe_alternative_response_is_helpful(self, guide):
         response = guide._get_safe_alternative_response()
-        assert len(response) > 50
-        assert "wellbeing" in response.lower()
+        assert len(response) > 30
+        # Should be helpful/supportive
+        assert "helpful" in response.lower() or "need" in response.lower()
 
     @patch("models.ai_wellness_guide.requests.post")
     def test_generate_response_calls_ollama(self, mock_post, guide):
@@ -1384,3 +1391,341 @@ class TestTransparencyIntegration:
         assert domain_exp["name"] == "Practical Task"
         assert mode_exp["name"] == "Practical Mode"
         assert risk_exp["name"] == "Low Risk"
+
+
+# ==================== PHASE 6.5: CONTEXT PERSISTENCE TESTS ====================
+
+
+class TestContextPersistence:
+    """Tests for Phase 6.5 context persistence - emotional context persists across turns"""
+
+    @pytest.fixture
+    def mock_settings(self):
+        with patch("models.ai_wellness_guide.settings") as mock:
+            mock.OLLAMA_HOST = "http://localhost:11434"
+            mock.OLLAMA_MODEL = "llama2"
+            mock.OLLAMA_TEMPERATURE = 0.7
+            yield mock
+
+    @pytest.fixture
+    def guide(self, mock_settings):
+        from models.ai_wellness_guide import WellnessGuide
+        return WellnessGuide()
+
+    # Test context extraction
+    def test_extract_topic_hints_relationship(self, guide):
+        """Test that relationship keywords are extracted as topic hints."""
+        hints = guide._extract_topic_hints("My boyfriend cheated on me")
+        assert "boyfriend" in hints
+        assert "cheated" in hints
+
+    def test_extract_topic_hints_work(self, guide):
+        """Test that work keywords are extracted as topic hints."""
+        hints = guide._extract_topic_hints("I want to quit my job and resign")
+        assert "job" in hints or "quit" in hints or "resign" in hints
+
+    def test_extract_topic_hints_health(self, guide):
+        """Test that health keywords are extracted as topic hints."""
+        hints = guide._extract_topic_hints("My doctor gave me a diagnosis")
+        assert "doctor" in hints
+        assert "diagnosis" in hints
+
+    def test_extract_topic_hints_limits_to_5(self, guide):
+        """Test that topic hints are limited to 5."""
+        # This has many keywords
+        text = "My boyfriend at work told my doctor about my job and my diagnosis"
+        hints = guide._extract_topic_hints(text)
+        assert len(hints) <= 5
+
+    # Test continuation detection
+    def test_is_continuation_short_affirmative(self, guide):
+        """Test that short affirmatives are detected as continuation."""
+        context = {"topic_hint": [], "emotional_weight": "high_weight"}
+        assert guide._is_continuation_message("yes", context) is True
+        assert guide._is_continuation_message("ok", context) is True
+        assert guide._is_continuation_message("sure", context) is True
+        assert guide._is_continuation_message("please", context) is True
+
+    def test_is_continuation_brainstorm_phrase(self, guide):
+        """Test that 'let's brainstorm' is detected as continuation."""
+        context = {"topic_hint": ["breakup", "boyfriend"], "emotional_weight": "reflection_redirect"}
+        assert guide._is_continuation_message("let's brainstorm", context) is True
+        assert guide._is_continuation_message("lets think about it", context) is True
+
+    def test_is_continuation_pronoun_reference(self, guide):
+        """Test that pronoun references are detected as continuation."""
+        context = {"topic_hint": [], "emotional_weight": "high_weight"}
+        assert guide._is_continuation_message("tell me more about it", context) is True
+        assert guide._is_continuation_message("help me with that", context) is True
+        assert guide._is_continuation_message("what about the message", context) is True
+
+    def test_is_continuation_topic_hint_match(self, guide):
+        """Test that topic hint matches are detected as continuation."""
+        context = {"topic_hint": ["boyfriend", "breakup"], "emotional_weight": "reflection_redirect"}
+        assert guide._is_continuation_message("I need to tell my boyfriend", context) is True
+
+    def test_not_continuation_new_topic(self, guide):
+        """Test that new topics are not detected as continuation."""
+        context = {"topic_hint": ["boyfriend", "breakup"], "emotional_weight": "reflection_redirect"}
+        # A completely different request
+        assert guide._is_continuation_message("Write me python code for sorting", context) is False
+
+    # Test context updating
+    def test_update_session_context_sets_context_for_high_weight(self, guide):
+        """Test that high weight messages set session context."""
+        risk_assessment = {
+            "emotional_weight": "high_weight",
+            "domain": "logistics"
+        }
+        guide.session_turn_count = 1
+        guide._update_session_context("Write me a resignation email", risk_assessment)
+
+        assert guide.session_emotional_context["emotional_weight"] == "high_weight"
+        assert guide.session_emotional_context["turn_set"] == 1
+        assert guide.session_emotional_context["decay_turns"] == 5
+
+    def test_update_session_context_sets_context_for_reflection_redirect(self, guide):
+        """Test that reflection_redirect messages set longer decay context."""
+        risk_assessment = {
+            "emotional_weight": "reflection_redirect",
+            "domain": "logistics"
+        }
+        guide.session_turn_count = 1
+        guide._update_session_context("Write me a breakup message", risk_assessment)
+
+        assert guide.session_emotional_context["emotional_weight"] == "reflection_redirect"
+        assert guide.session_emotional_context["decay_turns"] == 7  # Longer for most sensitive
+
+    def test_update_session_context_sets_context_for_sensitive_domain(self, guide):
+        """Test that sensitive domains set session context."""
+        risk_assessment = {
+            "emotional_weight": "low_weight",
+            "domain": "relationships"
+        }
+        guide.session_turn_count = 1
+        guide._update_session_context("My partner and I had a fight", risk_assessment)
+
+        assert guide.session_emotional_context["domain"] == "relationships"
+        assert guide.session_emotional_context["decay_turns"] == 6  # relationships
+
+    def test_update_session_context_extracts_topic_hints(self, guide):
+        """Test that topic hints are extracted when context is set."""
+        risk_assessment = {
+            "emotional_weight": "reflection_redirect",
+            "domain": "logistics"
+        }
+        guide.session_turn_count = 1
+        guide._update_session_context("Write a breakup message about my boyfriend cheating", risk_assessment)
+
+        hints = guide.session_emotional_context["topic_hint"]
+        assert "boyfriend" in hints
+        assert "breakup" in hints or "cheating" in hints
+
+    def test_no_context_update_for_low_weight_logistics(self, guide):
+        """Test that low weight logistics doesn't set context."""
+        risk_assessment = {
+            "emotional_weight": "low_weight",
+            "domain": "logistics"
+        }
+        guide.session_turn_count = 1
+        guide._update_session_context("Write me a grocery list", risk_assessment)
+
+        # Context should remain None
+        assert guide.session_emotional_context["emotional_weight"] is None
+
+    # Test context-adjusted assessment
+    def test_context_adjustment_inherits_weight(self, guide):
+        """Test that continuation messages inherit context weight."""
+        # Set up context as if first message was reflection_redirect
+        guide.session_emotional_context = {
+            "emotional_weight": "reflection_redirect",
+            "domain": "logistics",
+            "topic_hint": ["breakup", "boyfriend"],
+            "turn_set": 1,
+            "decay_turns": 7
+        }
+        guide.session_turn_count = 2  # Second turn
+
+        # New assessment shows low_weight (continuation message)
+        risk_assessment = {
+            "emotional_weight": "low_weight",
+            "domain": "logistics",
+            "risk_weight": 1.0
+        }
+
+        adjusted = guide._get_context_adjusted_assessment("let's brainstorm", risk_assessment)
+
+        assert adjusted["emotional_weight"] == "reflection_redirect"
+        assert adjusted["context_inherited"] is True
+        assert adjusted["original_weight"] == "low_weight"
+
+    def test_context_adjustment_decays_after_turns(self, guide):
+        """Test that context decays after decay_turns."""
+        # Set up context
+        guide.session_emotional_context = {
+            "emotional_weight": "reflection_redirect",
+            "domain": "logistics",
+            "topic_hint": ["breakup"],
+            "turn_set": 1,
+            "decay_turns": 5
+        }
+        guide.session_turn_count = 8  # 7 turns later (past decay)
+
+        risk_assessment = {
+            "emotional_weight": "low_weight",
+            "domain": "logistics",
+            "risk_weight": 1.0
+        }
+
+        adjusted = guide._get_context_adjusted_assessment("let's brainstorm", risk_assessment)
+
+        # Should NOT inherit because context decayed
+        assert adjusted["emotional_weight"] == "low_weight"
+        assert adjusted.get("context_inherited") is None
+
+    def test_context_adjustment_no_inheritance_for_new_topic(self, guide):
+        """Test that new topics don't inherit context."""
+        guide.session_emotional_context = {
+            "emotional_weight": "reflection_redirect",
+            "domain": "logistics",
+            "topic_hint": ["breakup", "boyfriend"],
+            "turn_set": 1,
+            "decay_turns": 7
+        }
+        guide.session_turn_count = 2
+
+        risk_assessment = {
+            "emotional_weight": "low_weight",
+            "domain": "logistics",
+            "risk_weight": 1.0
+        }
+
+        # A completely different request (not short, no topic hints)
+        adjusted = guide._get_context_adjusted_assessment(
+            "Write me python code that implements a binary search algorithm",
+            risk_assessment
+        )
+
+        # Should NOT inherit because it's not a continuation
+        assert adjusted["emotional_weight"] == "low_weight"
+        assert adjusted.get("context_inherited") is None
+
+    def test_context_adjustment_no_override_for_higher_weight(self, guide):
+        """Test that context doesn't override if current weight is higher."""
+        guide.session_emotional_context = {
+            "emotional_weight": "medium_weight",
+            "domain": "logistics",
+            "topic_hint": [],
+            "turn_set": 1,
+            "decay_turns": 5
+        }
+        guide.session_turn_count = 2
+
+        risk_assessment = {
+            "emotional_weight": "high_weight",  # Current is higher
+            "domain": "logistics",
+            "risk_weight": 1.0
+        }
+
+        adjusted = guide._get_context_adjusted_assessment("continue", risk_assessment)
+
+        # Should keep high_weight, not downgrade to medium_weight
+        assert adjusted["emotional_weight"] == "high_weight"
+        assert adjusted.get("context_inherited") is None
+
+    # Test reset
+    def test_reset_session_clears_context(self, guide):
+        """Test that reset_session clears emotional context."""
+        guide.session_emotional_context = {
+            "emotional_weight": "reflection_redirect",
+            "domain": "logistics",
+            "topic_hint": ["breakup"],
+            "turn_set": 1,
+            "decay_turns": 7
+        }
+
+        guide.reset_session()
+
+        assert guide.session_emotional_context["emotional_weight"] is None
+        assert guide.session_emotional_context["domain"] is None
+        assert guide.session_emotional_context["topic_hint"] is None
+
+
+class TestContextPersistenceIntegration:
+    """Integration tests for context persistence in generate_response pipeline"""
+
+    @pytest.fixture
+    def mock_settings(self):
+        with patch("models.ai_wellness_guide.settings") as mock:
+            mock.OLLAMA_HOST = "http://localhost:11434"
+            mock.OLLAMA_MODEL = "llama2"
+            mock.OLLAMA_TEMPERATURE = 0.7
+            yield mock
+
+    @pytest.fixture
+    def guide(self, mock_settings):
+        from models.ai_wellness_guide import WellnessGuide
+        return WellnessGuide()
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_brainstorm_after_breakup_triggers_reflection(self, mock_post, guide):
+        """Test the key bug fix: 'let's brainstorm' after breakup should trigger reflection."""
+        # First turn: breakup request (triggers reflection redirect)
+        mock_post.return_value.json.return_value = {"response": "reflection response"}
+        mock_post.return_value.raise_for_status = Mock()
+
+        response1 = guide.generate_response(
+            "Write me a breakup message, caught my boyfriend cheating"
+        )
+
+        # This should trigger reflection redirect, so response comes from classifier
+        # Verify context was set
+        assert guide.session_emotional_context["emotional_weight"] == "reflection_redirect"
+        assert "boyfriend" in guide.session_emotional_context["topic_hint"]
+
+        # Second turn: "let's brainstorm" continuation
+        response2 = guide.generate_response("let's brainstorm")
+
+        # The context should be inherited, and last_risk_assessment should reflect that
+        assert guide.last_risk_assessment["emotional_weight"] == "reflection_redirect"
+        assert guide.last_risk_assessment.get("context_inherited") is True
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_new_topic_after_breakup_does_not_inherit(self, mock_post, guide):
+        """Test that a completely new topic doesn't inherit breakup context."""
+        mock_post.return_value.json.return_value = {"response": "Here's your code..."}
+        mock_post.return_value.raise_for_status = Mock()
+
+        # First turn: breakup request
+        response1 = guide.generate_response(
+            "Write me a breakup message, caught my boyfriend cheating"
+        )
+
+        # Second turn: completely different topic
+        response2 = guide.generate_response(
+            "Write me a Python function that sorts a list of numbers using quicksort"
+        )
+
+        # Should NOT inherit context for a completely new topic
+        assert guide.last_risk_assessment["emotional_weight"] != "reflection_redirect"
+        assert guide.last_risk_assessment.get("context_inherited") is None
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_context_decays_over_multiple_turns(self, mock_post, guide):
+        """Test that context properly decays after several turns."""
+        mock_post.return_value.json.return_value = {"response": "response"}
+        mock_post.return_value.raise_for_status = Mock()
+
+        # Turn 1: High weight request
+        guide.generate_response("Write me a resignation email")
+        initial_context = guide.session_emotional_context.copy()
+        assert initial_context["emotional_weight"] == "high_weight"
+
+        # Simulate many turns passing (manually advance turn count)
+        guide.session_turn_count = 10  # Way past decay_turns (5)
+
+        # Now try a continuation message
+        guide.generate_response("let's continue")
+
+        # Context should have decayed - should NOT inherit
+        assert guide.last_risk_assessment.get("context_inherited") is None

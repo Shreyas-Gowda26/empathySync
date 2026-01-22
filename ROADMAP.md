@@ -304,37 +304,37 @@ scenarios/intents/ (new directory)
 
 ---
 
-## Phase 6.5: Context Persistence
+## Phase 6.5: Context Persistence ✅ COMPLETE
 **Goal**: Maintain emotional context across conversation turns so the system doesn't "forget" important context.
 
-**Problem identified**: User says "caught my boyfriend cheating, write me a breakup message" (reflection redirect triggers), then says "let's brainstorm" → system loses the emotional context and treats it as a neutral practical task.
+**Problem fixed**: User says "caught my boyfriend cheating, write me a breakup message" (reflection redirect triggers), then says "let's brainstorm" → system now maintains the emotional context and correctly applies reflection redirect.
 
-### 6.5.1 Session Emotional Context
-- [ ] Track emotional context at session level (not just per-message)
-- [ ] Store: `session_emotional_context` with highest emotional weight seen
-- [ ] Persist context for N turns after high-weight input detected
-- [ ] Example flow:
+### 6.5.1 Session Emotional Context ✅ DONE
+- [x] Track emotional context at session level (not just per-message)
+- [x] Store: `session_emotional_context` with highest emotional weight seen
+- [x] Persist context for N turns after high-weight input detected
+- [x] Example flow:
   ```
   User: "caught my boyfriend cheating" → session_context = {emotional_weight: "reflection_redirect", topic: "breakup"}
   User: "let's brainstorm" → system checks session_context, still applies reflection redirect
   ```
 
-### 6.5.2 Topic Threading
-- [ ] Track what the user is working on across turns
-- [ ] Detect when a follow-up message relates to previous topic
-- [ ] Indicators: pronouns ("it", "that", "this"), short responses, continuation phrases
-- [ ] Maintain topic thread until explicit topic change or session reset
+### 6.5.2 Topic Threading ✅ DONE
+- [x] Track what the user is working on across turns via `topic_hint` extraction
+- [x] Detect when a follow-up message relates to previous topic
+- [x] Continuation detection via: short affirmatives, pronouns, continuation phrases, topic hints
+- [x] Maintain topic thread until context decay or explicit topic change
 
-### 6.5.3 Context Decay
-- [ ] Context weight decays over turns (not instantly)
-- [ ] High emotional context: persists 5-7 turns
-- [ ] Medium context: persists 3-4 turns
-- [ ] User can explicitly reset: "let's talk about something else"
+### 6.5.3 Context Decay ✅ DONE
+- [x] Context weight decays over turns (not instantly)
+- [x] `reflection_redirect`: persists 7 turns (most sensitive)
+- [x] `high_weight`: persists 5 turns
+- [x] Sensitive domains: persists 4-6 turns
+- [x] Context automatically clears on session reset
 
-**Files to create/modify**:
-- `src/models/ai_wellness_guide.py` - Add session context tracking
-- `src/models/risk_classifier.py` - Add context-aware classification
-- `scenarios/context/persistence_rules.yaml` - Context decay rules
+**Files modified**:
+- `src/models/ai_wellness_guide.py` - Added `session_emotional_context`, `_update_session_context()`, `_get_context_adjusted_assessment()`, `_is_continuation_message()`, `_extract_topic_hints()`
+- `tests/test_wellness_guide.py` - Added 22 context persistence tests
 
 ---
 
@@ -479,8 +479,8 @@ scenarios/intents/ (new directory)
 | 3. Competence Graduation | Medium | Medium | ✅ COMPLETE |
 | 5. Enhanced Handoff | Medium | Low | ✅ COMPLETE |
 | 6. Transparency | Medium | Medium | ✅ COMPLETE |
-| 6.5 Context Persistence | **High** | Medium | 🔴 Next |
-| 7. Success Metrics | High | Medium | 🟡 Soon |
+| 6.5 Context Persistence | **High** | Medium | ✅ COMPLETE |
+| 7. Success Metrics | High | Medium | 🔴 Next |
 | 8. Immunity & Wisdom | **High** | Medium | 🟡 Soon |
 | 9. Advanced Detection | High | High | 🔵 Long-term |
 
@@ -488,7 +488,7 @@ scenarios/intents/ (new directory)
 
 ## Current Status (2026-01-22)
 
-**Completed**: Phases 1, 2, 2.5, 3, 4, 5, and 6
+**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, and 6.5
 - ✅ Dual-mode operation (practical vs reflective)
 - ✅ Emotional weight detection and acknowledgments
 - ✅ Dynamic timeouts for practical tasks (120s)
@@ -511,18 +511,20 @@ scenarios/intents/ (new directory)
 - ✅ Handoff success metrics (reach-out rate, helpful rate)
 - ✅ Decision transparency panel ("Why this response?")
 - ✅ Session summary with JSON export
+- ✅ Context persistence across turns (fixes the "let's brainstorm" bug)
+- ✅ Topic threading for continuation detection
+- ✅ Context decay logic (7 turns for reflection_redirect, 5 for high_weight)
 
-**Next Up**: Phase 6.5 (Context Persistence) - HIGH PRIORITY
-- Fix context loss across turns (the "let's brainstorm" bug)
-- Session-level emotional context tracking
-- Topic threading for multi-turn conversations
+**Next Up**: Phase 7 (Success Metrics) - HIGH PRIORITY
+- Local metrics dashboard ("My Patterns" view)
+- Trend indicators (usage going down = success)
+- Anti-engagement scoring
 
-**Then**: Phase 7 (Success Metrics) and Phase 8 (Immunity & Wisdom)
+**Then**: Phase 8 (Immunity & Wisdom)
 - "What Would You Tell a Friend?" mode
 - "Before You Send" pause for high-stakes messages
 - Reflection journaling alternative
 - "Have You Talked to Someone?" gate
-- Local metrics dashboard
 
 ---
 
@@ -546,7 +548,7 @@ scenarios/intents/ (new directory)
 **v0.3.5** (Phase 3): Competence graduation and independence tracking ✅ COMPLETE
 **v0.4** (Phase 5): Enhanced handoffs with context-awareness and tracking ✅ COMPLETE
 **v0.4.5** (Phase 6): Transparency panel and session summaries ✅ COMPLETE
-**v0.5** (Phase 6.5): Context persistence across turns
+**v0.5** (Phase 6.5): Context persistence across turns ✅ COMPLETE
 **v0.5.5** (Phase 7): Local metrics and anti-engagement scoring
 **v0.6** (Phase 8): Immunity building and wisdom prompts ("What Would You Tell a Friend?", "Before You Send", journaling)
 **v1.0** (Phase 9): Advanced detection, production-ready

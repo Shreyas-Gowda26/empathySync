@@ -54,6 +54,15 @@ class WellnessGuide:
         self.last_risk_assessment = None
         self.last_policy_action = None
 
+        # Phase 6.5: Session emotional context (persists across turns)
+        self.session_emotional_context = {
+            "emotional_weight": None,      # 'reflection_redirect', 'high_weight', etc.
+            "domain": None,                # Domain that triggered the context
+            "topic_hint": None,            # Keywords that hint at the topic
+            "turn_set": 0,                 # Turn when context was set
+            "decay_turns": 5               # How many turns context persists
+        }
+
     def generate_response(
         self,
         user_input: str,
@@ -98,7 +107,15 @@ class WellnessGuide:
                 user_input=user_input,
                 conversation_history=conversation_history
             )
+
+            # 2.5) Phase 6.5: Adjust assessment based on session context
+            # This handles continuation messages like "let's brainstorm" after a breakup request
+            risk_assessment = self._get_context_adjusted_assessment(user_input, risk_assessment)
             self.last_risk_assessment = risk_assessment
+
+            # 2.6) Phase 6.5: Update session context for future turns
+            # This captures emotional weight/domain so continuation messages inherit context
+            self._update_session_context(user_input, risk_assessment)
 
             # Track session metrics
             domain = risk_assessment["domain"]
@@ -106,13 +123,20 @@ class WellnessGuide:
                 self.session_domains.append(domain)
             self.session_max_risk = max(self.session_max_risk, risk_assessment["risk_weight"])
 
+            # Log context inheritance if it occurred
+            context_note = ""
+            if risk_assessment.get("context_inherited"):
+                context_note = f" | context_inherited=True (was {risk_assessment.get('original_weight')})"
+
             logger.info(
-                "Risk assessment | turn=%d | domain=%s | intensity=%.2f | dependency=%.2f | weight=%.2f",
+                "Risk assessment | turn=%d | domain=%s | intensity=%.2f | dependency=%.2f | weight=%.2f | emotional_weight=%s%s",
                 self.session_turn_count,
                 domain,
                 risk_assessment["emotional_intensity"],
                 risk_assessment["dependency_risk"],
                 risk_assessment["risk_weight"],
+                risk_assessment.get("emotional_weight", "unknown"),
+                context_note,
             )
 
             # 3) Hard-coded safety responses (don't trust model to comply)
@@ -468,6 +492,181 @@ class WellnessGuide:
         self.session_max_risk = 0.0
         self.last_risk_assessment = None
         self.last_policy_action = None
+        # Phase 6.5: Reset emotional context
+        self.session_emotional_context = {
+            "emotional_weight": None,
+            "domain": None,
+            "topic_hint": None,
+            "turn_set": 0,
+            "decay_turns": 5
+        }
+
+    # ==================== PHASE 6.5: CONTEXT PERSISTENCE ====================
+
+    def _update_session_context(self, user_input: str, risk_assessment: Dict) -> None:
+        """
+        Update session emotional context based on current assessment.
+
+        Context is set when:
+        - High emotional weight detected (reflection_redirect, high_weight)
+        - Sensitive domain detected (relationships, health, money, etc.)
+
+        Context persists for N turns to handle continuation messages.
+        """
+        emotional_weight = risk_assessment.get("emotional_weight", "low_weight")
+        domain = risk_assessment.get("domain", "logistics")
+
+        # Define which weights/domains should set context
+        high_context_weights = ["reflection_redirect", "high_weight"]
+        sensitive_domains = ["relationships", "health", "money", "spirituality", "crisis"]
+
+        # Set context if this is a significant message
+        should_set_context = (
+            emotional_weight in high_context_weights or
+            domain in sensitive_domains
+        )
+
+        if should_set_context:
+            # Extract topic hints from the message
+            topic_hints = self._extract_topic_hints(user_input)
+
+            # Set decay turns based on weight severity
+            if emotional_weight == "reflection_redirect":
+                decay_turns = 7  # Longest persistence for most sensitive
+            elif emotional_weight == "high_weight":
+                decay_turns = 5
+            elif domain in ["crisis", "relationships"]:
+                decay_turns = 6
+            else:
+                decay_turns = 4
+
+            self.session_emotional_context = {
+                "emotional_weight": emotional_weight,
+                "domain": domain,
+                "topic_hint": topic_hints,
+                "turn_set": self.session_turn_count,
+                "decay_turns": decay_turns
+            }
+
+    def _extract_topic_hints(self, text: str) -> List[str]:
+        """Extract topic-related keywords from text for context matching."""
+        t = text.lower()
+        hints = []
+
+        # Relationship-related
+        relationship_words = ["boyfriend", "girlfriend", "husband", "wife", "partner",
+                            "breakup", "break up", "cheating", "cheated", "divorce",
+                            "relationship", "dating", "marriage"]
+        for word in relationship_words:
+            if word in t:
+                hints.append(word)
+
+        # Work-related
+        work_words = ["job", "boss", "coworker", "resign", "quit", "fired", "work",
+                     "career", "promotion", "salary"]
+        for word in work_words:
+            if word in t:
+                hints.append(word)
+
+        # Health-related
+        health_words = ["doctor", "diagnosis", "sick", "health", "medical", "therapy",
+                       "depression", "anxiety", "medication"]
+        for word in health_words:
+            if word in t:
+                hints.append(word)
+
+        return hints[:5]  # Limit to 5 hints
+
+    def _get_context_adjusted_assessment(self, user_input: str, risk_assessment: Dict) -> Dict:
+        """
+        Adjust risk assessment based on session context.
+
+        If we have active emotional context and the current message looks like
+        a continuation (short, vague, or references previous topic), inherit
+        the higher context.
+        """
+        # Check if context is still active (hasn't decayed)
+        context = self.session_emotional_context
+        if not context.get("emotional_weight"):
+            return risk_assessment  # No active context
+
+        turns_since_context = self.session_turn_count - context.get("turn_set", 0)
+        if turns_since_context > context.get("decay_turns", 5):
+            return risk_assessment  # Context has decayed
+
+        # Check if current message looks like a continuation
+        is_continuation = self._is_continuation_message(user_input, context)
+
+        if is_continuation:
+            # Inherit context - use the higher weight
+            current_weight = risk_assessment.get("emotional_weight", "low_weight")
+            context_weight = context.get("emotional_weight")
+
+            weight_priority = {
+                "reflection_redirect": 4,
+                "high_weight": 3,
+                "medium_weight": 2,
+                "low_weight": 1
+            }
+
+            if weight_priority.get(context_weight, 0) > weight_priority.get(current_weight, 0):
+                # Create adjusted assessment
+                adjusted = risk_assessment.copy()
+                adjusted["emotional_weight"] = context_weight
+                adjusted["context_inherited"] = True
+                adjusted["original_weight"] = current_weight
+                return adjusted
+
+        return risk_assessment
+
+    def _is_continuation_message(self, user_input: str, context: Dict) -> bool:
+        """
+        Determine if the current message is a continuation of the previous topic.
+
+        Continuation signals:
+        - Short messages (under 30 chars)
+        - Pronouns referring to previous topic ("it", "that", "this")
+        - Continuation phrases ("let's", "okay", "sure", "yes", "go ahead")
+        - References to topic hints from context
+        """
+        t = user_input.lower().strip()
+
+        # Short messages are likely continuations
+        if len(t) < 30:
+            # Check for continuation indicators
+            continuation_phrases = [
+                "let's", "lets", "okay", "ok", "sure", "yes", "yeah", "go ahead",
+                "continue", "proceed", "do it", "help me", "please", "thanks",
+                "brainstorm", "think", "what about", "how about", "and", "also",
+                "tell me more", "go on", "keep going", "more"
+            ]
+            if any(phrase in t for phrase in continuation_phrases):
+                return True
+
+        # Pronouns suggesting reference to previous topic
+        pronoun_patterns = [
+            "about it", "about that", "about this",
+            "with it", "with that", "with this",
+            "for it", "for that", "for this",
+            "do it", "do that", "do this",
+            "the message", "the email", "the text",
+            "what i said", "what we discussed"
+        ]
+        if any(pattern in t for pattern in pronoun_patterns):
+            return True
+
+        # Check if message contains topic hints from context
+        topic_hints = context.get("topic_hint", [])
+        if topic_hints:
+            if any(hint in t for hint in topic_hints):
+                return True
+
+        # Very short affirmative responses
+        short_affirmatives = ["yes", "yeah", "yep", "ok", "okay", "sure", "please", "thanks", "go"]
+        if t in short_affirmatives:
+            return True
+
+        return False
 
     def check_health(self) -> bool:
         """Check if Ollama connection is healthy"""
