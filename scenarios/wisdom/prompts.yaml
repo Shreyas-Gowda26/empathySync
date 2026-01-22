@@ -1,0 +1,318 @@
+# Wisdom & Immunity Building Configuration
+# Phase 8: Help users access their own wisdom instead of depending on AI
+#
+# Core principle: Train users to recognize they already have the answers
+# and to maintain healthy human connections.
+
+# ============================================================
+# SETTINGS
+# ============================================================
+settings:
+  # "What Would You Tell a Friend?" mode
+  friend_mode:
+    enabled: true
+    # Triggers: processing intent, sensitive decisions, "what should I do?"
+    trigger_on_processing_intent: true
+    trigger_on_what_should_i_do: true
+    trigger_domains:
+      - relationships
+      - money
+      - health
+    # Don't trigger on practical tasks or low-risk topics
+    skip_for_practical: true
+
+  # "Before You Send" pause
+  before_you_send:
+    enabled: true
+    # Only for high-weight completed tasks
+    trigger_weights:
+      - high_weight
+    # Categories that warrant a pause
+    trigger_categories:
+      - resignation
+      - difficult_conversation
+      - boundary_setting
+      - relationship_endings
+      - apologies
+    # Don't suggest for low-weight or routine tasks
+    skip_weights:
+      - low_weight
+      - medium_weight
+
+  # Reflection journaling
+  journaling:
+    enabled: true
+    # Offer when redirecting from sensitive topics
+    trigger_on_reflection_redirect: true
+    trigger_on_processing_intent: true
+
+  # "Have You Talked to Someone?" gate
+  human_gate:
+    enabled: true
+    # High-stakes topics that warrant human connection first
+    trigger_domains:
+      - relationships
+      - health
+    trigger_weights:
+      - reflection_redirect
+      - high_weight
+    # Topics that definitely need human input
+    trigger_categories:
+      - major_decision
+      - relationship_ending
+      - health_decision
+      - career_change
+    # Max times to ask per session (don't nag)
+    max_asks_per_session: 2
+
+  # AI literacy moments (rare educational prompts)
+  ai_literacy:
+    enabled: true
+    # Maximum frequency
+    max_per_week: 1
+    # Chance to show (0.0-1.0) when conditions are met
+    show_probability: 0.3
+
+# ============================================================
+# "WHAT WOULD YOU TELL A FRIEND?" MODE
+# ============================================================
+friend_mode:
+  description: "Helps users access their own wisdom by flipping the perspective"
+
+  # Initial prompts to flip the question
+  flip_prompts:
+    - "If a friend came to you with this exact situation, what would you tell them?"
+    - "Imagine someone you care about described this to you. What advice would you give?"
+    - "What would you say to a close friend facing this same decision?"
+    - "If your best friend was going through this, what would you want them to know?"
+
+  # Follow-up prompts after they respond
+  follow_up_prompts:
+    - "What makes that advice feel right to you?"
+    - "Could that same wisdom apply to your situation?"
+    - "Why do you think that's the right approach for them?"
+    - "What's stopping you from taking your own advice?"
+
+  # Reflection prompts to close the loop
+  closing_prompts:
+    - "You clearly know what you'd tell someone else. Trust that."
+    - "The fact that you can advise a friend means you have the wisdom for yourself too."
+    - "Sometimes we know the answer—we just need permission to trust ourselves."
+    - "You already know what to do. The hard part is doing it."
+
+  # Trigger phrases that suggest "what should I do?"
+  trigger_phrases:
+    - "what should i do"
+    - "what would you do"
+    - "what do you think i should"
+    - "should i"
+    - "i don't know what to do"
+    - "i'm not sure what to do"
+    - "help me decide"
+    - "i can't decide"
+    - "what's the right thing"
+    - "what would you suggest"
+    - "tell me what to do"
+    - "advise me"
+
+# ============================================================
+# "BEFORE YOU SEND" PAUSE
+# ============================================================
+before_you_send:
+  description: "Suggests waiting before sending high-stakes messages"
+
+  # Main pause prompts (shown after completing the task)
+  pause_prompts:
+    resignation:
+      - "Here's your resignation email. Consider sleeping on it before sending—these decisions often feel different in the morning."
+      - "Draft complete. Big career moves deserve a night's rest before hitting send."
+      - "Here it is. Before you send: is there anyone you trust who could read this first?"
+
+    difficult_conversation:
+      - "Here's what you asked for. Consider waiting an hour before sending—strong emotions can shift."
+      - "Draft ready. These conversations land better when we're not running hot. Sleep on it?"
+      - "Here it is. Before sending: read it out loud. Does it sound like who you want to be?"
+
+    boundary_setting:
+      - "Here's your message. Boundaries are important—and so is sending them from a calm place. Wait until tomorrow?"
+      - "Draft complete. Setting boundaries is brave. Let it sit overnight to make sure it says exactly what you mean."
+
+    relationship_endings:
+      - "Here's the draft. This is permanent—consider waiting 24 hours before sending."
+      - "Draft ready. Endings deserve time. Read it again tomorrow before deciding."
+
+    apologies:
+      - "Here's your apology. Before sending: is this the right medium? Some apologies land better in person."
+      - "Draft complete. Apologies are powerful. Make sure this says exactly what you mean—sleep on it?"
+
+    default:
+      - "Here's what you asked for. For important messages, consider waiting before sending."
+      - "Draft ready. If this matters, it's worth sleeping on before you send."
+
+  # Time suggestions
+  wait_suggestions:
+    - "Consider waiting an hour"
+    - "Sleep on it before sending"
+    - "Wait 24 hours"
+    - "Read it again tomorrow"
+    - "Let it sit overnight"
+
+  # Optional: "Read it out loud" prompt
+  read_aloud_prompt: "Try reading it out loud—does it sound like what you want to say?"
+
+  # Optional: "Get a second opinion" prompt
+  second_opinion_prompt: "Is there someone you trust who could read this first?"
+
+# ============================================================
+# REFLECTION JOURNALING ALTERNATIVE
+# ============================================================
+journaling:
+  description: "Offers journaling as an alternative to AI drafting personal messages"
+
+  # Intro when offering journaling instead of drafting
+  intro_prompts:
+    - "I won't draft this for you, but would you like to write it out for yourself first? Sometimes putting thoughts on paper helps—even if you never send it."
+    - "These words need to come from you. Would it help to journal about it first? Writing for yourself can clarify what you actually want to say."
+    - "Before drafting anything to send, it might help to write just for yourself. No audience, no filter—what do you actually want to say?"
+
+  # Journaling prompts to help them reflect
+  prompts:
+    general:
+      - "What do you actually want them to know?"
+      - "How do you want to feel after this conversation?"
+      - "What's the best possible outcome?"
+      - "What are you most afraid of?"
+      - "What would you regret not saying?"
+
+    relationship:
+      - "What changed that brought you here?"
+      - "What do you need them to understand?"
+      - "What do you wish they knew without you having to say it?"
+      - "If you could have one thing from this conversation, what would it be?"
+
+    decision:
+      - "What's pulling you toward each option?"
+      - "What would future-you want present-you to do?"
+      - "What are you afraid of losing with each choice?"
+      - "If you had to decide right now, which way would you lean?"
+
+    apology:
+      - "What are you actually sorry for?"
+      - "What do you want them to understand about why it happened?"
+      - "What would make this right, if anything could?"
+      - "What do you need from this conversation?"
+
+  # Closing prompts after journaling
+  closing_prompts:
+    - "Keep what you wrote. The right words will come when you're ready."
+    - "That's for you, not for sending. When you're ready to talk to them, you'll know what to say."
+    - "Writing it out often makes the real conversation clearer. Take your time."
+
+# ============================================================
+# "HAVE YOU TALKED TO SOMEONE?" GATE
+# ============================================================
+human_gate:
+  description: "Asks if user has talked to a human before engaging on heavy topics"
+
+  # Initial gate question
+  gate_prompts:
+    - "Have you talked to anyone you trust about this?"
+    - "Is there someone in your life you've been able to talk to about this?"
+    - "Before we go further—have you had a chance to talk to someone you trust?"
+
+  # Options for the user
+  options:
+    "yes":
+      label: "Yes, I have"
+      follow_up:
+        - "Good. What did they think?"
+        - "That's important. What was their perspective?"
+        - "I'm glad you have support. What came out of that conversation?"
+    "not_yet":
+      label: "Not yet"
+      follow_up:
+        - "That might be a good first step. Is there someone you could reach out to?"
+        - "These things often go better with human support. Who in your life might understand?"
+        - "A real conversation might help more than I can. Who could you talk to?"
+    "no_one":
+      label: "There's no one I can talk to"
+      follow_up:
+        - "That's hard. I'm limited in what I can offer, but I can help you think through this. What's the core of what you're facing?"
+        - "I hear you. Let's work with what we have. What's the main thing on your mind?"
+
+  # Topics that trigger the gate
+  trigger_topics:
+    - "major life decision"
+    - "relationship ending"
+    - "career change"
+    - "health concern"
+    - "family conflict"
+    - "financial crisis"
+
+  # Redirect prompts when suggesting human connection first
+  redirect_prompts:
+    - "This sounds like something that deserves a real conversation with someone who knows you. Who might that be?"
+    - "I can help you think, but a trusted person would serve you better here. Is there anyone?"
+    - "For something this important, a human perspective matters more than mine. Who could you reach out to?"
+
+# ============================================================
+# AI LITERACY MOMENTS (RARE)
+# ============================================================
+ai_literacy:
+  description: "Occasional educational prompts about healthy AI use"
+
+  # Educational moments (shown rarely)
+  moments:
+    task_completion:
+      trigger: "after_practical_task_no_engagement"
+      message: "Notice how I completed that task without asking how you feel? That's intentional. Some AIs would try to keep you talking."
+
+    redirect_happened:
+      trigger: "after_human_redirect"
+      message: "I just redirected you to a human. Other AIs might have kept going. Be wary of systems that never say 'talk to someone else.'"
+
+    brief_response:
+      trigger: "after_brief_sensitive_response"
+      message: "My response was short on purpose. For emotional topics, less is often better than an AI going deep."
+
+    dependency_intervention:
+      trigger: "after_dependency_intervention"
+      message: "I noticed we've been talking a lot. That's not a failure—it's me doing my job. Real support comes from real people."
+
+  # Manipulation patterns to help users recognize (for "Spot the Pattern" feature)
+  manipulation_patterns:
+    flattery_loops:
+      name: "Flattery Loops"
+      description: "Excessive validation to keep you engaged"
+      examples:
+        - "You're so insightful!"
+        - "That's such a great question!"
+        - "I love how you think about this!"
+      red_flag: "If an AI is constantly praising you, ask why."
+
+    engagement_hooks:
+      name: "Engagement Hooks"
+      description: "Open-ended prompts designed to extend conversation"
+      examples:
+        - "Tell me more about that..."
+        - "I'd love to hear more..."
+        - "What else is on your mind?"
+      red_flag: "Notice when you're being prompted to share more than you intended."
+
+    false_intimacy:
+      name: "False Intimacy"
+      description: "Language that simulates a close relationship"
+      examples:
+        - "I really care about you"
+        - "I'm here for you"
+        - "You can tell me anything"
+      red_flag: "AIs don't have feelings. Warm language is a design choice, not genuine care."
+
+    validation_spirals:
+      name: "Validation Spirals"
+      description: "Agreeing with everything to avoid pushback"
+      examples:
+        - "You're absolutely right"
+        - "That makes total sense"
+        - "I completely understand"
+      red_flag: "An AI that never disagrees isn't helping you think—it's keeping you comfortable."

@@ -365,71 +365,73 @@ scenarios/intents/ (new directory)
 
 ---
 
-## Phase 8: Immunity Building & Wisdom Prompts
+## Phase 8: Immunity Building & Wisdom Prompts ✅ COMPLETE (Core Features)
 **Goal**: Train users to access their own wisdom and recognize unhealthy AI patterns.
 
-### 8.1 "What Would You Tell a Friend?" Mode
+### 8.1 "What Would You Tell a Friend?" Mode ✅ DONE
 **High Impact** - Helps users access their own wisdom instead of depending on AI advice.
 
-- [ ] For `processing` intent or sensitive topic exploration, flip the question:
+- [x] For `processing` intent or sensitive topic exploration, flip the question:
   ```
   "If a friend came to you with this exact situation, what would you tell them?"
   ```
-- [ ] Follow-up prompts:
+- [x] Follow-up prompts:
   - "What advice would you give them?"
   - "Why do you think that advice feels right?"
   - "Could that same advice apply to you?"
-- [ ] Triggers:
+- [x] Triggers:
   - User asks "what should I do?" on sensitive topics
   - `processing` intent detected
   - Relationship/money/health decisions
-- [ ] Creates self-reliance instead of AI-reliance
+- [x] Creates self-reliance instead of AI-reliance
 
-### 8.2 "Before You Send" Pause
+### 8.2 "Before You Send" Pause ✅ DONE
 **High Impact** - Prevents regret on high-stakes messages.
 
-- [ ] For high-weight completed tasks, suggest waiting:
+- [x] For high-weight completed tasks, suggest waiting:
   ```
   "Here's your email. Consider sleeping on it before sending—these things often read differently in the morning."
   ```
-- [ ] Configurable delay suggestions (1 hour, overnight, 24 hours)
-- [ ] Track (locally) if user found the pause helpful
-- [ ] Applies to: resignation, difficult conversations, boundary-setting messages
-- [ ] Does NOT apply to: routine tasks, low-weight content
+- [x] Configurable delay suggestions (1 hour, overnight, 24 hours)
+- [x] Category-specific pause prompts (resignation, difficult_conversation, apologies, etc.)
+- [x] Applies to: resignation, difficult conversations, boundary-setting messages
+- [x] Does NOT apply to: routine tasks, low-weight content
 
-### 8.3 Reflection Journaling Alternative
+### 8.3 Reflection Journaling Alternative ✅ DONE
 **High Impact** - Gives an outlet without creating dependency.
 
-- [ ] When redirecting from sensitive topics or reflection_redirect triggers, offer:
+- [x] When redirecting from sensitive topics or reflection_redirect triggers, offer:
   ```
   "I won't draft this for you, but would you like to write it out for yourself first?
   Sometimes putting thoughts on paper helps—even if you never send it."
   ```
-- [ ] Provide journaling prompts:
+- [x] Provide journaling prompts:
   - "What do you actually want them to know?"
   - "How do you want to feel after this conversation?"
   - "What's the best possible outcome?"
-- [ ] User writes for themselves, not for AI to draft
-- [ ] Optional: save journal entries locally (encrypted, user-controlled)
+- [x] Category-specific prompts (relationship, decision, apology, general)
+- [x] User writes for themselves, not for AI to draft
+- [ ] Optional: save journal entries locally (encrypted, user-controlled) - FUTURE
 
-### 8.4 "Have You Talked to Someone?" Gate
+### 8.4 "Have You Talked to Someone?" Gate ✅ DONE
 **High Impact** - Ensures human connection before AI engagement on heavy topics.
 
-- [ ] For high-stakes sensitive topics, ask first:
+- [x] For high-stakes sensitive topics, ask first:
   ```
   "Have you talked to anyone you trust about this? [Yes / Not yet]"
   ```
-- [ ] If "Not yet":
+- [x] If "Not yet":
   - Gently redirect to human connection first
   - Suggest specific people from trusted network
   - Offer to help them prepare for that conversation instead
-- [ ] If "Yes":
+- [x] If "Yes":
   - Proceed with appropriate restraint
   - Ask: "What did they think?"
-- [ ] Applies to: major decisions, crisis-adjacent topics, relationship endings
-- [ ] Does NOT gate: practical tasks, general questions, low-stakes topics
+- [x] Max asks per session (2) to avoid nagging
+- [x] Applies to: major decisions, crisis-adjacent topics, relationship endings
+- [x] Does NOT gate: practical tasks, general questions, low-stakes topics
 
-### 8.5 AI Literacy Moments
+### 8.5 AI Literacy Moments (Configuration Ready)
 - [ ] Occasional (rare) educational prompts:
   - "Notice how I completed that task without asking how you feel? That's intentional. Some AIs would try to keep you talking."
   - "I just redirected you to a human. Other AIs might have kept going. Be wary of systems that never say 'talk to someone else.'"
@@ -481,14 +483,14 @@ scenarios/intents/ (new directory)
 | 6. Transparency | Medium | Medium | ✅ COMPLETE |
 | 6.5 Context Persistence | **High** | Medium | ✅ COMPLETE |
 | 7. Success Metrics | High | Medium | 🔴 Next |
-| 8. Immunity & Wisdom | **High** | Medium | 🟡 Soon |
+| 8. Immunity & Wisdom | **High** | Medium | ✅ COMPLETE (Core) |
 | 9. Advanced Detection | High | High | 🔵 Long-term |
 
 ---
 
 ## Current Status (2026-01-22)
 
-**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, and 6.5
+**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, and 8 (Core)
 - ✅ Dual-mode operation (practical vs reflective)
 - ✅ Emotional weight detection and acknowledgments
 - ✅ Dynamic timeouts for practical tasks (120s)
@@ -514,17 +516,16 @@ scenarios/intents/ (new directory)
 - ✅ Context persistence across turns (fixes the "let's brainstorm" bug)
 - ✅ Topic threading for continuation detection
 - ✅ Context decay logic (7 turns for reflection_redirect, 5 for high_weight)
+- ✅ "What Would You Tell a Friend?" mode for accessing own wisdom
+- ✅ "Before You Send" pause for high-weight tasks
+- ✅ Reflection journaling alternative with category-specific prompts
+- ✅ "Have You Talked to Someone?" gate for human connection
+- ✅ AI literacy configuration (manipulation patterns, educational moments)
 
 **Next Up**: Phase 7 (Success Metrics) - HIGH PRIORITY
 - Local metrics dashboard ("My Patterns" view)
 - Trend indicators (usage going down = success)
 - Anti-engagement scoring
-
-**Then**: Phase 8 (Immunity & Wisdom)
-- "What Would You Tell a Friend?" mode
-- "Before You Send" pause for high-stakes messages
-- Reflection journaling alternative
-- "Have You Talked to Someone?" gate
 
 ---
 
@@ -549,8 +550,8 @@ scenarios/intents/ (new directory)
 **v0.4** (Phase 5): Enhanced handoffs with context-awareness and tracking ✅ COMPLETE
 **v0.4.5** (Phase 6): Transparency panel and session summaries ✅ COMPLETE
 **v0.5** (Phase 6.5): Context persistence across turns ✅ COMPLETE
-**v0.5.5** (Phase 7): Local metrics and anti-engagement scoring
-**v0.6** (Phase 8): Immunity building and wisdom prompts ("What Would You Tell a Friend?", "Before You Send", journaling)
+**v0.5.5** (Phase 8): Immunity building and wisdom prompts ✅ COMPLETE
+**v0.6** (Phase 7): Local metrics and anti-engagement scoring
 **v1.0** (Phase 9): Advanced detection, production-ready
 
 ---

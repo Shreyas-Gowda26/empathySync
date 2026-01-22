@@ -1729,3 +1729,312 @@ class TestContextPersistenceIntegration:
 
         # Context should have decayed - should NOT inherit
         assert guide.last_risk_assessment.get("context_inherited") is None
+
+
+# ==================== PHASE 8: WISDOM & IMMUNITY TESTS ====================
+
+
+class TestScenarioLoaderWisdom:
+    """Tests for Phase 8 wisdom configuration loading"""
+
+    def test_get_wisdom_settings(self, scenario_loader):
+        """Test loading wisdom feature settings."""
+        settings = scenario_loader.get_wisdom_settings()
+        assert "friend_mode" in settings
+        assert "before_you_send" in settings
+        assert "journaling" in settings
+        assert "human_gate" in settings
+
+    def test_get_friend_mode_config(self, scenario_loader):
+        """Test loading friend mode configuration."""
+        config = scenario_loader.get_friend_mode_config()
+        assert "flip_prompts" in config
+        assert "follow_up_prompts" in config
+        assert "closing_prompts" in config
+        assert "trigger_phrases" in config
+        assert len(config["flip_prompts"]) > 0
+
+    def test_get_friend_mode_flip_prompt(self, scenario_loader):
+        """Test getting a flip prompt."""
+        prompt = scenario_loader.get_friend_mode_flip_prompt()
+        assert "friend" in prompt.lower()
+        assert len(prompt) > 20
+
+    def test_get_friend_mode_triggers(self, scenario_loader):
+        """Test getting friend mode trigger phrases."""
+        triggers = scenario_loader.get_friend_mode_triggers()
+        assert "what should i do" in triggers
+        assert "help me decide" in triggers
+
+    def test_should_trigger_friend_mode_on_what_should_i_do(self, scenario_loader):
+        """Test friend mode triggers on 'what should I do' phrases."""
+        assert scenario_loader.should_trigger_friend_mode(
+            "What should I do about my relationship?",
+            intent="processing",
+            domain="relationships"
+        ) is True
+
+    def test_should_not_trigger_friend_mode_on_practical(self, scenario_loader):
+        """Test friend mode doesn't trigger on practical requests."""
+        assert scenario_loader.should_trigger_friend_mode(
+            "What should I do to fix this code?",
+            intent="practical",
+            domain="logistics"
+        ) is False
+
+    def test_get_before_you_send_config(self, scenario_loader):
+        """Test loading before you send configuration."""
+        config = scenario_loader.get_before_you_send_config()
+        assert "pause_prompts" in config
+        assert "resignation" in config["pause_prompts"]
+        assert "difficult_conversation" in config["pause_prompts"]
+
+    def test_get_pause_prompt_resignation(self, scenario_loader):
+        """Test getting pause prompt for resignation."""
+        prompt = scenario_loader.get_pause_prompt("resignation")
+        # Should suggest pausing before sending
+        assert any(word in prompt.lower() for word in ["resignation", "sleep", "wait", "before", "send", "consider"])
+
+    def test_detect_pause_category(self, scenario_loader):
+        """Test pause category detection."""
+        assert scenario_loader.detect_pause_category("Write me a resignation email") == "resignation"
+        assert scenario_loader.detect_pause_category("Write me a breakup message") == "relationship_endings"
+        assert scenario_loader.detect_pause_category("Write an apology to my mom") == "apologies"
+        assert scenario_loader.detect_pause_category("Write a hello email") == "default"
+
+    def test_should_suggest_pause_high_weight(self, scenario_loader):
+        """Test pause suggestion for high weight."""
+        assert scenario_loader.should_suggest_pause("high_weight") is True
+        assert scenario_loader.should_suggest_pause("low_weight") is False
+
+    def test_get_journaling_config(self, scenario_loader):
+        """Test loading journaling configuration."""
+        config = scenario_loader.get_journaling_config()
+        assert "intro_prompts" in config
+        assert "prompts" in config
+        assert "closing_prompts" in config
+
+    def test_get_journaling_prompts_by_category(self, scenario_loader):
+        """Test getting category-specific journaling prompts."""
+        general = scenario_loader.get_journaling_prompts("general")
+        relationship = scenario_loader.get_journaling_prompts("relationship")
+        decision = scenario_loader.get_journaling_prompts("decision")
+
+        assert len(general) > 0
+        assert len(relationship) > 0
+        assert len(decision) > 0
+
+    def test_get_human_gate_config(self, scenario_loader):
+        """Test loading human gate configuration."""
+        config = scenario_loader.get_human_gate_config()
+        assert "gate_prompts" in config
+        assert "options" in config
+        assert "yes" in config["options"]
+        assert "not_yet" in config["options"]
+
+    def test_get_human_gate_prompt(self, scenario_loader):
+        """Test getting human gate prompt."""
+        prompt = scenario_loader.get_human_gate_prompt()
+        assert "talk" in prompt.lower() or "someone" in prompt.lower()
+
+    def test_get_human_gate_follow_up(self, scenario_loader):
+        """Test getting human gate follow-up."""
+        yes_follow_up = scenario_loader.get_human_gate_follow_up("yes")
+        not_yet_follow_up = scenario_loader.get_human_gate_follow_up("not_yet")
+
+        assert len(yes_follow_up) > 0
+        assert len(not_yet_follow_up) > 0
+
+    def test_should_trigger_human_gate(self, scenario_loader):
+        """Test human gate triggering logic."""
+        # Should trigger for sensitive domains
+        assert scenario_loader.should_trigger_human_gate(
+            domain="relationships",
+            emotional_weight="high_weight",
+            gate_count=0
+        ) is True
+
+        # Should not trigger if already asked twice
+        assert scenario_loader.should_trigger_human_gate(
+            domain="relationships",
+            emotional_weight="high_weight",
+            gate_count=2
+        ) is False
+
+    def test_get_ai_literacy_config(self, scenario_loader):
+        """Test loading AI literacy configuration."""
+        config = scenario_loader.get_ai_literacy_config()
+        assert "moments" in config
+        assert "manipulation_patterns" in config
+
+    def test_get_manipulation_patterns(self, scenario_loader):
+        """Test getting manipulation patterns."""
+        patterns = scenario_loader.get_manipulation_patterns()
+        assert "flattery_loops" in patterns
+        assert "engagement_hooks" in patterns
+        assert "false_intimacy" in patterns
+
+
+class TestWellnessGuideWisdom:
+    """Tests for Phase 8 wisdom features in WellnessGuide"""
+
+    @pytest.fixture
+    def mock_settings(self):
+        with patch("models.ai_wellness_guide.settings") as mock:
+            mock.OLLAMA_HOST = "http://localhost:11434"
+            mock.OLLAMA_MODEL = "llama2"
+            mock.OLLAMA_TEMPERATURE = 0.7
+            yield mock
+
+    @pytest.fixture
+    def guide(self, mock_settings):
+        from models.ai_wellness_guide import WellnessGuide
+        return WellnessGuide()
+
+    def test_guide_has_wisdom_state(self, guide):
+        """Test that guide has Phase 8 state variables."""
+        assert hasattr(guide, 'human_gate_count')
+        assert hasattr(guide, 'friend_mode_active')
+        assert hasattr(guide, 'friend_mode_turn')
+        assert hasattr(guide, 'pending_friend_response')
+
+    def test_reset_session_resets_wisdom_state(self, guide):
+        """Test that reset_session clears wisdom state."""
+        guide.human_gate_count = 2
+        guide.friend_mode_active = True
+        guide.friend_mode_turn = 5
+
+        guide.reset_session()
+
+        assert guide.human_gate_count == 0
+        assert guide.friend_mode_active is False
+        assert guide.friend_mode_turn == 0
+
+    def test_get_reflection_response_with_journaling(self, guide):
+        """Test enhanced reflection response includes journaling option."""
+        response = guide._get_reflection_response_with_journaling(
+            "Write me a breakup message for my boyfriend"
+        )
+
+        # Should include journaling intro
+        assert "journal" in response.lower() or "write" in response.lower()
+        # Should include prompts
+        assert "?" in response  # Should have questions
+
+    def test_check_friend_mode_triggers_on_what_should_i_do(self, guide):
+        """Test friend mode triggers on 'what should I do' questions."""
+        risk_assessment = {
+            "domain": "relationships",
+            "emotional_weight": "medium_weight",
+            "risk_weight": 5.0
+        }
+
+        response = guide._check_friend_mode(
+            "What should I do about my relationship problems?",
+            risk_assessment,
+            "relationships"
+        )
+
+        assert response is not None
+        # Should mention friend OR someone you care about (different prompt variants)
+        assert "friend" in response.lower() or "someone" in response.lower() or "advice" in response.lower()
+
+    def test_check_friend_mode_does_not_trigger_on_short_messages(self, guide):
+        """Test friend mode doesn't trigger on very short messages."""
+        risk_assessment = {
+            "domain": "relationships",
+            "emotional_weight": "medium_weight",
+            "risk_weight": 5.0
+        }
+
+        response = guide._check_friend_mode(
+            "help",  # Too short
+            risk_assessment,
+            "relationships"
+        )
+
+        assert response is None
+
+    def test_get_before_you_send_pause(self, guide):
+        """Test before you send pause generation."""
+        pause = guide._get_before_you_send_pause("Write me a resignation email")
+
+        assert pause is not None
+        assert len(pause) > 20
+        # Should mention waiting/pausing/considering before sending
+        assert any(word in pause.lower() for word in ["wait", "sleep", "tomorrow", "consider", "before", "send"])
+
+    def test_check_human_gate(self, guide):
+        """Test human gate check."""
+        response = guide._check_human_gate(
+            domain="relationships",
+            emotional_weight="high_weight"
+        )
+
+        assert response is not None
+        assert "talk" in response.lower() or "someone" in response.lower()
+        assert guide.human_gate_count == 1
+
+    def test_check_human_gate_respects_max_asks(self, guide):
+        """Test human gate respects max asks per session."""
+        guide.human_gate_count = 2  # Already asked twice
+
+        response = guide._check_human_gate(
+            domain="relationships",
+            emotional_weight="high_weight"
+        )
+
+        assert response is None  # Should not ask again
+
+    def test_get_human_gate_follow_up(self, guide):
+        """Test getting human gate follow-up."""
+        yes_response = guide.get_human_gate_follow_up("yes")
+        not_yet_response = guide.get_human_gate_follow_up("not_yet")
+
+        assert len(yes_response) > 0
+        assert len(not_yet_response) > 0
+
+
+class TestWisdomIntegration:
+    """Integration tests for Phase 8 wisdom features"""
+
+    @pytest.fixture
+    def mock_settings(self):
+        with patch("models.ai_wellness_guide.settings") as mock:
+            mock.OLLAMA_HOST = "http://localhost:11434"
+            mock.OLLAMA_MODEL = "llama2"
+            mock.OLLAMA_TEMPERATURE = 0.7
+            yield mock
+
+    @pytest.fixture
+    def guide(self, mock_settings):
+        from models.ai_wellness_guide import WellnessGuide
+        return WellnessGuide()
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_reflection_redirect_includes_journaling(self, mock_post, guide):
+        """Test that reflection redirect response includes journaling option."""
+        mock_post.return_value.json.return_value = {"response": "test"}
+        mock_post.return_value.raise_for_status = Mock()
+
+        response = guide.generate_response(
+            "Write me a breakup message, caught my boyfriend cheating"
+        )
+
+        # Should include journaling prompts
+        assert "?" in response  # Should have questions for reflection
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_high_weight_task_includes_pause(self, mock_post, guide):
+        """Test that high-weight tasks include 'Before You Send' pause."""
+        mock_post.return_value.json.return_value = {
+            "response": "Here is your resignation email:\n\nDear Manager,\n\nI am writing to inform you..."
+        }
+        mock_post.return_value.raise_for_status = Mock()
+
+        response = guide.generate_response(
+            "Write me a resignation email to my boss"
+        )
+
+        # Should include pause suggestion
+        assert any(word in response.lower() for word in ["sleep", "wait", "tomorrow", "consider", "before"])

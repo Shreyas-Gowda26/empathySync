@@ -63,6 +63,12 @@ class WellnessGuide:
             "decay_turns": 5               # How many turns context persists
         }
 
+        # Phase 8: Wisdom feature state
+        self.human_gate_count = 0          # Times human gate shown this session
+        self.friend_mode_active = False    # Whether we're in friend mode
+        self.friend_mode_turn = 0          # Turn when friend mode started
+        self.pending_friend_response = None  # User's friend advice to reflect back
+
     def generate_response(
         self,
         user_input: str,
@@ -156,7 +162,16 @@ class WellnessGuide:
                 self._log_policy("reflection_redirect", "logistics", 9.0,
                                  "Redirected to reflection - personal message needs user's own words",
                                  wellness_tracker)
-                return self._get_reflection_response()
+                # Phase 8: Offer journaling as alternative
+                return self._get_reflection_response_with_journaling(user_input)
+
+            # 3.6) Phase 8: Check for "What Would You Tell a Friend?" mode
+            # Triggers on "what should I do" type questions for sensitive topics
+            friend_mode_response = self._check_friend_mode(user_input, risk_assessment, domain)
+            if friend_mode_response:
+                self._log_policy("friend_mode", domain, risk_assessment["risk_weight"],
+                                 "Triggered friend mode - helping user access own wisdom", wellness_tracker)
+                return friend_mode_response
 
             # 4) Check turn limits by risk level
             turn_limit = TURN_LIMITS.get(domain, 15)
@@ -203,6 +218,12 @@ class WellnessGuide:
                 processed_response = self._add_acknowledgment_if_needed(
                     processed_response, user_input, emotional_weight
                 )
+
+                # 8.5) Phase 8: Add "Before You Send" pause for high-weight tasks
+                if emotional_weight == "high_weight":
+                    pause_suggestion = self._get_before_you_send_pause(user_input)
+                    if pause_suggestion:
+                        processed_response = processed_response + "\n\n---\n\n" + pause_suggestion
 
             # Log if we redirected due to high risk
             if risk_assessment["risk_weight"] >= 5:
@@ -320,6 +341,142 @@ class WellnessGuide:
         and human conversation instead of drafting the message.
         """
         return self.risk_classifier.get_reflection_response()
+
+    # ==================== PHASE 8: WISDOM FEATURES ====================
+
+    def _get_reflection_response_with_journaling(self, user_input: str) -> str:
+        """
+        Enhanced reflection redirect that offers journaling as an alternative.
+
+        Instead of just redirecting, this offers the user a way to process
+        their thoughts through writing for themselves.
+        """
+        # Get the base reflection response
+        base_response = self.risk_classifier.get_reflection_response()
+
+        # Get journaling intro and prompts
+        loader = self.prompts.loader
+        journaling_intro = loader.get_journaling_intro()
+
+        # Detect category for specific journaling prompts
+        text_lower = user_input.lower()
+        if any(w in text_lower for w in ["breakup", "relationship", "boyfriend", "girlfriend", "partner"]):
+            category = "relationship"
+        elif any(w in text_lower for w in ["apology", "apologize", "sorry"]):
+            category = "apology"
+        elif any(w in text_lower for w in ["decide", "decision", "should i"]):
+            category = "decision"
+        else:
+            category = "general"
+
+        journaling_prompts = loader.get_journaling_prompts(category)
+
+        # Build response with journaling option
+        response = base_response + "\n\n---\n\n"
+        response += journaling_intro + "\n\n"
+
+        if journaling_prompts:
+            response += "Some questions to consider:\n"
+            for prompt in journaling_prompts[:3]:  # Limit to 3 prompts
+                response += f"- {prompt}\n"
+
+        return response
+
+    def _check_friend_mode(self, user_input: str, risk_assessment: Dict, domain: str) -> Optional[str]:
+        """
+        Check if "What Would You Tell a Friend?" mode should trigger.
+
+        This helps users access their own wisdom by flipping the perspective.
+        """
+        loader = self.prompts.loader
+
+        # Get detected intent if available
+        intent = risk_assessment.get("intent", None)
+
+        # Check if friend mode should trigger
+        if not loader.should_trigger_friend_mode(user_input, intent, domain):
+            return None
+
+        # Don't trigger for very short messages or greetings
+        if len(user_input) < 20:
+            return None
+
+        # Get friend mode prompts
+        flip_prompt = loader.get_friend_mode_flip_prompt()
+        closing = loader.get_friend_mode_closing()
+
+        # Build response
+        response = flip_prompt + "\n\n"
+        response += "_Take a moment to think about what you'd say to them._\n\n"
+        response += "---\n\n"
+        response += closing
+
+        return response
+
+    def _get_before_you_send_pause(self, user_input: str) -> Optional[str]:
+        """
+        Get a "Before You Send" pause suggestion for high-weight tasks.
+
+        This creates space for reflection before sending important messages.
+        """
+        loader = self.prompts.loader
+
+        # Check if pause should be suggested (already checked weight in caller)
+        settings = loader.get_before_you_send_settings()
+        if not settings.get("enabled", True):
+            return None
+
+        # Detect the category for appropriate pause message
+        category = loader.detect_pause_category(user_input)
+
+        # Get the pause prompt
+        pause_prompt = loader.get_pause_prompt(category)
+
+        return pause_prompt
+
+    def _check_human_gate(self, domain: str, emotional_weight: str) -> Optional[str]:
+        """
+        Check if "Have You Talked to Someone?" gate should trigger.
+
+        This ensures human connection is considered before AI engagement on heavy topics.
+        """
+        loader = self.prompts.loader
+
+        # Check if gate should trigger
+        if not loader.should_trigger_human_gate(domain, emotional_weight, self.human_gate_count):
+            return None
+
+        # Increment gate count
+        self.human_gate_count += 1
+
+        # Get gate prompt
+        gate_prompt = loader.get_human_gate_prompt()
+
+        # Build response with options
+        options = loader.get_human_gate_options()
+        response = gate_prompt + "\n\n"
+
+        # Add option hints (actual options would be in UI)
+        if options:
+            yes_label = options.get("yes", {}).get("label", "Yes, I have")
+            not_yet_label = options.get("not_yet", {}).get("label", "Not yet")
+            response += f"[ {yes_label} ] [ {not_yet_label} ]\n\n"
+            response += "_This question is about ensuring you have human support, not gatekeeping._"
+
+        return response
+
+    def get_human_gate_follow_up(self, response: str) -> str:
+        """
+        Get follow-up message after user responds to human gate.
+
+        Args:
+            response: User's response ('yes', 'not_yet', or 'no_one')
+
+        Returns:
+            Follow-up message
+        """
+        loader = self.prompts.loader
+        return loader.get_human_gate_follow_up(response)
 
     def _log_policy(self, policy_type: str, domain: str, risk_weight: float,
                     action: str, wellness_tracker) -> None:
@@ -500,6 +657,11 @@ class WellnessGuide:
             "turn_set": 0,
             "decay_turns": 5
         }
+        # Phase 8: Reset wisdom feature state
+        self.human_gate_count = 0
+        self.friend_mode_active = False
+        self.friend_mode_turn = 0
+        self.pending_friend_response = None
 
     # ==================== PHASE 6.5: CONTEXT PERSISTENCE ====================
 

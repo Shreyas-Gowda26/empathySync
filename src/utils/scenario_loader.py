@@ -791,6 +791,350 @@ class ScenarioLoader:
         config = self.get_explanations_config()
         return config.get("ui_labels", {})
 
+    # ==================== WISDOM & IMMUNITY (PHASE 8) ====================
+
+    def get_all_wisdom_config(self) -> Dict[str, Dict]:
+        """Load all wisdom configurations."""
+        return self._load_directory("wisdom")
+
+    def get_wisdom_prompts_config(self) -> Dict:
+        """Get wisdom prompts configuration."""
+        wisdom = self.get_all_wisdom_config()
+        return wisdom.get("prompts", {})
+
+    def get_wisdom_settings(self) -> Dict:
+        """Get wisdom feature settings."""
+        config = self.get_wisdom_prompts_config()
+        return config.get("settings", {})
+
+    # --- Friend Mode ---
+
+    def get_friend_mode_config(self) -> Dict:
+        """Get 'What Would You Tell a Friend?' mode configuration."""
+        config = self.get_wisdom_prompts_config()
+        return config.get("friend_mode", {})
+
+    def get_friend_mode_settings(self) -> Dict:
+        """Get friend mode settings."""
+        settings = self.get_wisdom_settings()
+        return settings.get("friend_mode", {})
+
+    def get_friend_mode_flip_prompt(self) -> str:
+        """Get a random flip prompt for friend mode."""
+        import random
+        config = self.get_friend_mode_config()
+        prompts = config.get("flip_prompts", [])
+        if prompts:
+            return random.choice(prompts)
+        return "If a friend came to you with this exact situation, what would you tell them?"
+
+    def get_friend_mode_follow_up(self) -> str:
+        """Get a random follow-up prompt for friend mode."""
+        import random
+        config = self.get_friend_mode_config()
+        prompts = config.get("follow_up_prompts", [])
+        if prompts:
+            return random.choice(prompts)
+        return "Could that same wisdom apply to your situation?"
+
+    def get_friend_mode_closing(self) -> str:
+        """Get a random closing prompt for friend mode."""
+        import random
+        config = self.get_friend_mode_config()
+        prompts = config.get("closing_prompts", [])
+        if prompts:
+            return random.choice(prompts)
+        return "You clearly know what you'd tell someone else. Trust that."
+
+    def get_friend_mode_triggers(self) -> List[str]:
+        """Get trigger phrases for friend mode."""
+        config = self.get_friend_mode_config()
+        return config.get("trigger_phrases", [])
+
+    def should_trigger_friend_mode(self, user_input: str, intent: str = None, domain: str = None) -> bool:
+        """
+        Check if friend mode should be triggered.
+
+        Args:
+            user_input: The user's message
+            intent: Detected intent ('practical', 'processing', 'emotional', 'connection')
+            domain: Current domain
+
+        Returns:
+            True if friend mode should trigger
+        """
+        settings = self.get_friend_mode_settings()
+        if not settings.get("enabled", True):
+            return False
+
+        # Skip for practical intent
+        if settings.get("skip_for_practical", True) and intent == "practical":
+            return False
+
+        # Check for processing intent trigger
+        if settings.get("trigger_on_processing_intent", True) and intent == "processing":
+            return True
+
+        # Check for trigger domains
+        trigger_domains = settings.get("trigger_domains", [])
+        if domain and domain in trigger_domains:
+            # Also check for "what should I do" type phrases
+            triggers = self.get_friend_mode_triggers()
+            text_lower = user_input.lower()
+            if any(trigger in text_lower for trigger in triggers):
+                return True
+
+        # Check for "what should I do" phrases regardless of domain
+        if settings.get("trigger_on_what_should_i_do", True):
+            triggers = self.get_friend_mode_triggers()
+            text_lower = user_input.lower()
+            if any(trigger in text_lower for trigger in triggers):
+                return True
+
+        return False
+
+    # --- Before You Send Pause ---
+
+    def get_before_you_send_config(self) -> Dict:
+        """Get 'Before You Send' pause configuration."""
+        config = self.get_wisdom_prompts_config()
+        return config.get("before_you_send", {})
+
+    def get_before_you_send_settings(self) -> Dict:
+        """Get before you send settings."""
+        settings = self.get_wisdom_settings()
+        return settings.get("before_you_send", {})
+
+    def get_pause_prompt(self, category: str = "default") -> str:
+        """
+        Get a pause prompt for a specific task category.
+
+        Args:
+            category: Task category (resignation, difficult_conversation, etc.)
+
+        Returns:
+            Pause prompt string
+        """
+        import random
+        config = self.get_before_you_send_config()
+        prompts = config.get("pause_prompts", {})
+        category_prompts = prompts.get(category, prompts.get("default", []))
+        if category_prompts:
+            return random.choice(category_prompts)
+        return "Here's what you asked for. For important messages, consider waiting before sending."
+
+    def should_suggest_pause(self, emotional_weight: str, task_category: str = None) -> bool:
+        """
+        Check if a pause should be suggested.
+
+        Args:
+            emotional_weight: 'high_weight', 'medium_weight', 'low_weight'
+            task_category: Optional task category
+
+        Returns:
+            True if pause should be suggested
+        """
+        settings = self.get_before_you_send_settings()
+        if not settings.get("enabled", True):
+            return False
+
+        # Check if weight is in trigger list
+        trigger_weights = settings.get("trigger_weights", ["high_weight"])
+        if emotional_weight not in trigger_weights:
+            return False
+
+        # Check skip weights
+        skip_weights = settings.get("skip_weights", [])
+        if emotional_weight in skip_weights:
+            return False
+
+        return True
+
+    def detect_pause_category(self, user_input: str) -> str:
+        """
+        Detect the pause category for a message.
+
+        Args:
+            user_input: The user's original request
+
+        Returns:
+            Category name (resignation, difficult_conversation, etc.)
+        """
+        text_lower = user_input.lower()
+
+        if any(w in text_lower for w in ["resign", "quit", "leaving", "two weeks"]):
+            return "resignation"
+        if any(w in text_lower for w in ["breakup", "break up", "dump", "ending it"]):
+            return "relationship_endings"
+        if any(w in text_lower for w in ["apology", "apologize", "sorry", "apolog"]):
+            return "apologies"
+        if any(w in text_lower for w in ["boundary", "boundaries", "limit", "saying no"]):
+            return "boundary_setting"
+        if any(w in text_lower for w in ["difficult", "hard conversation", "confront"]):
+            return "difficult_conversation"
+
+        return "default"
+
+    # --- Reflection Journaling ---
+
+    def get_journaling_config(self) -> Dict:
+        """Get reflection journaling configuration."""
+        config = self.get_wisdom_prompts_config()
+        return config.get("journaling", {})
+
+    def get_journaling_settings(self) -> Dict:
+        """Get journaling settings."""
+        settings = self.get_wisdom_settings()
+        return settings.get("journaling", {})
+
+    def get_journaling_intro(self) -> str:
+        """Get a random journaling intro prompt."""
+        import random
+        config = self.get_journaling_config()
+        prompts = config.get("intro_prompts", [])
+        if prompts:
+            return random.choice(prompts)
+        return "Would you like to write it out for yourself first? Sometimes putting thoughts on paper helps."
+
+    def get_journaling_prompts(self, category: str = "general") -> List[str]:
+        """
+        Get journaling prompts for a category.
+
+        Args:
+            category: 'general', 'relationship', 'decision', 'apology'
+
+        Returns:
+            List of journaling prompts
+        """
+        config = self.get_journaling_config()
+        prompts = config.get("prompts", {})
+        return prompts.get(category, prompts.get("general", []))
+
+    def get_journaling_closing(self) -> str:
+        """Get a random journaling closing prompt."""
+        import random
+        config = self.get_journaling_config()
+        prompts = config.get("closing_prompts", [])
+        if prompts:
+            return random.choice(prompts)
+        return "Keep what you wrote. The right words will come when you're ready."
+
+    # --- Human Gate ---
+
+    def get_human_gate_config(self) -> Dict:
+        """Get 'Have You Talked to Someone?' gate configuration."""
+        config = self.get_wisdom_prompts_config()
+        return config.get("human_gate", {})
+
+    def get_human_gate_settings(self) -> Dict:
+        """Get human gate settings."""
+        settings = self.get_wisdom_settings()
+        return settings.get("human_gate", {})
+
+    def get_human_gate_prompt(self) -> str:
+        """Get a random gate prompt."""
+        import random
+        config = self.get_human_gate_config()
+        prompts = config.get("gate_prompts", [])
+        if prompts:
+            return random.choice(prompts)
+        return "Have you talked to anyone you trust about this?"
+
+    def get_human_gate_options(self) -> Dict:
+        """Get the response options for human gate."""
+        config = self.get_human_gate_config()
+        return config.get("options", {})
+
+    def get_human_gate_follow_up(self, response: str) -> str:
+        """
+        Get follow-up for a human gate response.
+
+        Args:
+            response: 'yes', 'not_yet', or 'no_one'
+
+        Returns:
+            Follow-up prompt string
+        """
+        import random
+        options = self.get_human_gate_options()
+        option = options.get(response, {})
+        follow_ups = option.get("follow_up", [])
+        if follow_ups:
+            return random.choice(follow_ups)
+        return ""
+
+    def should_trigger_human_gate(
+        self,
+        domain: str = None,
+        emotional_weight: str = None,
+        gate_count: int = 0
+    ) -> bool:
+        """
+        Check if human gate should be triggered.
+
+        Args:
+            domain: Current domain
+            emotional_weight: Current emotional weight
+            gate_count: Number of times gate has been shown this session
+
+        Returns:
+            True if gate should trigger
+        """
+        settings = self.get_human_gate_settings()
+        if not settings.get("enabled", True):
+            return False
+
+        # Check max asks per session
+        max_asks = settings.get("max_asks_per_session", 2)
+        if gate_count >= max_asks:
+            return False
+
+        # Check trigger weights
+        trigger_weights = settings.get("trigger_weights", [])
+        if emotional_weight and emotional_weight in trigger_weights:
+            return True
+
+        # Check trigger domains
+        trigger_domains = settings.get("trigger_domains", [])
+        if domain and domain in trigger_domains:
+            return True
+
+        return False
+
+    # --- AI Literacy ---
+
+    def get_ai_literacy_config(self) -> Dict:
+        """Get AI literacy moments configuration."""
+        config = self.get_wisdom_prompts_config()
+        return config.get("ai_literacy", {})
+
+    def get_ai_literacy_settings(self) -> Dict:
+        """Get AI literacy settings."""
+        settings = self.get_wisdom_settings()
+        return settings.get("ai_literacy", {})
+
+    def get_ai_literacy_moment(self, trigger: str) -> Optional[str]:
+        """
+        Get an AI literacy moment for a trigger.
+
+        Args:
+            trigger: e.g., 'after_practical_task_no_engagement'
+
+        Returns:
+            Literacy message or None
+        """
+        config = self.get_ai_literacy_config()
+        moments = config.get("moments", {})
+        for moment_name, moment_config in moments.items():
+            if moment_config.get("trigger") == trigger:
+                return moment_config.get("message")
+        return None
+
+    def get_manipulation_patterns(self) -> Dict[str, Dict]:
+        """Get manipulation patterns for 'Spot the Pattern' feature."""
+        config = self.get_ai_literacy_config()
+        return config.get("manipulation_patterns", {})
+
     # ==================== UTILITY METHODS ====================
 
     def clear_cache(self) -> None:
