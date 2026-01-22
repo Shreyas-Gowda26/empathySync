@@ -291,13 +291,48 @@ class ScenarioLoader:
         Get emotional weight triggers grouped by weight level.
 
         Returns:
-            Dict with 'high_weight' and 'medium_weight' trigger lists
+            Dict with 'reflection_redirect', 'high_weight' and 'medium_weight' trigger lists
         """
         task_weights = self.get_task_weights()
         return {
+            "reflection_redirect": task_weights.get("reflection_redirect", {}).get("triggers", []),
             "high_weight": task_weights.get("high_weight", {}).get("triggers", []),
             "medium_weight": task_weights.get("medium_weight", {}).get("triggers", [])
         }
+
+    def get_reflection_redirect_config(self) -> Dict:
+        """
+        Get configuration for reflection redirect tasks.
+
+        Returns:
+            Dict with triggers, responses, follow_up_prompts
+        """
+        task_weights = self.get_task_weights()
+        return task_weights.get("reflection_redirect", {})
+
+    def get_reflection_redirect_response(self) -> str:
+        """
+        Get a random reflection redirect response.
+
+        Returns:
+            A response string encouraging reflection instead of drafting
+        """
+        import random
+        config = self.get_reflection_redirect_config()
+        responses = config.get("responses", [])
+        if responses:
+            return random.choice(responses)
+        return "This message should come from you, not software. Want to talk through what you're feeling first?"
+
+    def get_reflection_follow_up_prompts(self) -> List[str]:
+        """
+        Get follow-up prompts for reflection redirect.
+
+        Returns:
+            List of prompts to help user think through their message
+        """
+        config = self.get_reflection_redirect_config()
+        return config.get("follow_up_prompts", [])
 
     def get_emotional_weight_score(self, level: str) -> float:
         """
@@ -618,6 +653,143 @@ class ScenarioLoader:
                     return context_name
 
         return "general"
+
+    # ==================== TRANSPARENCY ====================
+
+    def get_all_transparency_config(self) -> Dict[str, Dict]:
+        """Load all transparency configurations."""
+        return self._load_directory("transparency")
+
+    def get_explanations_config(self) -> Dict:
+        """Get transparency explanations configuration."""
+        transparency = self.get_all_transparency_config()
+        return transparency.get("explanations", {})
+
+    def get_transparency_settings(self) -> Dict:
+        """Get transparency feature settings."""
+        config = self.get_explanations_config()
+        return config.get("settings", {})
+
+    def get_domain_explanation(self, domain: str) -> Dict:
+        """
+        Get the explanation for a domain.
+
+        Args:
+            domain: e.g., 'logistics', 'relationships', 'health'
+
+        Returns:
+            Dict with name, icon, description, mode_note
+        """
+        config = self.get_explanations_config()
+        explanations = config.get("domain_explanations", {})
+        return explanations.get(domain, {
+            "name": domain.title(),
+            "description": f"Topic: {domain}",
+            "mode_note": ""
+        })
+
+    def get_mode_explanation(self, mode: str) -> Dict:
+        """
+        Get the explanation for a response mode.
+
+        Args:
+            mode: 'practical' or 'reflective'
+
+        Returns:
+            Dict with name, description, behaviors, no_behaviors
+        """
+        config = self.get_explanations_config()
+        explanations = config.get("mode_explanations", {})
+        return explanations.get(mode, {
+            "name": mode.title(),
+            "description": f"{mode.title()} mode",
+            "behaviors": [],
+            "no_behaviors": []
+        })
+
+    def get_emotional_weight_explanation(self, weight: str) -> Dict:
+        """
+        Get the explanation for an emotional weight level.
+
+        Args:
+            weight: 'high_weight', 'medium_weight', or 'low_weight'
+
+        Returns:
+            Dict with name, description, note
+        """
+        config = self.get_explanations_config()
+        explanations = config.get("emotional_weight_explanations", {})
+        return explanations.get(weight, {
+            "name": weight.replace("_", " ").title(),
+            "description": "",
+            "note": ""
+        })
+
+    def get_policy_explanation(self, policy_type: str) -> Dict:
+        """
+        Get the explanation for a policy action.
+
+        Args:
+            policy_type: e.g., 'crisis_stop', 'turn_limit_reached'
+
+        Returns:
+            Dict with name, description, reason, user_note
+        """
+        config = self.get_explanations_config()
+        explanations = config.get("policy_explanations", {})
+        return explanations.get(policy_type, {
+            "name": policy_type.replace("_", " ").title(),
+            "description": "A policy action was triggered.",
+            "reason": "",
+            "user_note": ""
+        })
+
+    def get_risk_level_explanation(self, risk_weight: float) -> Dict:
+        """
+        Get the explanation for a risk level based on weight.
+
+        Args:
+            risk_weight: 0-10 risk score
+
+        Returns:
+            Dict with range, name, description
+        """
+        config = self.get_explanations_config()
+        explanations = config.get("risk_level_explanations", {})
+
+        if risk_weight >= 8:
+            return explanations.get("high", {"name": "High Risk", "description": ""})
+        elif risk_weight >= 6:
+            return explanations.get("elevated", {"name": "Elevated Risk", "description": ""})
+        elif risk_weight >= 3:
+            return explanations.get("moderate", {"name": "Moderate Risk", "description": ""})
+        else:
+            return explanations.get("low", {"name": "Low Risk", "description": ""})
+
+    def get_session_summary_config(self) -> Dict:
+        """Get session summary configuration."""
+        config = self.get_explanations_config()
+        return config.get("session_summary", {})
+
+    def get_session_summary_footer(self, session_type: str) -> List[str]:
+        """
+        Get footer messages for session summary.
+
+        Args:
+            session_type: 'all_practical', 'mixed', 'mostly_reflective',
+                         'policy_fired', 'long_session'
+
+        Returns:
+            List of footer message strings
+        """
+        summary_config = self.get_session_summary_config()
+        footers = summary_config.get("footer_messages", {})
+        return footers.get(session_type, [])
+
+    def get_transparency_ui_labels(self) -> Dict:
+        """Get UI labels for transparency components."""
+        config = self.get_explanations_config()
+        return config.get("ui_labels", {})
 
     # ==================== UTILITY METHODS ====================
 

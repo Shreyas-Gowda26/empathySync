@@ -266,12 +266,12 @@ scenarios/intents/ (new directory)
 
 ---
 
-## Phase 6: Transparency & Explainability
+## Phase 6: Transparency & Explainability ✅ COMPLETE
 **Goal**: Show users exactly why the AI responded the way it did.
 
-### 6.1 Decision Transparency Panel
-- [ ] Add collapsible "Why this response?" section in UI
-- [ ] Show:
+### 6.1 Decision Transparency Panel ✅ DONE
+- [x] Add collapsible "Why this response?" section in UI
+- [x] Show:
   ```
   Domain detected: logistics (practical task)
   Emotional weight: high (resignation-related)
@@ -279,10 +279,12 @@ scenarios/intents/ (new directory)
   Word limit: None
   Policy actions: None triggered
   ```
-- [ ] Helps users understand and trust the system
+- [x] Helps users understand and trust the system
+- [x] Auto-expands when policy action is triggered
+- [x] Human-readable explanations for all domains, modes, and policies
 
-### 6.2 Session Summary
-- [ ] End-of-session summary (optional):
+### 6.2 Session Summary ✅ DONE
+- [x] End-of-session summary (optional):
   ```
   This session:
   - 3 practical tasks completed
@@ -290,7 +292,49 @@ scenarios/intents/ (new directory)
   - Suggested human contact: Yes (work stress)
   - Time spent: 12 minutes
   ```
-- [ ] Exportable as text/JSON
+- [x] Exportable as JSON
+- [x] Context-aware footer messages based on session type
+- [x] "View Session Summary" button in sidebar
+
+**Files created/modified**:
+- `scenarios/transparency/explanations.yaml` - Domain, mode, policy, and risk explanations
+- `src/utils/scenario_loader.py` - Added transparency configuration loading methods
+- `src/app.py` - Added `display_transparency_panel()` and `display_session_summary()` functions
+- `tests/test_wellness_guide.py` - Added 24 Phase 6 transparency tests
+
+---
+
+## Phase 6.5: Context Persistence
+**Goal**: Maintain emotional context across conversation turns so the system doesn't "forget" important context.
+
+**Problem identified**: User says "caught my boyfriend cheating, write me a breakup message" (reflection redirect triggers), then says "let's brainstorm" → system loses the emotional context and treats it as a neutral practical task.
+
+### 6.5.1 Session Emotional Context
+- [ ] Track emotional context at session level (not just per-message)
+- [ ] Store: `session_emotional_context` with highest emotional weight seen
+- [ ] Persist context for N turns after high-weight input detected
+- [ ] Example flow:
+  ```
+  User: "caught my boyfriend cheating" → session_context = {emotional_weight: "reflection_redirect", topic: "breakup"}
+  User: "let's brainstorm" → system checks session_context, still applies reflection redirect
+  ```
+
+### 6.5.2 Topic Threading
+- [ ] Track what the user is working on across turns
+- [ ] Detect when a follow-up message relates to previous topic
+- [ ] Indicators: pronouns ("it", "that", "this"), short responses, continuation phrases
+- [ ] Maintain topic thread until explicit topic change or session reset
+
+### 6.5.3 Context Decay
+- [ ] Context weight decays over turns (not instantly)
+- [ ] High emotional context: persists 5-7 turns
+- [ ] Medium context: persists 3-4 turns
+- [ ] User can explicitly reset: "let's talk about something else"
+
+**Files to create/modify**:
+- `src/models/ai_wellness_guide.py` - Add session context tracking
+- `src/models/risk_classifier.py` - Add context-aware classification
+- `scenarios/context/persistence_rules.yaml` - Context decay rules
 
 ---
 
@@ -321,16 +365,77 @@ scenarios/intents/ (new directory)
 
 ---
 
-## Phase 8: Immunity Building
-**Goal**: Train users to recognize unhealthy AI patterns so they're protected everywhere.
+## Phase 8: Immunity Building & Wisdom Prompts
+**Goal**: Train users to access their own wisdom and recognize unhealthy AI patterns.
 
-### 8.1 AI Literacy Moments
+### 8.1 "What Would You Tell a Friend?" Mode
+**High Impact** - Helps users access their own wisdom instead of depending on AI advice.
+
+- [ ] For `processing` intent or sensitive topic exploration, flip the question:
+  ```
+  "If a friend came to you with this exact situation, what would you tell them?"
+  ```
+- [ ] Follow-up prompts:
+  - "What advice would you give them?"
+  - "Why do you think that advice feels right?"
+  - "Could that same advice apply to you?"
+- [ ] Triggers:
+  - User asks "what should I do?" on sensitive topics
+  - `processing` intent detected
+  - Relationship/money/health decisions
+- [ ] Creates self-reliance instead of AI-reliance
+
+### 8.2 "Before You Send" Pause
+**High Impact** - Prevents regret on high-stakes messages.
+
+- [ ] For high-weight completed tasks, suggest waiting:
+  ```
+  "Here's your email. Consider sleeping on it before sending—these things often read differently in the morning."
+  ```
+- [ ] Configurable delay suggestions (1 hour, overnight, 24 hours)
+- [ ] Track (locally) if user found the pause helpful
+- [ ] Applies to: resignation, difficult conversations, boundary-setting messages
+- [ ] Does NOT apply to: routine tasks, low-weight content
+
+### 8.3 Reflection Journaling Alternative
+**High Impact** - Gives an outlet without creating dependency.
+
+- [ ] When redirecting from sensitive topics or reflection_redirect triggers, offer:
+  ```
+  "I won't draft this for you, but would you like to write it out for yourself first?
+  Sometimes putting thoughts on paper helps—even if you never send it."
+  ```
+- [ ] Provide journaling prompts:
+  - "What do you actually want them to know?"
+  - "How do you want to feel after this conversation?"
+  - "What's the best possible outcome?"
+- [ ] User writes for themselves, not for AI to draft
+- [ ] Optional: save journal entries locally (encrypted, user-controlled)
+
+### 8.4 "Have You Talked to Someone?" Gate
+**High Impact** - Ensures human connection before AI engagement on heavy topics.
+
+- [ ] For high-stakes sensitive topics, ask first:
+  ```
+  "Have you talked to anyone you trust about this? [Yes / Not yet]"
+  ```
+- [ ] If "Not yet":
+  - Gently redirect to human connection first
+  - Suggest specific people from trusted network
+  - Offer to help them prepare for that conversation instead
+- [ ] If "Yes":
+  - Proceed with appropriate restraint
+  - Ask: "What did they think?"
+- [ ] Applies to: major decisions, crisis-adjacent topics, relationship endings
+- [ ] Does NOT gate: practical tasks, general questions, low-stakes topics
+
+### 8.5 AI Literacy Moments
 - [ ] Occasional (rare) educational prompts:
   - "Notice how I completed that task without asking how you feel? That's intentional. Some AIs would try to keep you talking."
   - "I just redirected you to a human. Other AIs might have kept going. Be wary of systems that never say 'talk to someone else.'"
 - [ ] Max frequency: 1 per week, skippable
 
-### 8.2 "Spot the Pattern" Feature
+### 8.6 "Spot the Pattern" Feature
 - [ ] Optional educational mode showing common manipulation patterns:
   - Flattery loops ("You're so insightful!")
   - Engagement hooks ("Tell me more about that...")
@@ -373,16 +478,17 @@ scenarios/intents/ (new directory)
 | 4. Why Are You Here | High | Low | ✅ COMPLETE |
 | 3. Competence Graduation | Medium | Medium | ✅ COMPLETE |
 | 5. Enhanced Handoff | Medium | Low | ✅ COMPLETE |
-| 6. Transparency | Medium | Medium | 🔴 Next |
+| 6. Transparency | Medium | Medium | ✅ COMPLETE |
+| 6.5 Context Persistence | **High** | Medium | 🔴 Next |
 | 7. Success Metrics | High | Medium | 🟡 Soon |
-| 8. Immunity Building | Medium | Low | 🟢 After core |
+| 8. Immunity & Wisdom | **High** | Medium | 🟡 Soon |
 | 9. Advanced Detection | High | High | 🔵 Long-term |
 
 ---
 
 ## Current Status (2026-01-22)
 
-**Completed**: Phases 1, 2, 2.5, 3, 4, and 5
+**Completed**: Phases 1, 2, 2.5, 3, 4, 5, and 6
 - ✅ Dual-mode operation (practical vs reflective)
 - ✅ Emotional weight detection and acknowledgments
 - ✅ Dynamic timeouts for practical tasks (120s)
@@ -403,10 +509,20 @@ scenarios/intents/ (new directory)
 - ✅ Context-aware handoff templates (after_difficult_task, processing_decision, etc.)
 - ✅ Handoff tracking and self-report ("Did you reach out?", "How did it go?")
 - ✅ Handoff success metrics (reach-out rate, helpful rate)
+- ✅ Decision transparency panel ("Why this response?")
+- ✅ Session summary with JSON export
 
-**Next Up**: Phase 6 (Transparency & Explainability)
-- Decision transparency panel ("Why this response?")
-- End-of-session summary
+**Next Up**: Phase 6.5 (Context Persistence) - HIGH PRIORITY
+- Fix context loss across turns (the "let's brainstorm" bug)
+- Session-level emotional context tracking
+- Topic threading for multi-turn conversations
+
+**Then**: Phase 7 (Success Metrics) and Phase 8 (Immunity & Wisdom)
+- "What Would You Tell a Friend?" mode
+- "Before You Send" pause for high-stakes messages
+- Reflection journaling alternative
+- "Have You Talked to Someone?" gate
+- Local metrics dashboard
 
 ---
 
@@ -429,8 +545,10 @@ scenarios/intents/ (new directory)
 **v0.3** (Phase 4): Session intent check-ins and shift detection ✅ COMPLETE
 **v0.3.5** (Phase 3): Competence graduation and independence tracking ✅ COMPLETE
 **v0.4** (Phase 5): Enhanced handoffs with context-awareness and tracking ✅ COMPLETE
-**v0.5** (Phase 6-7): Transparency, local metrics
-**v0.6** (Phase 8): Immunity building
+**v0.4.5** (Phase 6): Transparency panel and session summaries ✅ COMPLETE
+**v0.5** (Phase 6.5): Context persistence across turns
+**v0.5.5** (Phase 7): Local metrics and anti-engagement scoring
+**v0.6** (Phase 8): Immunity building and wisdom prompts ("What Would You Tell a Friend?", "Before You Send", journaling)
 **v1.0** (Phase 9): Advanced detection, production-ready
 
 ---

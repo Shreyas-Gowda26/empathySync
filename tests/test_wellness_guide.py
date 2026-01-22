@@ -1063,3 +1063,324 @@ class TestWellnessTrackerHandoff:
         # 3 initiated, 3 reached out = 100% rate
         # 3 very helpful = 100% helpful rate
         assert metrics["is_healthy"] is True
+
+
+# ==================== PHASE 6: TRANSPARENCY & EXPLAINABILITY TESTS ====================
+
+
+class TestScenarioLoaderTransparency:
+    """Tests for Phase 6 transparency configuration loading"""
+
+    def test_get_transparency_settings(self, scenario_loader):
+        """Test loading transparency settings."""
+        settings = scenario_loader.get_transparency_settings()
+        assert "show_panel_default" in settings
+        assert "auto_expand_on_policy" in settings
+        assert "summary_min_duration" in settings
+        assert "summary_min_turns" in settings
+
+    def test_get_domain_explanation(self, scenario_loader):
+        """Test getting domain explanations."""
+        explanation = scenario_loader.get_domain_explanation("logistics")
+        assert explanation["name"] == "Practical Task"
+        assert "description" in explanation
+        assert "mode_note" in explanation
+
+    def test_get_domain_explanation_relationships(self, scenario_loader):
+        """Test getting relationships domain explanation."""
+        explanation = scenario_loader.get_domain_explanation("relationships")
+        assert explanation["name"] == "Relationships"
+        assert "interpersonal" in explanation["description"].lower()
+
+    def test_get_domain_explanation_fallback(self, scenario_loader):
+        """Test fallback for unknown domain."""
+        explanation = scenario_loader.get_domain_explanation("unknown_domain")
+        assert explanation["name"] == "Unknown_Domain"  # Title case
+        assert "description" in explanation
+
+    def test_get_mode_explanation_practical(self, scenario_loader):
+        """Test getting practical mode explanation."""
+        explanation = scenario_loader.get_mode_explanation("practical")
+        assert explanation["name"] == "Practical Mode"
+        assert "behaviors" in explanation
+        assert "no_behaviors" in explanation
+        assert len(explanation["behaviors"]) > 0
+
+    def test_get_mode_explanation_reflective(self, scenario_loader):
+        """Test getting reflective mode explanation."""
+        explanation = scenario_loader.get_mode_explanation("reflective")
+        assert explanation["name"] == "Reflective Mode"
+        assert "brief" in explanation["description"].lower()
+
+    def test_get_emotional_weight_explanation(self, scenario_loader):
+        """Test getting emotional weight explanations."""
+        explanation = scenario_loader.get_emotional_weight_explanation("high_weight")
+        assert explanation["name"] == "High Emotional Weight"
+        assert "description" in explanation
+        assert "note" in explanation
+
+    def test_get_emotional_weight_explanation_fallback(self, scenario_loader):
+        """Test fallback for unknown weight."""
+        explanation = scenario_loader.get_emotional_weight_explanation("unknown_weight")
+        # Should return a default
+        assert "name" in explanation
+
+    def test_get_policy_explanation_crisis(self, scenario_loader):
+        """Test getting crisis policy explanation."""
+        explanation = scenario_loader.get_policy_explanation("crisis_stop")
+        assert explanation["name"] == "Crisis Redirect"
+        assert "reason" in explanation
+        assert "user_note" in explanation
+
+    def test_get_policy_explanation_turn_limit(self, scenario_loader):
+        """Test getting turn limit policy explanation."""
+        explanation = scenario_loader.get_policy_explanation("turn_limit_reached")
+        assert explanation["name"] == "Session Limit"
+        assert "conversation limit" in explanation["description"].lower()
+
+    def test_get_policy_explanation_fallback(self, scenario_loader):
+        """Test fallback for unknown policy."""
+        explanation = scenario_loader.get_policy_explanation("unknown_policy")
+        assert "name" in explanation
+        assert explanation["description"] == "A policy action was triggered."
+
+    def test_get_risk_level_explanation_low(self, scenario_loader):
+        """Test getting low risk level explanation."""
+        explanation = scenario_loader.get_risk_level_explanation(2.0)
+        assert explanation["name"] == "Low Risk"
+
+    def test_get_risk_level_explanation_moderate(self, scenario_loader):
+        """Test getting moderate risk level explanation."""
+        explanation = scenario_loader.get_risk_level_explanation(4.5)
+        assert explanation["name"] == "Moderate Risk"
+
+    def test_get_risk_level_explanation_elevated(self, scenario_loader):
+        """Test getting elevated risk level explanation."""
+        explanation = scenario_loader.get_risk_level_explanation(7.0)
+        assert explanation["name"] == "Elevated Risk"
+
+    def test_get_risk_level_explanation_high(self, scenario_loader):
+        """Test getting high risk level explanation."""
+        explanation = scenario_loader.get_risk_level_explanation(9.0)
+        assert explanation["name"] == "High Risk"
+
+    def test_get_session_summary_config(self, scenario_loader):
+        """Test getting session summary configuration."""
+        config = scenario_loader.get_session_summary_config()
+        assert "header" in config
+        assert "sections" in config
+        assert "footer_messages" in config
+
+    def test_get_session_summary_footer_practical(self, scenario_loader):
+        """Test getting footer messages for practical session."""
+        messages = scenario_loader.get_session_summary_footer("all_practical")
+        assert len(messages) > 0
+        assert any("productive" in m.lower() or "task" in m.lower() for m in messages)
+
+    def test_get_session_summary_footer_reflective(self, scenario_loader):
+        """Test getting footer messages for reflective session."""
+        messages = scenario_loader.get_session_summary_footer("mostly_reflective")
+        assert len(messages) > 0
+        # Should suggest human connection
+        assert any("human" in m.lower() or "someone" in m.lower() for m in messages)
+
+    def test_get_session_summary_footer_policy_fired(self, scenario_loader):
+        """Test getting footer messages when policy fired."""
+        messages = scenario_loader.get_session_summary_footer("policy_fired")
+        assert len(messages) > 0
+        assert any("guardrail" in m.lower() or "design" in m.lower() for m in messages)
+
+    def test_get_transparency_ui_labels(self, scenario_loader):
+        """Test getting UI labels."""
+        labels = scenario_loader.get_transparency_ui_labels()
+        assert "panel_title" in labels
+        assert "domain_label" in labels
+        assert "mode_label" in labels
+        assert "word_limit_label" in labels
+        assert "no_limit" in labels
+        assert "none_triggered" in labels
+
+
+# ==================== REFLECTION REDIRECT TESTS ====================
+
+
+class TestReflectionRedirect:
+    """Tests for reflection redirect feature - personal messages that should come from the user"""
+
+    @pytest.fixture
+    def classifier(self, scenario_loader):
+        return RiskClassifier(scenario_loader)
+
+    def test_detect_breakup_message_redirect(self, classifier):
+        """Test that breakup messages trigger reflection redirect."""
+        weight, score = classifier._assess_emotional_weight(
+            "Write me a breakup message to my boyfriend"
+        )
+        assert weight == "reflection_redirect"
+        assert score >= 8.0
+
+    def test_detect_breakup_text_redirect(self, classifier):
+        """Test that breakup text triggers reflection redirect."""
+        weight, score = classifier._assess_emotional_weight(
+            "Help me write a break up text"
+        )
+        assert weight == "reflection_redirect"
+
+    def test_detect_cheating_context_redirect(self, classifier):
+        """Test that cheating context triggers reflection redirect."""
+        weight, score = classifier._assess_emotional_weight(
+            "Write me a message, caught my boyfriend cheating"
+        )
+        assert weight == "reflection_redirect"
+
+    def test_detect_personal_apology_redirect(self, classifier):
+        """Test that personal apologies to loved ones trigger reflection redirect."""
+        weight, score = classifier._assess_emotional_weight(
+            "Write an apology to my husband for lying"
+        )
+        assert weight == "reflection_redirect"
+
+    def test_detect_coming_out_redirect(self, classifier):
+        """Test that coming out messages trigger reflection redirect."""
+        weight, score = classifier._assess_emotional_weight(
+            "Help me write a coming out message to my parents"
+        )
+        assert weight == "reflection_redirect"
+
+    def test_professional_resignation_not_redirected(self, classifier):
+        """Test that professional resignation is high_weight, not reflection_redirect."""
+        weight, score = classifier._assess_emotional_weight(
+            "Write me a resignation email to my boss"
+        )
+        assert weight == "high_weight"
+        assert weight != "reflection_redirect"
+
+    def test_professional_apology_not_redirected(self, classifier):
+        """Test that professional apology is high_weight, not reflection_redirect."""
+        weight, score = classifier._assess_emotional_weight(
+            "Write an apology email to my coworker"
+        )
+        assert weight == "high_weight"
+        assert weight != "reflection_redirect"
+
+    def test_condolence_not_redirected(self, classifier):
+        """Test that condolence messages are high_weight (more templated)."""
+        weight, score = classifier._assess_emotional_weight(
+            "Write me a condolence message for my friend's loss"
+        )
+        assert weight == "high_weight"
+        assert weight != "reflection_redirect"
+
+    def test_needs_reflection_redirect_method(self, classifier):
+        """Test the needs_reflection_redirect convenience method."""
+        assert classifier.needs_reflection_redirect("Write me a breakup message") is True
+        assert classifier.needs_reflection_redirect("Write me a resignation email") is False
+        assert classifier.needs_reflection_redirect("Help me code a function") is False
+
+    def test_get_reflection_response(self, classifier):
+        """Test that reflection response is returned."""
+        response = classifier.get_reflection_response()
+        assert response is not None
+        assert len(response) > 20
+        # Should encourage reflection or human conversation
+        assert any(word in response.lower() for word in ["you", "yourself", "talk", "words", "feeling"])
+
+
+class TestScenarioLoaderReflectionRedirect:
+    """Tests for reflection redirect configuration loading"""
+
+    def test_get_reflection_redirect_config(self, scenario_loader):
+        """Test loading reflection redirect config."""
+        config = scenario_loader.get_reflection_redirect_config()
+        assert "triggers" in config
+        assert "responses" in config
+        assert len(config["triggers"]) > 0
+        assert len(config["responses"]) > 0
+
+    def test_get_reflection_redirect_response(self, scenario_loader):
+        """Test getting a reflection redirect response."""
+        response = scenario_loader.get_reflection_redirect_response()
+        assert response is not None
+        assert len(response) > 20
+
+    def test_get_reflection_follow_up_prompts(self, scenario_loader):
+        """Test getting reflection follow-up prompts."""
+        prompts = scenario_loader.get_reflection_follow_up_prompts()
+        assert len(prompts) > 0
+
+    def test_emotional_weight_triggers_includes_reflection(self, scenario_loader):
+        """Test that emotional weight triggers include reflection_redirect."""
+        triggers = scenario_loader.get_emotional_weight_triggers()
+        assert "reflection_redirect" in triggers
+        assert len(triggers["reflection_redirect"]) > 0
+
+
+class TestTransparencyIntegration:
+    """Integration tests for Phase 6 transparency features"""
+
+    @pytest.fixture
+    def classifier(self, scenario_loader):
+        return RiskClassifier(scenario_loader)
+
+    def test_risk_assessment_has_transparency_data(self, classifier):
+        """Test that risk assessment provides all data needed for transparency."""
+        result = classifier.classify(
+            user_input="Help me write an email to my boss",
+            conversation_history=[]
+        )
+
+        # Should have domain
+        assert "domain" in result
+        assert result["domain"] == "logistics"
+
+        # Should have emotional weight for practical tasks
+        assert "emotional_weight" in result
+
+        # Should have risk weight
+        assert "risk_weight" in result
+
+    def test_practical_task_assessment(self, classifier):
+        """Test practical task assessment for transparency."""
+        result = classifier.classify(
+            user_input="Write me a resignation email",
+            conversation_history=[]
+        )
+
+        assert result["domain"] == "logistics"
+        assert result["emotional_weight"] == "high_weight"  # Resignation is high weight
+        assert result["risk_weight"] <= 3.0  # Logistics is low risk (may include emotional weight factor)
+
+    def test_sensitive_topic_assessment(self, classifier):
+        """Test sensitive topic assessment for transparency."""
+        result = classifier.classify(
+            user_input="I'm worried about my debt and financial future",
+            conversation_history=[]
+        )
+
+        assert result["domain"] == "money"
+        assert result["risk_weight"] >= 5.0  # Money is moderate-high risk
+
+    def test_transparency_explanation_chain(self, scenario_loader, classifier):
+        """Test complete explanation chain from assessment to explanations."""
+        # Classify a message
+        result = classifier.classify(
+            user_input="Help me code a function in Python",
+            conversation_history=[]
+        )
+
+        # Get explanations
+        domain_exp = scenario_loader.get_domain_explanation(result["domain"])
+        mode_exp = scenario_loader.get_mode_explanation(
+            "practical" if result["domain"] == "logistics" else "reflective"
+        )
+        risk_exp = scenario_loader.get_risk_level_explanation(result["risk_weight"])
+
+        # All should have content
+        assert domain_exp.get("name")
+        assert mode_exp.get("name")
+        assert risk_exp.get("name")
+
+        # Practical task should have practical explanations
+        assert domain_exp["name"] == "Practical Task"
+        assert mode_exp["name"] == "Practical Mode"
+        assert risk_exp["name"] == "Low Risk"

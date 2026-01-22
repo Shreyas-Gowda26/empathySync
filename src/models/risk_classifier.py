@@ -126,13 +126,27 @@ class RiskClassifier:
         return self.loader.get_emotional_score("neutral")
 
     def _get_weight_triggers(self) -> Dict[str, str]:
-        """Get cached emotional weight trigger -> level mapping."""
+        """
+        Get cached emotional weight trigger -> level mapping.
+
+        Triggers are ordered by priority: reflection_redirect first, then high, medium.
+        This ensures more specific triggers (like "breakup message") are matched
+        before general ones (like "breakup").
+        """
         if self._weight_trigger_cache is None:
             weight_triggers = self.loader.get_emotional_weight_triggers()
             self._weight_trigger_cache = {}
-            for level, triggers in weight_triggers.items():
-                for trigger in triggers:
-                    self._weight_trigger_cache[trigger.lower()] = level
+
+            # Add in priority order: reflection_redirect > high > medium
+            # Longer/more specific triggers should match first
+            for level in ["reflection_redirect", "high_weight", "medium_weight"]:
+                triggers = weight_triggers.get(level, [])
+                # Sort by length descending so longer triggers match first
+                for trigger in sorted(triggers, key=len, reverse=True):
+                    trigger_lower = trigger.lower()
+                    # Only add if not already present (first match wins)
+                    if trigger_lower not in self._weight_trigger_cache:
+                        self._weight_trigger_cache[trigger_lower] = level
         return self._weight_trigger_cache
 
     def _assess_emotional_weight(self, text: str) -> tuple:
@@ -141,23 +155,46 @@ class RiskClassifier:
 
         A resignation email is high-weight even if the user asks calmly.
         A grocery list is low-weight even if the user is stressed.
+        A breakup message requires reflection, not drafting.
 
         Returns:
             tuple: (weight_level, weight_score)
-                   weight_level: 'high_weight', 'medium_weight', or 'low_weight'
+                   weight_level: 'reflection_redirect', 'high_weight', 'medium_weight', or 'low_weight'
                    weight_score: float 0-10
         """
         t = text.lower()
         weight_triggers = self._get_weight_triggers()
 
-        # Check for high-weight triggers first
-        for trigger, level in weight_triggers.items():
+        # Check triggers - longer/more specific ones checked first due to cache ordering
+        # Sort by length descending to match more specific phrases first
+        for trigger in sorted(weight_triggers.keys(), key=len, reverse=True):
             if trigger in t:
+                level = weight_triggers[trigger]
                 score = self.loader.get_emotional_weight_score(level)
                 return (level, score)
 
         # Default to low weight
         return ("low_weight", self.loader.get_emotional_weight_score("low_weight"))
+
+    def needs_reflection_redirect(self, text: str) -> bool:
+        """
+        Check if the input requires a reflection redirect rather than task completion.
+
+        These are personal messages that should come from the person, not AI:
+        - Breakup messages
+        - Personal apologies to loved ones
+        - Coming out messages
+        - Confrontation messages to partners/family
+
+        Returns:
+            True if the message should redirect to reflection instead of completion
+        """
+        weight_level, _ = self._assess_emotional_weight(text)
+        return weight_level == "reflection_redirect"
+
+    def get_reflection_response(self) -> str:
+        """Get a reflection redirect response from scenarios."""
+        return self.loader.get_reflection_redirect_response()
 
     def _assess_dependency(self, history: List[Dict]) -> float:
         """

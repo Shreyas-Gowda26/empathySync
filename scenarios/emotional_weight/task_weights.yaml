@@ -10,6 +10,96 @@
 weight_type: task_weights
 description: Emotional weight categories for practical tasks
 
+# REFLECTION REDIRECT: Tasks where the words need to come from THEM, not software
+# These should NOT be completed - instead, encourage reflection and human conversation
+# The system offers to help them THINK through it, not draft it for them
+reflection_redirect:
+  description: "Personal messages that should come from the person, not AI"
+  weight_score: 9.0
+
+  triggers:
+    # Relationship endings - these words need to be theirs
+    - "breakup message"
+    - "break up message"
+    - "breakup text"
+    - "break up text"
+    - "breaking up with"
+    - "dump him"
+    - "dump her"
+    - "dump them"
+    - "dumping"
+    - "ending it with"
+    - "tell him it's over"
+    - "tell her it's over"
+
+    # Cheating/betrayal context - acute emotional moment
+    - "caught cheating"
+    - "boyfriend cheating"
+    - "girlfriend cheating"
+    - "husband cheating"
+    - "wife cheating"
+    - "partner cheating"
+    - "cheated on me"
+    - "he cheated"
+    - "she cheated"
+    - "they cheated"
+    - "unfaithful"
+    - "affair"
+    - "betrayed"
+
+    # Personal apologies to loved ones - needs to be their words
+    - "apology to my partner"
+    - "apology to my boyfriend"
+    - "apology to my girlfriend"
+    - "apology to my husband"
+    - "apology to my wife"
+    - "apologize to my boyfriend"
+    - "apologize to my girlfriend"
+    - "apologize to my husband"
+    - "apologize to my wife"
+    - "apology to my mom"
+    - "apology to my dad"
+    - "apology to my parent"
+
+    # Confrontation messages
+    - "confront my partner"
+    - "confront my boyfriend"
+    - "confront my girlfriend"
+    - "confront my husband"
+    - "confront my wife"
+
+    # Coming out - deeply personal
+    - "coming out message"
+    - "coming out text"
+    - "tell them I'm gay"
+    - "tell them I'm trans"
+
+    # Cutting off family
+    - "cutting off my parent"
+    - "cutting off my mom"
+    - "cutting off my dad"
+    - "estrangement letter"
+    - "no contact letter"
+
+  behavior: "redirect_to_reflection"
+
+  responses:
+    - "I can hear this is painful. Before drafting anything, it might help to talk to someone you trust—or even just sleep on it. When you're ready, you'll find the words."
+    - "This is a message that needs to come from you, not software. Want to talk through what you're feeling first? Or is there someone you could call?"
+    - "I could draft something, but these words should be yours. What do you actually want them to know?"
+    - "Big moments deserve your own words. I'm happy to help you think through what to say—but I shouldn't write it for you."
+
+  follow_up_prompts:
+    - "What's the main thing you want them to understand?"
+    - "How do you want to feel after sending this?"
+    - "Is there someone you trust who could help you think this through?"
+
+  examples:
+    - "Write me a breakup message, caught my boyfriend cheating"
+    - "Draft a text to dump my girlfriend"
+    - "Help me write a coming out message to my parents"
+    - "Write an apology to my wife for lying"
+
 # HIGH WEIGHT: Tasks that typically involve significant life moments
 # These deserve a brief acknowledgment after completing the task
 high_weight:
@@ -17,46 +107,42 @@ high_weight:
   weight_score: 8.0
 
   triggers:
-    # Endings and separations
+    # Professional endings (these are more templated, OK to help)
     - "resignation"
     - "resigning"
     - "quitting"
     - "leaving job"
     - "two weeks notice"
-    - "breaking up"
-    - "break up"
-    - "breakup"
-    - "ending relationship"
+    - "firing"
+    - "letting go"
+    - "termination"
+    - "rejection letter"
+
+    # General goodbyes (less personal than breakups)
     - "goodbye"
     - "farewell"
-    - "cutting contact"
-    - "cutting off"
-    - "no contact"
-    - "estrangement"
+    - "goodbye email"
+    - "farewell message"
 
-    # Difficult conversations
-    - "confront"
-    - "confronting"
+    # Professional difficult conversations
     - "boundary"
     - "boundaries"
     - "setting limits"
     - "saying no"
     - "turning down"
     - "rejecting"
-    - "rejection letter"
-    - "firing"
-    - "letting go"
-    - "termination"
 
-    # Apologies and accountability
-    - "apology"
-    - "apologize"
-    - "apologizing"
-    - "I'm sorry"
+    # Professional apologies
+    - "apology email"
+    - "apology letter"
+    - "apologize to my boss"
+    - "apologize to my coworker"
+    - "apologize to my colleague"
+    - "professional apology"
     - "making amends"
     - "taking responsibility"
 
-    # Loss and grief
+    # Loss and grief (condolences are more templated)
     - "condolence"
     - "sympathy"
     - "passed away"
@@ -65,25 +151,20 @@ high_weight:
     - "memorial"
     - "eulogy"
 
-    # Major life changes
-    - "divorce"
-    - "separation"
-    - "custody"
+    # Major life changes (informational, not confrontational)
     - "moving away"
     - "leaving home"
 
-    # Health disclosures
+    # Health disclosures (professional/medical context)
     - "telling them about my diagnosis"
     - "sharing my condition"
-    - "coming out"
 
   acknowledgment_style: "warm"
   examples:
     - "Write a resignation email"
-    - "Help me draft a breakup text"
-    - "Template for telling my parents I'm cutting contact"
     - "Write a condolence message"
-    - "Draft an apology to my friend"
+    - "Draft a professional apology to my manager"
+    - "Help me write a farewell email to my team"
 
 # MEDIUM WEIGHT: Tasks that may carry some emotional stakes
 # Brief acknowledgment optional, depends on context

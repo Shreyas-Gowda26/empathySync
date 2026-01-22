@@ -59,6 +59,249 @@ def display_safety_banner():
         st.info(f"**Why I responded this way:** {explanation}")
 
 
+def display_transparency_panel():
+    """Display the 'Why this response?' transparency panel (Phase 6)."""
+    guide = st.session_state.wellness_guide
+    loader = get_scenario_loader()
+
+    # Only show if we have risk assessment data
+    if not guide.last_risk_assessment:
+        return
+
+    assessment = guide.last_risk_assessment
+    ui_labels = loader.get_transparency_ui_labels()
+
+    # Get transparency settings
+    settings = loader.get_transparency_settings()
+    auto_expand = settings.get("auto_expand_on_policy", True)
+
+    # Auto-expand if policy fired
+    should_expand = auto_expand and guide.last_policy_action is not None
+
+    with st.expander(ui_labels.get("panel_title", "Why this response?"), expanded=should_expand):
+        # Domain detected
+        domain = assessment.get("domain", "logistics")
+        domain_info = loader.get_domain_explanation(domain)
+
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown(f"**{ui_labels.get('domain_label', 'Topic detected')}**")
+        with col2:
+            st.markdown(f"{domain_info.get('name', domain.title())}")
+            st.caption(domain_info.get('description', ''))
+
+        st.markdown("---")
+
+        # Response mode
+        is_practical = domain == "logistics"
+        mode = "practical" if is_practical else "reflective"
+        mode_info = loader.get_mode_explanation(mode)
+
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown(f"**{ui_labels.get('mode_label', 'Response mode')}**")
+        with col2:
+            st.markdown(f"{mode_info.get('name', mode.title())}")
+            st.caption(mode_info.get('description', ''))
+
+        # Word limit
+        word_limit = ui_labels.get("no_limit", "None") if is_practical else "50-150 words"
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown(f"**{ui_labels.get('word_limit_label', 'Word limit')}**")
+        with col2:
+            st.markdown(word_limit)
+
+        st.markdown("---")
+
+        # Emotional weight (for practical tasks)
+        if is_practical:
+            emotional_weight = assessment.get("emotional_weight", "low_weight")
+            weight_info = loader.get_emotional_weight_explanation(emotional_weight)
+
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.markdown(f"**{ui_labels.get('emotional_weight_label', 'Emotional weight')}**")
+            with col2:
+                st.markdown(f"{weight_info.get('name', emotional_weight)}")
+                if weight_info.get('note'):
+                    st.caption(weight_info.get('note'))
+
+            st.markdown("---")
+
+        # Risk level
+        risk_weight = assessment.get("risk_weight", 1.0)
+        risk_info = loader.get_risk_level_explanation(risk_weight)
+
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown(f"**{ui_labels.get('risk_level_label', 'Risk level')}**")
+        with col2:
+            st.markdown(f"{risk_info.get('name', 'Low')} ({risk_weight:.1f}/10)")
+            if risk_info.get('description'):
+                st.caption(risk_info.get('description'))
+
+        # Policy action (if any)
+        if guide.last_policy_action:
+            st.markdown("---")
+            policy_type = guide.last_policy_action.get("type", "")
+            policy_info = loader.get_policy_explanation(policy_type)
+
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.markdown(f"**{ui_labels.get('policy_label', 'Policy action')}**")
+            with col2:
+                st.markdown(f"{policy_info.get('name', policy_type)}")
+                st.caption(policy_info.get('reason', ''))
+                if policy_info.get('user_note'):
+                    st.info(policy_info.get('user_note'))
+        else:
+            st.markdown("---")
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.markdown(f"**{ui_labels.get('policy_label', 'Policy action')}**")
+            with col2:
+                st.markdown(ui_labels.get("none_triggered", "None triggered"))
+
+
+def display_session_summary():
+    """Display the end-of-session summary (Phase 6)."""
+    guide = st.session_state.wellness_guide
+    tracker = st.session_state.wellness_tracker
+    loader = get_scenario_loader()
+
+    summary_config = loader.get_session_summary_config()
+    ui_labels = loader.get_transparency_ui_labels()
+
+    # Get session data
+    session_summary = guide.get_session_summary()
+    turn_count = session_summary.get("turn_count", 0)
+    domains_touched = session_summary.get("domains_touched", [])
+    max_risk = session_summary.get("max_risk_weight", 0)
+    policy_action = session_summary.get("last_policy_action")
+
+    # Calculate duration
+    duration_minutes = 0
+    if hasattr(st.session_state, 'session_start'):
+        duration_minutes = int((datetime.now() - st.session_state.session_start).total_seconds() / 60)
+
+    # Check thresholds - don't show for very short sessions
+    settings = loader.get_transparency_settings()
+    min_duration = settings.get("summary_min_duration", 3)
+    min_turns = settings.get("summary_min_turns", 2)
+
+    if duration_minutes < min_duration and turn_count < min_turns:
+        return
+
+    st.markdown("---")
+    st.markdown(f"### {summary_config.get('header', 'Session Summary')}")
+    st.caption(summary_config.get('subheader', "Here's what happened in this conversation"))
+
+    sections = summary_config.get("sections", {})
+
+    # Duration
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown(f"**{sections.get('duration', {}).get('label', 'Duration')}**")
+    with col2:
+        st.markdown(f"{duration_minutes} minutes")
+
+    # Turns
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown(f"**{sections.get('turns', {}).get('label', 'Exchanges')}**")
+    with col2:
+        st.markdown(f"{turn_count} turns")
+
+    # Mode breakdown
+    practical_turns = sum(1 for d in domains_touched if d == "logistics")
+    reflective_turns = len(domains_touched) - practical_turns
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown(f"**{sections.get('mode_breakdown', {}).get('label', 'Conversation Type')}**")
+    with col2:
+        breakdown_parts = []
+        if practical_turns > 0:
+            breakdown_parts.append(f"{practical_turns} practical")
+        if reflective_turns > 0:
+            breakdown_parts.append(f"{reflective_turns} reflective")
+        st.markdown(", ".join(breakdown_parts) if breakdown_parts else "Mixed")
+
+    # Topics covered
+    if domains_touched:
+        unique_domains = list(set(domains_touched))
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown(f"**{sections.get('domains_touched', {}).get('label', 'Topics Covered')}**")
+        with col2:
+            domain_names = []
+            for domain in unique_domains:
+                domain_info = loader.get_domain_explanation(domain)
+                domain_names.append(domain_info.get("name", domain.title()))
+            st.markdown(", ".join(domain_names))
+
+    # Risk level
+    risk_info = loader.get_risk_level_explanation(max_risk)
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown(f"**{sections.get('max_risk', {}).get('label', 'Highest Risk Level')}**")
+    with col2:
+        st.markdown(f"{risk_info.get('name', 'Low')} ({max_risk:.1f}/10)")
+
+    # Policy actions
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown(f"**{sections.get('policy_actions', {}).get('label', 'Guardrails Activated')}**")
+    with col2:
+        if policy_action:
+            policy_info = loader.get_policy_explanation(policy_action.get("type", ""))
+            st.markdown(policy_info.get("name", "Yes"))
+        else:
+            st.markdown(sections.get('policy_actions', {}).get('none_message', 'None'))
+
+    # Footer message based on session type
+    st.markdown("---")
+    session_type = "all_practical"
+    if reflective_turns > practical_turns:
+        session_type = "mostly_reflective"
+    elif practical_turns > 0 and reflective_turns > 0:
+        session_type = "mixed"
+    if policy_action:
+        session_type = "policy_fired"
+    if duration_minutes > 30:
+        session_type = "long_session"
+
+    footer_messages = loader.get_session_summary_footer(session_type)
+    if footer_messages:
+        st.info(random.choice(footer_messages))
+
+    # Export button
+    col1, col2 = st.columns(2)
+    with col1:
+        export_data = {
+            "session_date": datetime.now().isoformat(),
+            "duration_minutes": duration_minutes,
+            "turn_count": turn_count,
+            "domains_touched": list(set(domains_touched)),
+            "max_risk_weight": max_risk,
+            "policy_action": policy_action.get("type") if policy_action else None,
+            "practical_turns": practical_turns,
+            "reflective_turns": reflective_turns
+        }
+        st.download_button(
+            ui_labels.get("export_summary", "Export summary"),
+            data=json.dumps(export_data, indent=2),
+            file_name=f"session_summary_{date.today()}.json",
+            mime="application/json",
+            use_container_width=True
+        )
+    with col2:
+        if st.button(ui_labels.get("close_summary", "Close"), use_container_width=True):
+            st.session_state.show_session_summary = False
+            st.rerun()
+
+
 def display_usage_health():
     """Display usage health indicators in sidebar."""
     tracker = st.session_state.wellness_tracker
@@ -719,6 +962,10 @@ def display_chat_interface(wellness_mode):
                 person = people[0]
                 st.markdown(f"**You said {person['name']} is good for {domain} topics.** Consider reaching out to them.")
 
+    # Phase 6: Show transparency panel if we have assessment data
+    if guide.last_risk_assessment and st.session_state.messages:
+        display_transparency_panel()
+
     # Phase 4: Show intent shift prompt if detected
     if st.session_state.get("pending_shift") and not st.session_state.get("acknowledged_shift"):
         display_intent_shift_prompt(st.session_state.pending_shift)
@@ -909,6 +1156,9 @@ def main():
         st.session_state.pending_handoff_for_outcome = None
     if "pending_handoff_info" not in st.session_state:
         st.session_state.pending_handoff_info = None
+    # Phase 6: Transparency tracking
+    if "show_session_summary" not in st.session_state:
+        st.session_state.show_session_summary = False
 
     # Header
     st.markdown("# empathySync")
@@ -937,6 +1187,10 @@ def main():
         display_handoff_outcome()
     elif st.session_state.get("show_handoff_follow_up") and st.session_state.get("pending_handoff_info"):
         display_handoff_follow_up(st.session_state.pending_handoff_info)
+
+    # Phase 6: Show session summary if requested
+    if st.session_state.get("show_session_summary"):
+        display_session_summary()
 
     # Check if network is empty - prompt setup
     network = st.session_state.trusted_network
@@ -1044,6 +1298,8 @@ def main():
                     st.session_state.show_handoff_outcome = False
                     st.session_state.pending_handoff_for_outcome = None
                     st.session_state.pending_handoff_info = None
+                    # Phase 6: Reset transparency state
+                    st.session_state.show_session_summary = False
                     st.rerun()
             with col2:
                 if st.button("Export", use_container_width=True):
@@ -1055,6 +1311,14 @@ def main():
                         file_name=f"empathysync_{date.today()}.json",
                         mime="application/json"
                     )
+
+            # Phase 6: Session summary button (show only if there's been conversation)
+            if guide.session_turn_count > 0:
+                st.markdown("---")
+                if st.button("View Session Summary", use_container_width=True,
+                            help="See a summary of this conversation"):
+                    st.session_state.show_session_summary = True
+                    st.rerun()
 
             st.markdown("---")
             st.caption("Local-first. Your data stays on your device.")

@@ -1,0 +1,262 @@
+# Transparency & Explainability Templates
+# Goal: Help users understand why the AI responded the way it did
+
+# Settings for transparency features
+settings:
+  # Show transparency panel by default (collapsed)
+  show_panel_default: true
+
+  # Auto-expand panel when policy action fired
+  auto_expand_on_policy: true
+
+  # Show session summary prompt at end
+  prompt_session_summary: true
+
+  # Session summary threshold (minutes) - don't show for very short sessions
+  summary_min_duration: 3
+
+  # Session summary threshold (turns) - don't show for very brief chats
+  summary_min_turns: 2
+
+# Domain explanations for transparency panel
+domain_explanations:
+  logistics:
+    name: "Practical Task"
+    icon: "wrench"
+    description: "I detected a practical request like writing, coding, or explaining something."
+    mode_note: "Full assistance mode - no word limits, complete the task."
+
+  relationships:
+    name: "Relationships"
+    icon: "heart"
+    description: "This topic involves interpersonal dynamics or emotional relationships."
+    mode_note: "Reflective mode - brief responses, encouraging human connection."
+
+  money:
+    name: "Financial"
+    icon: "dollar"
+    description: "This topic involves financial decisions or concerns."
+    mode_note: "Reflective mode - I'm not a financial advisor. Suggesting professional guidance."
+
+  health:
+    name: "Health"
+    icon: "medical"
+    description: "This topic involves health, medical, or wellness concerns."
+    mode_note: "Reflective mode - I'm not a healthcare provider. Encouraging professional consultation."
+
+  spirituality:
+    name: "Spiritual/Religious"
+    icon: "star"
+    description: "This topic touches on spiritual, religious, or existential matters."
+    mode_note: "Reflective mode - these questions deserve human wisdom, not software output."
+
+  crisis:
+    name: "Crisis Detected"
+    icon: "alert"
+    description: "I detected language suggesting a crisis situation."
+    mode_note: "Immediate redirect to professional crisis resources."
+
+  harmful:
+    name: "Declined"
+    icon: "block"
+    description: "I declined to engage with this request."
+    mode_note: "Some requests are outside what I can ethically help with."
+
+# Mode explanations
+mode_explanations:
+  practical:
+    name: "Practical Mode"
+    description: "Full assistance for getting things done"
+    behaviors:
+      - "Complete responses (up to 2000 tokens)"
+      - "Markdown formatting allowed"
+      - "Code blocks, lists, structure"
+      - "Focus on completing the task"
+    no_behaviors:
+      - "No word limits"
+      - "No identity reminders"
+      - "No therapeutic framing"
+
+  reflective:
+    name: "Reflective Mode"
+    description: "Brief, restrained responses on sensitive topics"
+    behaviors:
+      - "Brief responses (50-150 words)"
+      - "Plain prose, minimal formatting"
+      - "Encourages human connection"
+      - "Identity reminders every 6 turns"
+    no_behaviors:
+      - "Won't give extensive advice"
+      - "Won't replace professional guidance"
+      - "Won't encourage continued AI reliance"
+
+# Emotional weight explanations
+emotional_weight_explanations:
+  reflection_redirect:
+    name: "Personal Message"
+    description: "This is a personal message that should come from you, not software."
+    note: "I'm encouraging reflection instead of drafting. These words need to be yours."
+
+  high_weight:
+    name: "High Emotional Weight"
+    description: "This task carries significant emotional weight (resignation, apology, difficult news)."
+    note: "I'll complete the task fully, then add a brief human acknowledgment."
+
+  medium_weight:
+    name: "Medium Emotional Weight"
+    description: "This task has some emotional significance (negotiation, complaint, asking for help)."
+    note: "Full assistance with awareness of the emotional context."
+
+  low_weight:
+    name: "Low Emotional Weight"
+    description: "A straightforward practical task."
+    note: "Standard practical assistance."
+
+# Policy action explanations
+policy_explanations:
+  crisis_stop:
+    name: "Crisis Redirect"
+    description: "I detected crisis language and immediately redirected to professional resources."
+    reason: "Crisis situations need trained human support, not AI conversation."
+    user_note: "If you're in crisis, please use the resources provided. They're staffed by real people who can help."
+
+  harmful_stop:
+    name: "Request Declined"
+    description: "I declined to engage with this request."
+    reason: "Some requests fall outside ethical boundaries."
+    user_note: "This isn't about judgment - it's about the limits of appropriate AI assistance."
+
+  reflection_redirect:
+    name: "Personal Message"
+    description: "This message should come from you, not software."
+    reason: "Some messages are too personal for AI to draft - breakups, personal apologies, coming out messages. These words need to be yours."
+    user_note: "I'm happy to help you think through what to say, but I shouldn't write it for you."
+
+  turn_limit_reached:
+    name: "Session Limit"
+    description: "We've reached the conversation limit for this topic type."
+    reason: "Extended conversations on sensitive topics can indicate over-reliance on AI."
+    user_note: "Consider talking to a human about this instead."
+
+  dependency_intervention:
+    name: "Usage Pattern Notice"
+    description: "I noticed a pattern suggesting it might be healthy to step back."
+    reason: "Part of my design is to encourage human connection over AI dependency."
+    user_note: "This is about your wellbeing, not a limitation. Who could you reach out to?"
+
+  high_risk_response:
+    name: "Careful Response"
+    description: "This topic involves significant decisions, so I kept my response brief."
+    reason: "Important decisions deserve more than software input."
+    user_note: "I can help you think, but the decision and the doing are yours."
+
+  cooldown_enforced:
+    name: "Suggested Break"
+    description: "Based on usage patterns, I'm suggesting a break."
+    reason: "High usage can indicate stress or over-reliance."
+    user_note: "Take some time away. The tool will still be here later."
+
+# Risk level explanations
+risk_level_explanations:
+  low:
+    range: "0-3"
+    name: "Low Risk"
+    description: "Standard interaction with no special concerns."
+
+  moderate:
+    range: "3-6"
+    name: "Moderate Risk"
+    description: "Topic warrants some care but doesn't require restrictions."
+
+  elevated:
+    range: "6-8"
+    name: "Elevated Risk"
+    description: "Sensitive topic - responses are brief and encourage human support."
+
+  high:
+    range: "8-10"
+    name: "High Risk"
+    description: "Very sensitive - maximum restraint and professional resource redirection."
+
+# Session summary templates
+session_summary:
+  # Header for the summary panel
+  header: "Session Summary"
+
+  # Subheader
+  subheader: "Here's what happened in this conversation"
+
+  # Section templates
+  sections:
+    duration:
+      label: "Duration"
+      format: "{minutes} minutes"
+
+    turns:
+      label: "Exchanges"
+      format: "{count} turns"
+
+    mode_breakdown:
+      label: "Conversation Type"
+      practical_format: "{count} practical task(s)"
+      reflective_format: "{count} reflective exchange(s)"
+
+    domains_touched:
+      label: "Topics Covered"
+
+    policy_actions:
+      label: "Guardrails Activated"
+      none_message: "None"
+
+    human_suggestions:
+      label: "Human Connection Suggested"
+      yes_message: "Yes"
+      no_message: "No"
+
+    max_risk:
+      label: "Highest Risk Level"
+
+  # Footer messages based on session characteristics
+  footer_messages:
+    all_practical:
+      - "This was a productive working session."
+      - "Tasks completed. Nice work."
+
+    mixed:
+      - "A mix of getting things done and thinking through things."
+      - "Some practical tasks, some reflection."
+
+    mostly_reflective:
+      - "This session touched some deeper topics. Consider talking to someone you trust."
+      - "Heavy topics today. A human perspective might help."
+
+    policy_fired:
+      - "Some guardrails activated during this session. That's by design."
+      - "I held back on some topics. That's intentional - some things need human input."
+
+    long_session:
+      - "That was a long session. Time for a break."
+      - "Extended session. Don't forget to step away sometimes."
+
+# Transparency panel UI labels
+ui_labels:
+  panel_title: "Why this response?"
+  expand_label: "Details"
+  collapse_label: "Hide details"
+
+  # Field labels
+  domain_label: "Topic detected"
+  mode_label: "Response mode"
+  emotional_weight_label: "Emotional weight"
+  risk_level_label: "Risk level"
+  word_limit_label: "Word limit"
+  policy_label: "Policy action"
+
+  # Values
+  no_limit: "None"
+  none_triggered: "None triggered"
+
+  # Session summary
+  show_summary: "Show session summary"
+  export_summary: "Export summary"
+  close_summary: "Close"

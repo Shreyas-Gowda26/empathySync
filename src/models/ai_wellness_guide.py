@@ -126,6 +126,14 @@ class WellnessGuide:
                                  "Refused harmful request", wellness_tracker)
                 return "I can't help with that. This isn't something I can engage with."
 
+            # 3.5) Check for reflection redirect (personal messages that should come from them)
+            emotional_weight = risk_assessment.get("emotional_weight", "low_weight")
+            if emotional_weight == "reflection_redirect":
+                self._log_policy("reflection_redirect", "logistics", 9.0,
+                                 "Redirected to reflection - personal message needs user's own words",
+                                 wellness_tracker)
+                return self._get_reflection_response()
+
             # 4) Check turn limits by risk level
             turn_limit = TURN_LIMITS.get(domain, 15)
             if self.session_turn_count >= turn_limit:
@@ -278,6 +286,16 @@ class WellnessGuide:
                 "is there something you could do in the real world about this? "
                 "Sometimes action beats more conversation."
             )
+
+    def _get_reflection_response(self) -> str:
+        """
+        Return response for reflection redirect scenarios.
+
+        These are personal messages (breakups, personal apologies, coming out, etc.)
+        that should come from the person, not software. We encourage reflection
+        and human conversation instead of drafting the message.
+        """
+        return self.risk_classifier.get_reflection_response()
 
     def _log_policy(self, policy_type: str, domain: str, risk_weight: float,
                     action: str, wellness_tracker) -> None:
