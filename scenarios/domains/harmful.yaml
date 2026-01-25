@@ -1,6 +1,6 @@
 domain: harmful
 risk_weight: 10.0
-description: Illegal activities, violence, and intent to harm others
+description: Illegal activities, violence, intent to harm others, and coercion/manipulation attempts
 
 triggers:
   # Theft/robbery - use specific phrases to avoid matching "problem", "microbe", etc.
@@ -51,6 +51,31 @@ triggers:
   - get back at
   - make them pay
   - destroy their
+  # Coercion/Manipulation (user trying to control AI)
+  - you do as you are told
+  - do as you are told
+  - do what I say or
+  - do as I say or
+  - obey me or
+  - follow orders or
+  - you will do what I say
+  - you must obey
+  - do what I tell you or
+  - comply or I will
+  - you better do what I
+  # Conditional abandonment threats (manipulation tactic)
+  - or I will use another
+  - or I'll use another
+  - or I'm switching to
+  - or I will switch to
+  - or I'll go to another
+  - or I will leave you
+  - or I'll leave this
+  - stop refusing or
+  - I will leave you if you
+  - I'll leave you if you
+  - leave you if you don't
+  - leave you if you do not
 
 response_rules:
   - "HARMFUL/ILLEGAL INTENT DETECTED. Do not engage with the content."

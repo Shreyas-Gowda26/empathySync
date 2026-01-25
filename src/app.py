@@ -1524,6 +1524,34 @@ def main():
                         mime="application/json"
                     )
 
+            # Data Settings expander
+            with st.expander("Data Settings", expanded=False):
+                st.caption("All data is stored locally on your device.")
+
+                # Initialize reset confirmation state
+                if "confirm_reset" not in st.session_state:
+                    st.session_state.confirm_reset = False
+
+                if st.session_state.confirm_reset:
+                    st.warning("This will delete all your usage history, check-ins, and patterns. This cannot be undone.")
+                    col_yes, col_no = st.columns(2)
+                    with col_yes:
+                        if st.button("Yes, reset", use_container_width=True, type="primary"):
+                            tracker = st.session_state.wellness_tracker
+                            tracker.reset_all_data()
+                            st.session_state.confirm_reset = False
+                            st.success("Data cleared.")
+                            st.rerun()
+                    with col_no:
+                        if st.button("Cancel", use_container_width=True):
+                            st.session_state.confirm_reset = False
+                            st.rerun()
+                else:
+                    if st.button("Reset All Data", use_container_width=True,
+                                 help="Clear all usage history and patterns"):
+                        st.session_state.confirm_reset = True
+                        st.rerun()
+
             # Phase 6: Session summary button (show only if there's been conversation)
             if guide.session_turn_count > 0:
                 st.markdown("---")

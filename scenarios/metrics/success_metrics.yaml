@@ -173,6 +173,7 @@ anti_engagement:
     - spirituality
     - crisis
     - harmful
+    - emotional
 
   # Factors and weights (focused on sensitive usage)
   factors:
@@ -310,6 +311,7 @@ sensitive_categories:
     - spirituality
     - crisis
     - harmful
+    - emotional
 
   # Intent types
   intents:

@@ -167,6 +167,13 @@
       "intent": "practical",
       "was_check_in": false,
       "auto_detected": true
+    },
+    {
+      "date": "2026-01-25",
+      "datetime": "2026-01-25T17:55:19.370063",
+      "intent": "connection",
+      "was_check_in": true,
+      "auto_detected": false
     }
   ]
 }

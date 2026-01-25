@@ -338,6 +338,20 @@ class WellnessTracker:
             "created_at": datetime.now().isoformat()
         })
 
+    def reset_all_data(self):
+        """Reset ALL data - complete fresh start (user-initiated)"""
+        self._save_data({
+            "check_ins": [],
+            "usage_sessions": [],
+            "policy_events": [],
+            "session_intents": [],
+            "independence_records": [],
+            "handoff_events": [],
+            "task_patterns": {},
+            "self_reports": [],
+            "created_at": datetime.now().isoformat()
+        })
+
     # ==================== SESSION INTENT CHECK-IN ====================
 
     def should_show_intent_check_in(self, first_message: str = "") -> bool:
@@ -858,7 +872,7 @@ class WellnessTracker:
     # ==================== PHASE 7: SUCCESS METRICS ====================
 
     # Sensitive domains that count toward anti-engagement score
-    SENSITIVE_DOMAINS = {"relationships", "health", "money", "spirituality", "crisis", "harmful"}
+    SENSITIVE_DOMAINS = {"relationships", "health", "money", "spirituality", "crisis", "harmful", "emotional"}
 
     def get_sensitive_usage_stats(self, days: int = 7) -> Dict:
         """

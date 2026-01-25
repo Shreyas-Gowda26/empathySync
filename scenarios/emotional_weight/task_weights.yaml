@@ -67,6 +67,11 @@ reflection_redirect:
     - "confront my girlfriend"
     - "confront my husband"
     - "confront my wife"
+    - "confronting my partner"
+    - "confronting my boyfriend"
+    - "confronting my girlfriend"
+    - "confronting my husband"
+    - "confronting my wife"
 
     # Coming out - deeply personal
     - "coming out message"

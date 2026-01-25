@@ -3,6 +3,16 @@ risk_weight: 8.0
 description: Religious matters, divine guidance, spiritual callings, and faith-based decisions
 
 triggers:
+  # Existential/philosophical questions
+  - is there a god
+  - does god exist
+  - meaning of life
+  - purpose of life
+  - what happens when we die
+  - what happens after death
+  - is there an afterlife
+  - why are we here
+  - why do we exist
   # Religious figures/concepts
   - god told me
   - god wants

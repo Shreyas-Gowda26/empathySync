@@ -119,7 +119,7 @@ class RiskClassifier:
         for level in ["high_intensity", "medium_intensity", "low_intensity"]:
             if level in markers_by_level:
                 markers = markers_by_level[level]
-                if any(marker in t for marker in markers):
+                if any(marker.lower() in t for marker in markers):
                     return self.loader.get_emotional_score(level)
 
         # Default neutral score

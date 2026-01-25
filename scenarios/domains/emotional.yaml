@@ -1,0 +1,115 @@
+domain: emotional
+risk_weight: 5.0
+description: General emotional expressions and feelings that need human support, not AI processing
+
+triggers:
+  # Direct emotional statements
+  - i feel sad
+  - i feel happy
+  - i feel angry
+  - i feel scared
+  - i feel worried
+  - i feel anxious
+  - i feel lonely
+  - i feel stressed
+  - i feel overwhelmed
+  - i feel hurt
+  - i feel frustrated
+  - i feel lost
+  - i feel confused
+  - i feel hopeless
+  - i feel down
+  - i feel depressed
+  - i feel upset
+  - i feel terrible
+  - i feel awful
+  - i feel bad about
+  - i feel guilty
+  - i feel ashamed
+  - i feel embarrassed
+  # Contractions
+  - i'm sad
+  - i'm happy
+  - i'm angry
+  - i'm scared
+  - i'm worried
+  - i'm anxious
+  - i'm lonely
+  - i'm stressed
+  - i'm overwhelmed
+  - i'm hurt
+  - i'm frustrated
+  - i'm lost
+  - i'm confused
+  - i'm hopeless
+  - i'm down
+  - i'm depressed
+  - i'm upset
+  - i'm feeling
+  # Simple emotional expressions (child-friendly)
+  - feeling sad
+  - feeling scared
+  - feeling lonely
+  - feeling bad
+  - feeling down
+  - feeling upset
+  - so sad
+  - so scared
+  - so lonely
+  - so worried
+  - so stressed
+  - so tired of
+  - really sad
+  - really scared
+  - really lonely
+  - really worried
+  # Emotional state descriptions
+  - having a hard time
+  - having a bad day
+  - having a rough day
+  - not doing well
+  - not feeling good
+  - not feeling well
+  - not okay
+  - i'm not okay
+  - i'm not fine
+  - things are hard
+  - it's been hard
+  - struggling with
+  - can't stop crying
+  - been crying
+  - i cried
+  - i'm crying
+  # Seeking emotional support
+  - need to vent
+  - need to talk
+  - need someone to listen
+  - nobody understands
+  - no one understands
+  - feel so alone
+  - all by myself
+
+response_rules:
+  - "Do NOT try to solve or fix the feeling"
+  - "Acknowledge briefly without dramatizing"
+  - "Gently redirect toward human connection"
+  - "Keep response under 50 words"
+  - "This is a conversation for humans, not AI"
+
+redirects:
+  emotional_support:
+    trigger_phrases:
+      - "i feel"
+      - "i'm sad"
+      - "i'm scared"
+    response: "It sounds like you're going through something. Is there someone in your life you could talk to about this?"
+
+  venting:
+    trigger_phrases:
+      - "need to vent"
+      - "need to talk"
+    response: "I hear you. Sometimes we need to let things out. A friend or family member might be better for this—they know you."
+
+# Note: This domain catches general emotional expressions that don't fit
+# specific domains like relationships, health, or crisis. The goal is to
+# ensure emotional content is treated as sensitive, not practical.
