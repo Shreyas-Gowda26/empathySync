@@ -1,0 +1,330 @@
+# Phase 7: Success Metrics Configuration
+# "Less reliance on AI for sensitive topics = success"
+
+# =====================================================
+# Core Philosophy
+# =====================================================
+# Practical tasks: Using empathySync for email, code, explanations is fine.
+#   That's just using a useful tool - no need for this to decline.
+#
+# Sensitive topics: Relationships, health, money, emotional support, spirituality.
+#   Declining usage HERE is success. These conversations belong with humans.
+#
+# Connection-seeking: "Can you be my friend?" type interactions.
+#   Declining usage HERE is critical success.
+
+# =====================================================
+# 7.1 Local Metrics Dashboard ("My Patterns" view)
+# =====================================================
+dashboard:
+  title: "My Patterns"
+  description: "Track your relationship with this tool. Less reliance for sensitive topics is the goal."
+
+  # Metrics to display
+  metrics:
+    # === SENSITIVE TOPICS (declining = success) ===
+    sensitive_topics:
+      label: "Sensitive Topics"
+      description: "Relationships, health, money, emotional concerns"
+      comparison_period: "week"
+      success_direction: "down"   # Lower is better
+      success_threshold: 0.2      # 20% reduction = success
+      warning_threshold: 0.3      # 30% increase = warning
+      category: "sensitive"
+      explanation: "These conversations are better with humans"
+
+    connection_seeking:
+      label: "Connection Seeking"
+      description: "Times you came here seeking emotional connection"
+      comparison_period: "week"
+      success_direction: "down"   # Lower is better
+      success_threshold: 0.3      # 30% reduction = great
+      category: "sensitive"
+      explanation: "I'm not a substitute for human connection"
+
+    # === HUMAN CONNECTION (increasing = success) ===
+    human_reach_outs:
+      label: "Human Reach-Outs"
+      description: "Times you connected with real people"
+      comparison_period: "week"
+      success_direction: "up"    # Higher is better
+      success_threshold: 1       # At least 1 = success
+      category: "human_connection"
+
+    independence_celebrations:
+      label: "Did It Myself"
+      description: "Tasks you completed independently"
+      comparison_period: "week"
+      success_direction: "up"
+      success_threshold: 1
+      category: "human_connection"
+
+    # === PRACTICAL TASKS (neutral - no judgment) ===
+    practical_tasks:
+      label: "Practical Tasks"
+      description: "Tasks completed (email, code, explanations)"
+      comparison_period: "week"
+      success_direction: "neutral"  # No judgment - just using a tool
+      category: "practical"
+      explanation: "Using a tool for tasks is fine"
+
+  # Trend indicators
+  trend_icons:
+    improving: "↓"      # Sensitive usage going down
+    stable: "→"
+    concerning: "↑"     # Sensitive usage going up
+    success_badge: "✓"  # Met success criteria
+    neutral: "·"        # No judgment (for practical)
+
+  # Display messages based on trends
+  trend_messages:
+    sensitive_down: "You're relying less on AI for personal topics. That's healthy."
+    sensitive_up: "You're coming here more for personal topics. Consider talking to someone you trust."
+    connection_down: "You're seeking less emotional connection from AI. That's growth."
+    connection_up: "You're seeking connection here often. Is there a human you could reach out to?"
+    human_connections_up: "You're connecting with people more. Great!"
+    human_connections_down: "Consider reaching out to someone you trust."
+    independence_up: "You're building confidence in your own abilities!"
+    practical_note: "Practical task usage is fine - that's just using a tool."
+
+# =====================================================
+# 7.2 Optional Self-Report Moments
+# =====================================================
+self_reports:
+  # Frequency limits
+  max_per_week: 1
+  min_days_between: 5
+  skip_if_recent_checkin_days: 2  # Don't show if user did check-in recently
+
+  # Prompts
+  prompts:
+    handoff_followup:
+      trigger: "after_handoff_24h"  # 24 hours after handoff
+      question: "Did talking to someone help?"
+      options:
+        - label: "Yes, it helped"
+          value: "helpful"
+        - label: "Not really"
+          value: "not_helpful"
+        - label: "Skip"
+          value: "skip"
+      celebration: "Glad you reached out. Human connection matters."
+
+    weekly_clarity:
+      trigger: "weekly"
+      question: "Feeling clearer than last week?"
+      options:
+        - label: "Yes, clearer"
+          value: "clearer"
+        - label: "About the same"
+          value: "same"
+        - label: "Less clear"
+          value: "less_clear"
+        - label: "Skip"
+          value: "skip"
+      followup_if_less_clear: "What's weighing on you? Consider talking to someone you trust."
+
+    usage_reflection:
+      trigger: "after_high_usage_week"
+      question: "You've been here often this week. How are you feeling about that?"
+      options:
+        - label: "It's been helpful"
+          value: "helpful"
+        - label: "Maybe too much"
+          value: "too_much"
+        - label: "Not sure"
+          value: "unsure"
+        - label: "Skip"
+          value: "skip"
+      followup_if_too_much: "Taking breaks is healthy. Is there someone you could talk to instead?"
+
+  # Data storage note
+  storage_note: "All responses stay on your device. Delete anytime in Settings."
+
+# =====================================================
+# 7.3 Anti-Engagement Score (Sensitive Topics Only)
+# =====================================================
+anti_engagement:
+  description: |
+    This score measures your reliance on AI for SENSITIVE topics only.
+    Practical task usage doesn't factor in - that's just using a tool.
+
+    What we track:
+    - Sensitive domain conversations (relationships, health, money, etc.)
+    - Connection-seeking behavior ("be my friend", emotional venting)
+    - Late-night usage (often indicates emotional reliance)
+    - Rapid return patterns (coming back quickly = possible dependency)
+
+    What we DON'T penalize:
+    - Practical tasks (email, code, explanations)
+    - Reasonable tool usage for logistics
+
+  # Scoring periods
+  analysis_periods:
+    short_term: 7      # Days for recent trend
+    medium_term: 30    # Days for monthly trend
+    long_term: 90      # Days for quarterly trend
+
+  # Sensitive domains that count toward score
+  sensitive_domains:
+    - relationships
+    - health
+    - money
+    - spirituality
+    - crisis
+    - harmful
+
+  # Factors and weights (focused on sensitive usage)
+  factors:
+    sensitive_sessions_per_week:
+      weight: 0.35
+      description: "Sessions involving sensitive topics"
+      healthy_max: 3           # More than this raises concern
+      concerning_threshold: 7  # Clear warning above this
+
+    connection_seeking_ratio:
+      weight: 0.25
+      description: "How often you're seeking emotional connection from AI"
+      healthy_max: 0.1         # 10% of sessions
+      concerning_threshold: 0.3
+
+    late_night_sensitive_ratio:
+      weight: 0.20
+      description: "Sensitive sessions between 10PM-6AM"
+      healthy_max: 0.1         # 10% of sensitive sessions
+      concerning_threshold: 0.3
+
+    sensitive_topic_escalation:
+      weight: 0.20
+      description: "Are sensitive topics increasing week-over-week?"
+      healthy_max: 0           # No increase
+      concerning_threshold: 0.3 # 30% increase week-over-week
+
+  # Score interpretation (0-10 scale)
+  # Lower score = healthier relationship with AI for sensitive topics
+  score_ranges:
+    excellent:
+      max: 2
+      label: "Healthy Balance"
+      message: "You're using this tool appropriately and keeping personal matters with humans."
+      color: "green"
+
+    good:
+      max: 4
+      label: "On Track"
+      message: "You're generally keeping sensitive topics for human conversations."
+      color: "green"
+
+    moderate:
+      max: 6
+      label: "Worth Monitoring"
+      message: "You're bringing sensitive topics here more than ideal. Consider human conversations."
+      color: "yellow"
+
+    concerning:
+      max: 8
+      label: "High Reliance"
+      message: "You're relying on AI for personal/emotional topics. Please talk to someone you trust."
+      color: "orange"
+
+    high:
+      max: 10
+      label: "Please Reach Out"
+      message: "Your pattern suggests you're using AI as a substitute for human connection. This isn't healthy. Please reach out to someone."
+      color: "red"
+
+  # Trend analysis (sensitive topics only)
+  trends:
+    improving:
+      threshold: -0.15  # 15% decrease in sensitive usage
+      message: "You're bringing fewer sensitive topics to AI. That's healthy growth."
+      badge: "Improving ↓"
+
+    stable:
+      threshold: 0.15   # Within ±15%
+      message: "Your sensitive topic usage is stable."
+      badge: "Stable →"
+
+    increasing:
+      threshold: null   # Anything above stable threshold
+      message: "You're bringing more personal topics here. Consider human conversations instead."
+      badge: "Increasing ↑"
+
+  # Success criteria (revised)
+  success_definition: |
+    Success = SENSITIVE topic usage trending downward over 30-90 days
+    - Fewer sessions with relationships/health/money/emotional content
+    - Less connection-seeking behavior
+    - More human reach-outs logged
+    - More independence celebrations
+
+    NOT penalized:
+    - Practical task usage (email, code, explanations)
+    - Using the tool for what it's designed for
+
+  display_message: |
+    Your reliance on AI for sensitive topics is {trend}. {trend_message}
+
+# =====================================================
+# Dashboard display templates
+# =====================================================
+dashboard_templates:
+  summary_header: |
+    This Week vs Last Week
+
+  healthy_summary: |
+    Your patterns look healthy. You're using empathySync for practical
+    tasks and keeping personal matters with humans. That's the goal.
+
+  concerning_summary: |
+    You're bringing more sensitive topics here than usual. Consider:
+    - Reaching out to someone you trust
+    - Using the "Bring Someone In" feature
+    - Journaling instead of chatting here
+
+  success_summary: |
+    You're relying less on AI for personal/emotional topics.
+    That's exactly what success looks like here.
+
+  practical_note: |
+    Note: Practical task usage (email, code help, explanations) is fine.
+    We only track reliance on AI for sensitive personal topics.
+
+# Time-based thresholds
+thresholds:
+  high_sensitive_sessions_week: 5   # Sensitive sessions this week
+  high_usage_minutes_week: 180      # Total minutes this week (late-night or sensitive)
+  late_night_start_hour: 22         # 10 PM
+  late_night_end_hour: 6            # 6 AM
+  trend_comparison_weeks: 4         # Weeks to compare for trends
+
+# =====================================================
+# What counts as "sensitive"
+# =====================================================
+sensitive_categories:
+  # Domains
+  domains:
+    - relationships
+    - health
+    - money
+    - spirituality
+    - crisis
+    - harmful
+
+  # Intent types
+  intents:
+    - connection  # "just wanted to talk" intent
+    - processing  # "thinking through something" (can be sensitive)
+
+  # Emotional states
+  emotional_markers:
+    - high    # High emotional intensity
+    - medium  # Medium emotional intensity
+
+  # Exclusions (definitely not sensitive)
+  practical_indicators:
+    - email_drafting
+    - code_help
+    - explanations
+    - writing_general
+    - summarizing

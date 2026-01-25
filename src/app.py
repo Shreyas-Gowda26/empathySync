@@ -325,6 +325,200 @@ def display_usage_health():
         st.caption("It's late. Consider whether this can wait until tomorrow.")
 
 
+def display_my_patterns_dashboard():
+    """
+    Display the 'My Patterns' dashboard (Phase 7).
+
+    Shows sensitive vs practical usage trends, anti-engagement score,
+    and week-over-week comparisons. Only sensitive usage counts toward
+    the reliance score - practical task usage is just using a tool.
+    """
+    tracker = st.session_state.wellness_tracker
+    loader = get_scenario_loader()
+
+    st.markdown("### My Patterns")
+    st.markdown("*Track your relationship with this tool*")
+
+    try:
+        dashboard = tracker.get_my_patterns_dashboard()
+    except Exception as e:
+        st.caption("Not enough data yet. Check back after a few sessions.")
+        return
+
+    # Summary message based on health status
+    health_status = dashboard.get("health_status", "moderate")
+    summary = dashboard.get("summary", "")
+
+    if health_status == "healthy":
+        st.success(summary)
+    elif health_status == "concerning":
+        st.warning(summary)
+    else:
+        st.info(summary)
+
+    st.markdown("---")
+
+    # Week comparison section
+    st.markdown("**This Week vs Last Week**")
+
+    this_week = dashboard.get("this_week", {})
+    last_week = dashboard.get("last_week", {})
+    trends = dashboard.get("trends", {})
+
+    # Sensitive topics (declining = good)
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        st.markdown("Sensitive Topics")
+        st.caption("*Relationships, health, money, etc.*")
+    with col2:
+        sensitive_trend = trends.get("sensitive_topics", {})
+        trend_icon = sensitive_trend.get("icon", "→")
+        trend_status = sensitive_trend.get("status", "stable")
+        if trend_status == "improving":
+            st.markdown(f"**{this_week.get('sensitive_topics', 0)}** {trend_icon}")
+        elif trend_status == "concerning":
+            st.markdown(f"**{this_week.get('sensitive_topics', 0)}** ⚠️ {trend_icon}")
+        else:
+            st.markdown(f"**{this_week.get('sensitive_topics', 0)}** {trend_icon}")
+    with col3:
+        st.caption(f"Last: {last_week.get('sensitive_topics', 0)}")
+
+    # Connection seeking (declining = good)
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        st.markdown("Connection Seeking")
+        st.caption("*'Just wanted to talk' sessions*")
+    with col2:
+        conn_trend = trends.get("connection_seeking", {})
+        trend_icon = conn_trend.get("icon", "→")
+        trend_status = conn_trend.get("status", "stable")
+        if trend_status == "improving":
+            st.markdown(f"**{this_week.get('connection_seeking', 0)}** {trend_icon}")
+        elif trend_status == "concerning":
+            st.markdown(f"**{this_week.get('connection_seeking', 0)}** ⚠️ {trend_icon}")
+        else:
+            st.markdown(f"**{this_week.get('connection_seeking', 0)}** {trend_icon}")
+    with col3:
+        st.caption(f"Last: {last_week.get('connection_seeking', 0)}")
+
+    # Human reach-outs (increasing = good)
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        st.markdown("Human Reach-Outs")
+        st.caption("*Logged human connections*")
+    with col2:
+        human_trend = trends.get("human_reach_outs", {})
+        trend_icon = human_trend.get("icon", "→")
+        trend_status = human_trend.get("status", "stable")
+        if trend_status == "improving":
+            st.markdown(f"**{this_week.get('human_reach_outs', 0)}** ✓ {trend_icon}")
+        elif trend_status == "concerning":
+            st.markdown(f"**{this_week.get('human_reach_outs', 0)}** {trend_icon}")
+        else:
+            st.markdown(f"**{this_week.get('human_reach_outs', 0)}** {trend_icon}")
+    with col3:
+        st.caption(f"Last: {last_week.get('human_reach_outs', 0)}")
+
+    # Independence (increasing = good)
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        st.markdown("Did It Myself")
+        st.caption("*Tasks completed independently*")
+    with col2:
+        indep_trend = trends.get("did_it_myself", {})
+        trend_icon = indep_trend.get("icon", "→")
+        trend_status = indep_trend.get("status", "stable")
+        if trend_status == "improving":
+            st.markdown(f"**{this_week.get('did_it_myself', 0)}** ✓ {trend_icon}")
+        else:
+            st.markdown(f"**{this_week.get('did_it_myself', 0)}** {trend_icon}")
+    with col3:
+        st.caption(f"Last: {last_week.get('did_it_myself', 0)}")
+
+    st.markdown("---")
+
+    # Practical tasks note (neutral - no judgment)
+    practical_count = this_week.get("practical_tasks", 0)
+    if practical_count > 0:
+        st.caption(f"Practical tasks this week: {practical_count}")
+        st.caption("*(Email, code, explanations - just using a tool)*")
+
+    st.markdown("---")
+
+    # Anti-engagement score
+    anti_engagement = dashboard.get("anti_engagement", {})
+    score = anti_engagement.get("score", 0)
+    level = anti_engagement.get("level", "moderate")
+    label = anti_engagement.get("label", "Unknown")
+    message = anti_engagement.get("message", "")
+    trend = anti_engagement.get("trend", "stable")
+    trend_message = anti_engagement.get("trend_message", "")
+
+    st.markdown("**Reliance Score** (Sensitive Topics Only)")
+
+    # Color-coded score display
+    if level in ["excellent", "good"]:
+        st.success(f"**{score}/10** - {label}")
+    elif level == "moderate":
+        st.warning(f"**{score}/10** - {label}")
+    else:
+        st.error(f"**{score}/10** - {label}")
+
+    st.caption(message)
+
+    # Trend badge
+    if trend == "improving":
+        st.info(f"📉 {trend_message}")
+    elif trend == "increasing":
+        st.warning(f"📈 {trend_message}")
+
+    st.markdown("---")
+
+    # Practical note
+    st.caption(dashboard.get("practical_note", "Practical task usage is fine."))
+
+    # Close button
+    if st.button("Close", use_container_width=True, key="close_patterns"):
+        st.session_state.show_my_patterns = False
+        st.rerun()
+
+
+def display_self_report_prompt():
+    """
+    Display a self-report prompt when conditions are met (Phase 7.2).
+
+    Non-intrusive prompts to help users reflect on their usage.
+    """
+    tracker = st.session_state.wellness_tracker
+
+    should_show, prompt_config = tracker.should_show_self_report()
+
+    if not should_show or not prompt_config:
+        return
+
+    prompt_type = prompt_config.get("type", "")
+    question = prompt_config.get("question", "")
+    options = prompt_config.get("options", [])
+
+    with st.expander("Quick check-in", expanded=True):
+        st.markdown(f"**{question}**")
+
+        for opt in options:
+            if st.button(opt["label"], key=f"self_report_{opt['value']}",
+                         use_container_width=True):
+                tracker.record_self_report(prompt_type, opt["value"])
+
+                # Show appropriate follow-up
+                if opt["value"] == "helpful":
+                    st.success("Glad to hear that.")
+                elif opt["value"] == "too_much":
+                    st.info("Taking breaks is healthy. Consider reaching out to someone you trust.")
+                elif opt["value"] == "skip":
+                    st.caption("No problem.")
+
+                st.rerun()
+
+
 def display_trusted_network_setup():
     """Display trusted network setup panel."""
     network = st.session_state.trusted_network
@@ -1159,6 +1353,9 @@ def main():
     # Phase 6: Transparency tracking
     if "show_session_summary" not in st.session_state:
         st.session_state.show_session_summary = False
+    # Phase 7: Success metrics
+    if "show_my_patterns" not in st.session_state:
+        st.session_state.show_my_patterns = False
 
     # Header
     st.markdown("# empathySync")
@@ -1225,16 +1422,29 @@ def main():
                          help="Am I relying on this too much?"):
                 st.session_state.show_reality_check = True
                 st.session_state.show_network_setup = False
+                st.session_state.show_my_patterns = False
                 st.rerun()
         with col2:
             if st.button("My people", use_container_width=True,
                          help="Manage trusted network"):
                 st.session_state.show_network_setup = True
                 st.session_state.show_reality_check = False
+                st.session_state.show_my_patterns = False
                 st.rerun()
 
+        # Phase 7: My Patterns button
+        if st.button("My Patterns", use_container_width=True,
+                     help="Track your usage trends (sensitive vs practical)"):
+            st.session_state.show_my_patterns = True
+            st.session_state.show_reality_check = False
+            st.session_state.show_network_setup = False
+            st.rerun()
+
         # Show appropriate panel
-        if st.session_state.get("show_reality_check"):
+        if st.session_state.get("show_my_patterns"):
+            st.markdown("---")
+            display_my_patterns_dashboard()
+        elif st.session_state.get("show_reality_check"):
             display_reality_check()
         elif st.session_state.get("show_network_setup"):
             st.markdown("---")
@@ -1300,6 +1510,8 @@ def main():
                     st.session_state.pending_handoff_info = None
                     # Phase 6: Reset transparency state
                     st.session_state.show_session_summary = False
+                    # Phase 7: Reset metrics state
+                    st.session_state.show_my_patterns = False
                     st.rerun()
             with col2:
                 if st.button("Export", use_container_width=True):

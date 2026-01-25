@@ -338,30 +338,49 @@ scenarios/intents/ (new directory)
 
 ---
 
-## Phase 7: Success Metrics (Local-First)
+## Phase 7: Success Metrics (Local-First) ✅ COMPLETE
 **Goal**: Understand if EmpathySync is working without compromising privacy.
 
-### 7.1 Local Metrics Dashboard
-- [ ] Add "My Patterns" view in sidebar:
-  ```
-  This week:
-  - Sessions: 5 (down from 8 last week) ✓
-  - Human reach-outs logged: 2 ✓
-  - Practical tasks: 12
-  - Sensitive topics: 3 (all redirected)
-  ```
-- [ ] Trend indicators: usage going down = success
+**IMPORTANT DISTINCTION**: We track SENSITIVE topic usage only, not overall usage.
+- Practical tasks (email, code, explanations) = just using a tool, no judgment
+- Sensitive topics (relationships, health, money, emotional support) = should decline over time
 
-### 7.2 Optional Self-Report Moments
-- [ ] Non-intrusive prompts (max 1 per week):
-  - "Did talking to [person] help?" (yes/no/skip)
-  - "Feeling clearer than last week?" (yes/no/skip)
-- [ ] All data local, user can delete anytime
+### 7.1 Local Metrics Dashboard ✅ DONE
+- [x] Add "My Patterns" view in sidebar:
+  ```
+  This week vs Last Week:
+  - Sensitive Topics: 3 ↓ (declining = success)
+  - Connection Seeking: 1 ↓ (declining = success)
+  - Human Reach-Outs: 2 ✓ ↑ (increasing = success)
+  - Did It Myself: 3 ✓ ↑ (increasing = success)
+  - Practical Tasks: 12 (neutral - just using a tool)
+  ```
+- [x] Trend indicators with appropriate direction (↓ for sensitive, ↑ for human connection)
+- [x] Health status summary (healthy/moderate/concerning)
 
-### 7.3 Anti-Engagement Score
-- [ ] Track: sessions per week, minutes per session, late-night usage
-- [ ] Success = downward trend over 30-90 days
-- [ ] Display in dashboard: "Your reliance on EmpathySync is decreasing. That's the goal."
+### 7.2 Optional Self-Report Moments ✅ DONE
+- [x] Non-intrusive prompts with frequency limits (max 1/week, min 5 days between):
+  - Handoff follow-up: "Did talking to someone help?"
+  - Usage reflection: "You've brought personal topics here often. How are you feeling?"
+- [x] All data local, user can delete anytime
+- [x] Celebration messages for positive outcomes
+
+### 7.3 Anti-Engagement Score (Sensitive Topics Only) ✅ DONE
+- [x] Track SENSITIVE usage only (not practical tasks):
+  - Sensitive sessions per week
+  - Connection-seeking ratio
+  - Late-night sensitive sessions
+  - Week-over-week escalation
+- [x] Score interpretation: 0-2 (Healthy), 2-4 (On Track), 4-6 (Worth Monitoring), 6-8 (High Reliance), 8-10 (Please Reach Out)
+- [x] 30-day trend analysis with improving/stable/increasing indicators
+- [x] Display: "Your reliance on AI for sensitive topics is decreasing. That's healthy growth."
+
+**Files created/modified**:
+- `scenarios/metrics/success_metrics.yaml` - Dashboard config, anti-engagement factors, self-report prompts
+- `src/utils/wellness_tracker.py` - Added `get_sensitive_usage_stats()`, `get_weekly_comparison()`, `calculate_anti_engagement_score()`, `get_my_patterns_dashboard()`, self-report methods
+- `src/utils/scenario_loader.py` - Added metrics config loading methods
+- `src/app.py` - Added `display_my_patterns_dashboard()`, `display_self_report_prompt()`, "My Patterns" button
+- `tests/test_wellness_guide.py` - Added 25+ Phase 7 tests
 
 ---
 
@@ -482,15 +501,15 @@ scenarios/intents/ (new directory)
 | 5. Enhanced Handoff | Medium | Low | ✅ COMPLETE |
 | 6. Transparency | Medium | Medium | ✅ COMPLETE |
 | 6.5 Context Persistence | **High** | Medium | ✅ COMPLETE |
-| 7. Success Metrics | High | Medium | 🔴 Next |
+| 7. Success Metrics | High | Medium | ✅ COMPLETE |
 | 8. Immunity & Wisdom | **High** | Medium | ✅ COMPLETE (Core) |
 | 9. Advanced Detection | High | High | 🔵 Long-term |
 
 ---
 
-## Current Status (2026-01-22)
+## Current Status (2026-01-25)
 
-**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, and 8 (Core)
+**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, and 8 (Core)
 - ✅ Dual-mode operation (practical vs reflective)
 - ✅ Emotional weight detection and acknowledgments
 - ✅ Dynamic timeouts for practical tasks (120s)
@@ -521,11 +540,18 @@ scenarios/intents/ (new directory)
 - ✅ Reflection journaling alternative with category-specific prompts
 - ✅ "Have You Talked to Someone?" gate for human connection
 - ✅ AI literacy configuration (manipulation patterns, educational moments)
+- ✅ "My Patterns" dashboard with sensitive vs practical distinction
+- ✅ Week-over-week comparison (sensitive ↓ = good, human connection ↑ = good)
+- ✅ Anti-engagement score tracking SENSITIVE topics only
+- ✅ Self-report moments with frequency limits
+- ✅ Trend indicators with appropriate direction
 
-**Next Up**: Phase 7 (Success Metrics) - HIGH PRIORITY
-- Local metrics dashboard ("My Patterns" view)
-- Trend indicators (usage going down = success)
-- Anti-engagement scoring
+**All Core Phases Complete!**
+
+**Remaining Items** (Lower Priority):
+- Phase 8.5: AI Literacy Moments (educational prompts, max 1/week)
+- Phase 8.6: "Spot the Pattern" Feature (manipulation pattern education)
+- Phase 9: Advanced Detection (semantic intent, conversation flow analysis - long-term)
 
 ---
 
@@ -551,7 +577,7 @@ scenarios/intents/ (new directory)
 **v0.4.5** (Phase 6): Transparency panel and session summaries ✅ COMPLETE
 **v0.5** (Phase 6.5): Context persistence across turns ✅ COMPLETE
 **v0.5.5** (Phase 8): Immunity building and wisdom prompts ✅ COMPLETE
-**v0.6** (Phase 7): Local metrics and anti-engagement scoring
+**v0.6** (Phase 7): Local metrics and anti-engagement scoring ✅ COMPLETE
 **v1.0** (Phase 9): Advanced detection, production-ready
 
 ---

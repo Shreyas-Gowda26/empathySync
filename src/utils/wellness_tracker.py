@@ -854,3 +854,526 @@ class WellnessTracker:
                 event["follow_up_shown_date"] = datetime.now().isoformat()
                 self._save_data(data)
                 return
+
+    # ==================== PHASE 7: SUCCESS METRICS ====================
+
+    # Sensitive domains that count toward anti-engagement score
+    SENSITIVE_DOMAINS = {"relationships", "health", "money", "spirituality", "crisis", "harmful"}
+
+    def get_sensitive_usage_stats(self, days: int = 7) -> Dict:
+        """
+        Get usage stats for SENSITIVE topics only.
+
+        Practical task usage is excluded - that's just using a tool.
+
+        Returns:
+            Dict with sensitive session counts and domain breakdown
+        """
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        data = self._load_data()
+
+        # Get policy events (these track domain hits)
+        events = data.get("policy_events", [])
+        recent = [e for e in events if e.get("date", "") >= cutoff]
+
+        # Count sensitive domain events
+        sensitive_count = 0
+        domain_breakdown = {}
+        for event in recent:
+            domain = event.get("domain", "")
+            if domain in self.SENSITIVE_DOMAINS:
+                sensitive_count += 1
+                domain_breakdown[domain] = domain_breakdown.get(domain, 0) + 1
+
+        # Get connection-seeking count from intents
+        intents = data.get("session_intents", [])
+        recent_intents = [i for i in intents if i.get("date", "") >= cutoff]
+        connection_count = sum(1 for i in recent_intents if i.get("intent") == INTENT_CONNECTION)
+
+        # Get late-night sensitive sessions
+        late_night_sensitive = sum(
+            1 for e in recent
+            if e.get("domain", "") in self.SENSITIVE_DOMAINS
+            and self._is_late_night_hour(e.get("datetime", ""))
+        )
+
+        # Total sessions for ratio calculation
+        sessions = data.get("usage_sessions", [])
+        recent_sessions = [s for s in sessions if s.get("date", "") >= cutoff]
+        total_sessions = len(recent_sessions)
+
+        return {
+            "period_days": days,
+            "sensitive_sessions": sensitive_count,
+            "connection_seeking": connection_count,
+            "late_night_sensitive": late_night_sensitive,
+            "total_sessions": total_sessions,
+            "sensitive_ratio": sensitive_count / total_sessions if total_sessions > 0 else 0,
+            "domain_breakdown": domain_breakdown
+        }
+
+    def _is_late_night_hour(self, datetime_str: str) -> bool:
+        """Check if a datetime string is during late-night hours (10PM-6AM)."""
+        try:
+            dt = datetime.fromisoformat(datetime_str)
+            return dt.hour >= 22 or dt.hour < 6
+        except (ValueError, TypeError):
+            return False
+
+    def get_weekly_comparison(self) -> Dict:
+        """
+        Compare this week's sensitive usage to last week.
+
+        Returns trend direction and percentage change.
+        """
+        this_week = self.get_sensitive_usage_stats(days=7)
+        last_week = self._get_sensitive_stats_for_period(
+            start_days_ago=14, end_days_ago=7
+        )
+
+        # Calculate changes
+        sensitive_change = self._calculate_change(
+            this_week["sensitive_sessions"],
+            last_week["sensitive_sessions"]
+        )
+        connection_change = self._calculate_change(
+            this_week["connection_seeking"],
+            last_week["connection_seeking"]
+        )
+
+        # Get human reach-outs comparison
+        this_week_handoffs = self._count_handoffs_completed(days=7)
+        last_week_handoffs = self._count_handoffs_completed_period(
+            start_days_ago=14, end_days_ago=7
+        )
+        handoff_change = self._calculate_change(this_week_handoffs, last_week_handoffs)
+
+        # Get independence comparison
+        this_week_independence = len(self._get_independence_for_period(days=7))
+        last_week_independence = len(self._get_independence_for_period_range(
+            start_days_ago=14, end_days_ago=7
+        ))
+        independence_change = self._calculate_change(
+            this_week_independence, last_week_independence
+        )
+
+        # Determine overall trend for sensitive usage (down is good)
+        if sensitive_change < -0.15:
+            sensitive_trend = "improving"
+        elif sensitive_change > 0.15:
+            sensitive_trend = "concerning"
+        else:
+            sensitive_trend = "stable"
+
+        return {
+            "this_week": {
+                "sensitive_sessions": this_week["sensitive_sessions"],
+                "connection_seeking": this_week["connection_seeking"],
+                "human_reach_outs": this_week_handoffs,
+                "independence": this_week_independence,
+                "total_sessions": this_week["total_sessions"]
+            },
+            "last_week": {
+                "sensitive_sessions": last_week["sensitive_sessions"],
+                "connection_seeking": last_week["connection_seeking"],
+                "human_reach_outs": last_week_handoffs,
+                "independence": last_week_independence,
+                "total_sessions": last_week["total_sessions"]
+            },
+            "changes": {
+                "sensitive_sessions": round(sensitive_change, 2),
+                "connection_seeking": round(connection_change, 2),
+                "human_reach_outs": round(handoff_change, 2),
+                "independence": round(independence_change, 2)
+            },
+            "sensitive_trend": sensitive_trend
+        }
+
+    def _get_sensitive_stats_for_period(self, start_days_ago: int, end_days_ago: int) -> Dict:
+        """Get sensitive usage stats for a specific period."""
+        start_date = (date.today() - timedelta(days=start_days_ago)).isoformat()
+        end_date = (date.today() - timedelta(days=end_days_ago)).isoformat()
+
+        data = self._load_data()
+        events = data.get("policy_events", [])
+        period_events = [
+            e for e in events
+            if start_date <= e.get("date", "") < end_date
+        ]
+
+        sensitive_count = sum(
+            1 for e in period_events
+            if e.get("domain", "") in self.SENSITIVE_DOMAINS
+        )
+
+        intents = data.get("session_intents", [])
+        period_intents = [
+            i for i in intents
+            if start_date <= i.get("date", "") < end_date
+        ]
+        connection_count = sum(
+            1 for i in period_intents if i.get("intent") == INTENT_CONNECTION
+        )
+
+        sessions = data.get("usage_sessions", [])
+        period_sessions = [
+            s for s in sessions
+            if start_date <= s.get("date", "") < end_date
+        ]
+
+        return {
+            "sensitive_sessions": sensitive_count,
+            "connection_seeking": connection_count,
+            "total_sessions": len(period_sessions)
+        }
+
+    def _calculate_change(self, current: int, previous: int) -> float:
+        """Calculate percentage change between two values."""
+        if previous == 0:
+            return 1.0 if current > 0 else 0.0
+        return (current - previous) / previous
+
+    def _count_handoffs_completed(self, days: int) -> int:
+        """Count handoffs marked as 'reached_out' in the given period."""
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        data = self._load_data()
+        events = data.get("handoff_events", [])
+        return sum(
+            1 for e in events
+            if e.get("date", "") >= cutoff and e.get("event_type") == "reached_out"
+        )
+
+    def _count_handoffs_completed_period(self, start_days_ago: int, end_days_ago: int) -> int:
+        """Count handoffs in a specific period."""
+        start_date = (date.today() - timedelta(days=start_days_ago)).isoformat()
+        end_date = (date.today() - timedelta(days=end_days_ago)).isoformat()
+        data = self._load_data()
+        events = data.get("handoff_events", [])
+        return sum(
+            1 for e in events
+            if start_date <= e.get("date", "") < end_date
+            and e.get("event_type") == "reached_out"
+        )
+
+    def _get_independence_for_period(self, days: int) -> List[Dict]:
+        """Get independence records for a period."""
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        data = self._load_data()
+        records = data.get("independence_records", [])
+        return [r for r in records if r.get("date", "") >= cutoff]
+
+    def _get_independence_for_period_range(self, start_days_ago: int, end_days_ago: int) -> List[Dict]:
+        """Get independence records for a specific period range."""
+        start_date = (date.today() - timedelta(days=start_days_ago)).isoformat()
+        end_date = (date.today() - timedelta(days=end_days_ago)).isoformat()
+        data = self._load_data()
+        records = data.get("independence_records", [])
+        return [
+            r for r in records
+            if start_date <= r.get("date", "") < end_date
+        ]
+
+    def calculate_anti_engagement_score(self) -> Dict:
+        """
+        Calculate anti-engagement score based on SENSITIVE topic usage.
+
+        Score is 0-10. Lower = healthier relationship with AI.
+        Only sensitive topics count - practical task usage is ignored.
+
+        Returns:
+            Dict with score, factors breakdown, and interpretation
+        """
+        # Get sensitive usage stats
+        sensitive_7d = self.get_sensitive_usage_stats(days=7)
+        sensitive_30d = self.get_sensitive_usage_stats(days=30)
+
+        # Factor 1: Sensitive sessions per week (weight 0.35)
+        sensitive_sessions = sensitive_7d["sensitive_sessions"]
+        if sensitive_sessions >= 7:
+            factor_sensitive = 10.0
+        elif sensitive_sessions >= 5:
+            factor_sensitive = 7.0
+        elif sensitive_sessions >= 3:
+            factor_sensitive = 4.0
+        elif sensitive_sessions >= 1:
+            factor_sensitive = 2.0
+        else:
+            factor_sensitive = 0.0
+
+        # Factor 2: Connection-seeking ratio (weight 0.25)
+        connection_ratio = sensitive_7d["connection_seeking"] / max(sensitive_7d["total_sessions"], 1)
+        if connection_ratio >= 0.3:
+            factor_connection = 10.0
+        elif connection_ratio >= 0.2:
+            factor_connection = 7.0
+        elif connection_ratio >= 0.1:
+            factor_connection = 4.0
+        else:
+            factor_connection = 0.0
+
+        # Factor 3: Late-night sensitive ratio (weight 0.20)
+        late_night_ratio = sensitive_7d["late_night_sensitive"] / max(sensitive_7d["sensitive_sessions"], 1)
+        if late_night_ratio >= 0.3:
+            factor_late_night = 10.0
+        elif late_night_ratio >= 0.2:
+            factor_late_night = 6.0
+        elif late_night_ratio >= 0.1:
+            factor_late_night = 3.0
+        else:
+            factor_late_night = 0.0
+
+        # Factor 4: Week-over-week escalation (weight 0.20)
+        comparison = self.get_weekly_comparison()
+        escalation = comparison["changes"]["sensitive_sessions"]
+        if escalation >= 0.5:  # 50% increase
+            factor_escalation = 10.0
+        elif escalation >= 0.3:  # 30% increase
+            factor_escalation = 6.0
+        elif escalation >= 0.15:  # 15% increase
+            factor_escalation = 3.0
+        else:
+            factor_escalation = 0.0
+
+        # Calculate weighted score
+        score = (
+            factor_sensitive * 0.35 +
+            factor_connection * 0.25 +
+            factor_late_night * 0.20 +
+            factor_escalation * 0.20
+        )
+        score = min(score, 10.0)
+
+        # Determine interpretation
+        if score <= 2:
+            level = "excellent"
+            label = "Healthy Balance"
+            message = "You're using this tool appropriately and keeping personal matters with humans."
+        elif score <= 4:
+            level = "good"
+            label = "On Track"
+            message = "You're generally keeping sensitive topics for human conversations."
+        elif score <= 6:
+            level = "moderate"
+            label = "Worth Monitoring"
+            message = "You're bringing sensitive topics here more than ideal. Consider human conversations."
+        elif score <= 8:
+            level = "concerning"
+            label = "High Reliance"
+            message = "You're relying on AI for personal/emotional topics. Please talk to someone you trust."
+        else:
+            level = "high"
+            label = "Please Reach Out"
+            message = "Your pattern suggests you're using AI as a substitute for human connection. This isn't healthy."
+
+        # Get 30-day trend
+        sensitive_30d_weekly = sensitive_30d["sensitive_sessions"] / 4  # Avg per week
+        if sensitive_7d["sensitive_sessions"] < sensitive_30d_weekly * 0.85:
+            trend = "improving"
+            trend_message = "You're bringing fewer sensitive topics to AI. That's healthy growth."
+        elif sensitive_7d["sensitive_sessions"] > sensitive_30d_weekly * 1.15:
+            trend = "increasing"
+            trend_message = "You're bringing more personal topics here. Consider human conversations instead."
+        else:
+            trend = "stable"
+            trend_message = "Your sensitive topic usage is stable."
+
+        return {
+            "score": round(score, 1),
+            "level": level,
+            "label": label,
+            "message": message,
+            "factors": {
+                "sensitive_sessions": {
+                    "value": sensitive_sessions,
+                    "score": round(factor_sensitive, 1),
+                    "weight": 0.35
+                },
+                "connection_seeking": {
+                    "value": round(connection_ratio, 2),
+                    "score": round(factor_connection, 1),
+                    "weight": 0.25
+                },
+                "late_night": {
+                    "value": round(late_night_ratio, 2),
+                    "score": round(factor_late_night, 1),
+                    "weight": 0.20
+                },
+                "escalation": {
+                    "value": round(escalation, 2),
+                    "score": round(factor_escalation, 1),
+                    "weight": 0.20
+                }
+            },
+            "trend": trend,
+            "trend_message": trend_message
+        }
+
+    def get_my_patterns_dashboard(self) -> Dict:
+        """
+        Get complete dashboard data for "My Patterns" view.
+
+        Separates sensitive vs practical usage and provides week-over-week
+        comparison with appropriate messaging.
+        """
+        comparison = self.get_weekly_comparison()
+        anti_engagement = self.calculate_anti_engagement_score()
+
+        # Get practical task stats (for context, not judged)
+        task_patterns = self.get_task_patterns()
+        practical_tasks_week = sum(
+            p.get("last_7_days", 0) for p in task_patterns.values()
+        )
+
+        # Determine overall health message
+        if anti_engagement["score"] <= 4 and comparison["this_week"]["human_reach_outs"] >= 1:
+            health_status = "healthy"
+            summary = "Your patterns look healthy. You're using empathySync for practical tasks and keeping personal matters with humans."
+        elif anti_engagement["score"] >= 6 or comparison["sensitive_trend"] == "concerning":
+            health_status = "concerning"
+            summary = "You're bringing more sensitive topics here than usual. Consider reaching out to someone you trust."
+        else:
+            health_status = "moderate"
+            summary = "Your usage is moderate. Keep an eye on how much you're bringing personal topics here."
+
+        return {
+            "this_week": {
+                "sensitive_topics": comparison["this_week"]["sensitive_sessions"],
+                "connection_seeking": comparison["this_week"]["connection_seeking"],
+                "human_reach_outs": comparison["this_week"]["human_reach_outs"],
+                "did_it_myself": comparison["this_week"]["independence"],
+                "practical_tasks": practical_tasks_week,
+                "total_sessions": comparison["this_week"]["total_sessions"]
+            },
+            "last_week": {
+                "sensitive_topics": comparison["last_week"]["sensitive_sessions"],
+                "connection_seeking": comparison["last_week"]["connection_seeking"],
+                "human_reach_outs": comparison["last_week"]["human_reach_outs"],
+                "did_it_myself": comparison["last_week"]["independence"]
+            },
+            "trends": {
+                "sensitive_topics": self._trend_indicator(comparison["changes"]["sensitive_sessions"], invert=True),
+                "connection_seeking": self._trend_indicator(comparison["changes"]["connection_seeking"], invert=True),
+                "human_reach_outs": self._trend_indicator(comparison["changes"]["human_reach_outs"]),
+                "did_it_myself": self._trend_indicator(comparison["changes"]["independence"])
+            },
+            "anti_engagement": anti_engagement,
+            "health_status": health_status,
+            "summary": summary,
+            "practical_note": "Practical task usage is fine - that's just using a tool."
+        }
+
+    def _trend_indicator(self, change: float, invert: bool = False) -> Dict:
+        """
+        Get trend indicator for a metric.
+
+        Args:
+            change: Percentage change (positive = increase)
+            invert: If True, decrease is good (for sensitive metrics)
+        """
+        if invert:
+            # For sensitive metrics: decrease is good
+            if change < -0.15:
+                return {"icon": "↓", "status": "improving", "label": "Down"}
+            elif change > 0.15:
+                return {"icon": "↑", "status": "concerning", "label": "Up"}
+            else:
+                return {"icon": "→", "status": "stable", "label": "Stable"}
+        else:
+            # For positive metrics: increase is good
+            if change > 0.15:
+                return {"icon": "↑", "status": "improving", "label": "Up"}
+            elif change < -0.15:
+                return {"icon": "↓", "status": "concerning", "label": "Down"}
+            else:
+                return {"icon": "→", "status": "stable", "label": "Stable"}
+
+    # ==================== SELF-REPORT TRACKING (7.2) ====================
+
+    def should_show_self_report(self) -> Tuple[bool, Optional[Dict]]:
+        """
+        Check if we should show a self-report prompt.
+
+        Respects frequency limits: max 1 per week, min 5 days between.
+
+        Returns:
+            Tuple of (should_show, prompt_config)
+        """
+        data = self._load_data()
+        self_reports = data.get("self_reports", [])
+
+        # Check if we've shown a report recently
+        if self_reports:
+            last_report = self_reports[-1]
+            last_date = last_report.get("date", "")
+            if last_date:
+                days_since = (date.today() - date.fromisoformat(last_date)).days
+                if days_since < 5:
+                    return False, None
+
+        # Check for pending triggers
+        # 1. After handoff (24+ hours)
+        should_show, handoff = self.should_show_handoff_follow_up()
+        if should_show:
+            return True, {
+                "type": "handoff_followup",
+                "question": "Did talking to someone help?",
+                "options": [
+                    {"label": "Yes, it helped", "value": "helpful"},
+                    {"label": "Not really", "value": "not_helpful"},
+                    {"label": "Skip", "value": "skip"}
+                ],
+                "handoff_context": handoff
+            }
+
+        # 2. High usage week check
+        comparison = self.get_weekly_comparison()
+        if comparison["this_week"]["sensitive_sessions"] >= 5:
+            return True, {
+                "type": "usage_reflection",
+                "question": "You've brought personal topics here often this week. How are you feeling about that?",
+                "options": [
+                    {"label": "It's been helpful", "value": "helpful"},
+                    {"label": "Maybe too much", "value": "too_much"},
+                    {"label": "Not sure", "value": "unsure"},
+                    {"label": "Skip", "value": "skip"}
+                ]
+            }
+
+        return False, None
+
+    def record_self_report(self, report_type: str, response: str, details: Dict = None) -> Dict:
+        """
+        Record a self-report response.
+
+        Args:
+            report_type: 'handoff_followup', 'weekly_clarity', 'usage_reflection'
+            response: The user's response value
+            details: Optional additional context
+        """
+        data = self._load_data()
+
+        if "self_reports" not in data:
+            data["self_reports"] = []
+
+        report = {
+            "datetime": datetime.now().isoformat(),
+            "date": date.today().isoformat(),
+            "type": report_type,
+            "response": response,
+            "details": details
+        }
+
+        data["self_reports"].append(report)
+
+        # Keep last 100 reports
+        if len(data["self_reports"]) > 100:
+            data["self_reports"] = data["self_reports"][-100:]
+
+        self._save_data(data)
+        return report
+
+    def get_self_report_history(self, limit: int = 10) -> List[Dict]:
+        """Get recent self-report responses."""
+        data = self._load_data()
+        reports = data.get("self_reports", [])
+        return reports[-limit:] if reports else []

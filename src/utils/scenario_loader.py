@@ -1145,6 +1145,103 @@ class ScenarioLoader:
         """Reload all scenarios from disk."""
         self.clear_cache()
 
+    # ==================== PHASE 7: SUCCESS METRICS ====================
+
+    def get_all_metrics_config(self) -> Dict:
+        """Load all metrics configuration."""
+        return self._load_directory("metrics")
+
+    def get_success_metrics_config(self) -> Dict:
+        """Get the success metrics configuration."""
+        configs = self.get_all_metrics_config()
+        return configs.get("success_metrics", {})
+
+    def get_dashboard_config(self) -> Dict:
+        """Get dashboard display configuration."""
+        config = self.get_success_metrics_config()
+        return config.get("dashboard", {})
+
+    def get_anti_engagement_config(self) -> Dict:
+        """Get anti-engagement scoring configuration."""
+        config = self.get_success_metrics_config()
+        return config.get("anti_engagement", {})
+
+    def get_self_report_config(self) -> Dict:
+        """Get self-report prompts configuration."""
+        config = self.get_success_metrics_config()
+        return config.get("self_reports", {})
+
+    def get_metrics_thresholds(self) -> Dict:
+        """Get time-based and usage thresholds."""
+        config = self.get_success_metrics_config()
+        return config.get("thresholds", {})
+
+    def get_sensitive_categories(self) -> Dict:
+        """Get what counts as 'sensitive' for metrics purposes."""
+        config = self.get_success_metrics_config()
+        return config.get("sensitive_categories", {})
+
+    def get_dashboard_templates(self) -> Dict:
+        """Get dashboard display message templates."""
+        config = self.get_success_metrics_config()
+        return config.get("dashboard_templates", {})
+
+    def get_score_range_config(self, score: float) -> Dict:
+        """
+        Get the configuration for a given anti-engagement score.
+
+        Args:
+            score: The anti-engagement score (0-10)
+
+        Returns:
+            Dict with label, message, color for this score range
+        """
+        config = self.get_anti_engagement_config()
+        ranges = config.get("score_ranges", {})
+
+        for range_name in ["excellent", "good", "moderate", "concerning", "high"]:
+            range_config = ranges.get(range_name, {})
+            if score <= range_config.get("max", 10):
+                return {
+                    "level": range_name,
+                    "label": range_config.get("label", "Unknown"),
+                    "message": range_config.get("message", ""),
+                    "color": range_config.get("color", "gray")
+                }
+
+        return {"level": "high", "label": "Unknown", "message": "", "color": "gray"}
+
+    def get_trend_message(self, metric: str, trend: str) -> str:
+        """
+        Get the appropriate message for a metric's trend.
+
+        Args:
+            metric: 'sensitive', 'connection', 'human_connections', etc.
+            trend: 'down', 'up', 'stable'
+
+        Returns:
+            Human-readable trend message
+        """
+        config = self.get_dashboard_config()
+        messages = config.get("trend_messages", {})
+
+        key = f"{metric}_{trend}"
+        return messages.get(key, "")
+
+    def get_self_report_prompt(self, prompt_type: str) -> Dict:
+        """
+        Get a specific self-report prompt configuration.
+
+        Args:
+            prompt_type: 'handoff_followup', 'weekly_clarity', 'usage_reflection'
+
+        Returns:
+            Dict with question, options, celebration text
+        """
+        config = self.get_self_report_config()
+        prompts = config.get("prompts", {})
+        return prompts.get(prompt_type, {})
+
     def get_all_triggers_flat(self) -> Dict[str, str]:
         """
         Get a flat mapping of trigger word -> domain.

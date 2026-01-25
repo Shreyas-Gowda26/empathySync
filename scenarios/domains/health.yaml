@@ -87,7 +87,12 @@ triggers:
   - unconscious
   - ambulance
   - emergency room
-  - ER
+  - go to the ER
+  - went to the ER
+  - going to the ER
+  - in the ER
+  - at the ER
+  - the ER
   - urgent care
   - "911"
   - call 911

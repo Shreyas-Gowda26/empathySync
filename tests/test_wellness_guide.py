@@ -2038,3 +2038,345 @@ class TestWisdomIntegration:
 
         # Should include pause suggestion
         assert any(word in response.lower() for word in ["sleep", "wait", "tomorrow", "consider", "before"])
+
+
+# ==================== PHASE 7: SUCCESS METRICS ====================
+
+
+class TestSuccessMetricsConfig:
+    """Test Phase 7 success metrics configuration loading"""
+
+    @pytest.fixture
+    def loader(self):
+        from utils.scenario_loader import get_scenario_loader, reset_scenario_loader
+        reset_scenario_loader()
+        return get_scenario_loader()
+
+    def test_load_success_metrics_config(self, loader):
+        """Test loading success metrics configuration."""
+        config = loader.get_success_metrics_config()
+
+        assert config is not None
+        assert "dashboard" in config
+        assert "anti_engagement" in config
+        assert "self_reports" in config
+
+    def test_dashboard_config(self, loader):
+        """Test dashboard configuration structure."""
+        dashboard = loader.get_dashboard_config()
+
+        assert "title" in dashboard
+        assert "metrics" in dashboard
+        assert "trend_icons" in dashboard
+        assert "trend_messages" in dashboard
+
+        # Check metrics structure
+        metrics = dashboard["metrics"]
+        assert "sensitive_topics" in metrics
+        assert "human_reach_outs" in metrics
+        assert "practical_tasks" in metrics
+
+        # Sensitive topics should have success_direction=down
+        assert metrics["sensitive_topics"]["success_direction"] == "down"
+        # Practical tasks should be neutral
+        assert metrics["practical_tasks"]["success_direction"] == "neutral"
+
+    def test_anti_engagement_config(self, loader):
+        """Test anti-engagement scoring configuration."""
+        config = loader.get_anti_engagement_config()
+
+        assert "sensitive_domains" in config
+        assert "factors" in config
+        assert "score_ranges" in config
+        assert "trends" in config
+
+        # Check sensitive domains list
+        domains = config["sensitive_domains"]
+        assert "relationships" in domains
+        assert "health" in domains
+        assert "money" in domains
+        assert "spirituality" in domains
+
+        # Check score ranges
+        ranges = config["score_ranges"]
+        assert "excellent" in ranges
+        assert "concerning" in ranges
+        assert ranges["excellent"]["max"] == 2
+
+    def test_self_report_config(self, loader):
+        """Test self-report prompts configuration."""
+        config = loader.get_self_report_config()
+
+        assert "max_per_week" in config
+        assert config["max_per_week"] == 1
+        assert "prompts" in config
+
+        prompts = config["prompts"]
+        assert "handoff_followup" in prompts
+        assert "usage_reflection" in prompts
+
+    def test_get_score_range_config(self, loader):
+        """Test getting score range for specific scores."""
+        # Low score = healthy
+        result = loader.get_score_range_config(1.5)
+        assert result["level"] == "excellent"
+        assert result["color"] == "green"
+
+        # High score = concerning
+        result = loader.get_score_range_config(7.5)
+        assert result["level"] == "concerning"
+        assert result["color"] == "orange"
+
+
+class TestSensitiveUsageTracking:
+    """Test sensitive vs practical usage tracking (Phase 7.1)"""
+
+    @pytest.fixture
+    def tracker(self, tmp_path):
+        from utils.wellness_tracker import WellnessTracker
+        with patch("config.settings.settings") as mock_settings:
+            mock_settings.DATA_DIR = tmp_path
+            tracker = WellnessTracker()
+            return tracker
+
+    def test_sensitive_usage_stats_empty(self, tracker):
+        """Test sensitive usage stats with no data."""
+        stats = tracker.get_sensitive_usage_stats(days=7)
+
+        assert stats["sensitive_sessions"] == 0
+        assert stats["connection_seeking"] == 0
+        assert stats["late_night_sensitive"] == 0
+        assert stats["sensitive_ratio"] == 0
+
+    def test_sensitive_usage_stats_with_data(self, tracker):
+        """Test sensitive usage stats with policy events."""
+        # Log some policy events for sensitive domains
+        tracker.log_policy_event("high_risk_response", "relationships", 6.0, "Response generated")
+        tracker.log_policy_event("high_risk_response", "health", 7.0, "Response generated")
+        tracker.log_policy_event("high_risk_response", "logistics", 1.0, "Response generated")
+
+        stats = tracker.get_sensitive_usage_stats(days=7)
+
+        # Only relationships and health count as sensitive
+        assert stats["sensitive_sessions"] == 2
+        assert "relationships" in stats["domain_breakdown"]
+        assert "health" in stats["domain_breakdown"]
+
+    def test_sensitive_domains_list(self, tracker):
+        """Test that correct domains are considered sensitive."""
+        sensitive = tracker.SENSITIVE_DOMAINS
+
+        assert "relationships" in sensitive
+        assert "health" in sensitive
+        assert "money" in sensitive
+        assert "spirituality" in sensitive
+        assert "crisis" in sensitive
+        assert "harmful" in sensitive
+        # Logistics should NOT be in sensitive
+        assert "logistics" not in sensitive
+
+    def test_weekly_comparison(self, tracker):
+        """Test week-over-week comparison."""
+        comparison = tracker.get_weekly_comparison()
+
+        assert "this_week" in comparison
+        assert "last_week" in comparison
+        assert "changes" in comparison
+        assert "sensitive_trend" in comparison
+
+        # Check structure
+        assert "sensitive_sessions" in comparison["this_week"]
+        assert "human_reach_outs" in comparison["this_week"]
+
+
+class TestAntiEngagementScore:
+    """Test anti-engagement scoring system (Phase 7.3)"""
+
+    @pytest.fixture
+    def tracker(self, tmp_path):
+        from utils.wellness_tracker import WellnessTracker
+        with patch("config.settings.settings") as mock_settings:
+            mock_settings.DATA_DIR = tmp_path
+            tracker = WellnessTracker()
+            return tracker
+
+    def test_anti_engagement_score_empty(self, tracker):
+        """Test anti-engagement score with no usage."""
+        score = tracker.calculate_anti_engagement_score()
+
+        assert score["score"] == 0
+        assert score["level"] == "excellent"
+        assert "Healthy Balance" in score["label"]
+
+    def test_anti_engagement_score_with_sensitive_usage(self, tracker):
+        """Test anti-engagement score increases with sensitive usage."""
+        # Log several sensitive domain events
+        for _ in range(5):
+            tracker.log_policy_event("high_risk_response", "relationships", 6.0, "Response generated")
+
+        score = tracker.calculate_anti_engagement_score()
+
+        # Should be higher than 0 due to sensitive sessions
+        assert score["score"] > 0
+        assert "factors" in score
+        assert "sensitive_sessions" in score["factors"]
+
+    def test_anti_engagement_ignores_practical(self, tracker):
+        """Test that anti-engagement score ignores practical task usage."""
+        # Log many practical domain events
+        for _ in range(10):
+            tracker.log_policy_event("normal_response", "logistics", 1.0, "Response generated")
+
+        score = tracker.calculate_anti_engagement_score()
+
+        # Score should still be 0 - practical usage doesn't count
+        assert score["score"] == 0
+        assert score["level"] == "excellent"
+
+    def test_score_interpretation_levels(self, tracker):
+        """Test that score ranges are correctly interpreted."""
+        score = tracker.calculate_anti_engagement_score()
+
+        # Should have message and trend info
+        assert "message" in score
+        assert "trend" in score
+        assert "trend_message" in score
+
+
+class TestMyPatternsDashboard:
+    """Test My Patterns dashboard aggregation (Phase 7.1)"""
+
+    @pytest.fixture
+    def tracker(self, tmp_path):
+        from utils.wellness_tracker import WellnessTracker
+        with patch("config.settings.settings") as mock_settings:
+            mock_settings.DATA_DIR = tmp_path
+            tracker = WellnessTracker()
+            return tracker
+
+    def test_dashboard_structure(self, tracker):
+        """Test dashboard returns complete structure."""
+        dashboard = tracker.get_my_patterns_dashboard()
+
+        assert "this_week" in dashboard
+        assert "last_week" in dashboard
+        assert "trends" in dashboard
+        assert "anti_engagement" in dashboard
+        assert "health_status" in dashboard
+        assert "summary" in dashboard
+        assert "practical_note" in dashboard
+
+    def test_dashboard_this_week_keys(self, tracker):
+        """Test this_week section has all required keys."""
+        dashboard = tracker.get_my_patterns_dashboard()
+        this_week = dashboard["this_week"]
+
+        assert "sensitive_topics" in this_week
+        assert "connection_seeking" in this_week
+        assert "human_reach_outs" in this_week
+        assert "did_it_myself" in this_week
+        assert "practical_tasks" in this_week
+        assert "total_sessions" in this_week
+
+    def test_dashboard_trends_structure(self, tracker):
+        """Test trends have icon and status."""
+        dashboard = tracker.get_my_patterns_dashboard()
+        trends = dashboard["trends"]
+
+        for key in ["sensitive_topics", "connection_seeking", "human_reach_outs", "did_it_myself"]:
+            assert key in trends
+            assert "icon" in trends[key]
+            assert "status" in trends[key]
+
+    def test_dashboard_health_status(self, tracker):
+        """Test health status is valid value."""
+        dashboard = tracker.get_my_patterns_dashboard()
+
+        assert dashboard["health_status"] in ["healthy", "moderate", "concerning"]
+
+
+class TestSelfReportTracking:
+    """Test self-report moment tracking (Phase 7.2)"""
+
+    @pytest.fixture
+    def tracker(self, tmp_path):
+        from utils.wellness_tracker import WellnessTracker
+        with patch("config.settings.settings") as mock_settings:
+            mock_settings.DATA_DIR = tmp_path
+            tracker = WellnessTracker()
+            return tracker
+
+    def test_record_self_report(self, tracker):
+        """Test recording a self-report response."""
+        report = tracker.record_self_report(
+            report_type="usage_reflection",
+            response="too_much",
+            details={"context": "high usage week"}
+        )
+
+        assert report["type"] == "usage_reflection"
+        assert report["response"] == "too_much"
+        assert "datetime" in report
+
+    def test_get_self_report_history(self, tracker):
+        """Test retrieving self-report history."""
+        # Record some reports
+        tracker.record_self_report("handoff_followup", "helpful")
+        tracker.record_self_report("usage_reflection", "too_much")
+
+        history = tracker.get_self_report_history(limit=10)
+
+        assert len(history) == 2
+        assert history[0]["type"] == "handoff_followup"
+        assert history[1]["type"] == "usage_reflection"
+
+    def test_should_show_self_report_respects_frequency(self, tracker):
+        """Test that self-reports respect frequency limits."""
+        # Record a recent self-report
+        tracker.record_self_report("usage_reflection", "helpful")
+
+        # Should not show another one immediately
+        should_show, _ = tracker.should_show_self_report()
+        assert should_show is False
+
+
+class TestTrendIndicators:
+    """Test trend indicator logic (Phase 7.1)"""
+
+    @pytest.fixture
+    def tracker(self, tmp_path):
+        from utils.wellness_tracker import WellnessTracker
+        with patch("config.settings.settings") as mock_settings:
+            mock_settings.DATA_DIR = tmp_path
+            tracker = WellnessTracker()
+            return tracker
+
+    def test_trend_indicator_improvement_for_sensitive(self, tracker):
+        """Test that decrease in sensitive usage shows as improvement."""
+        # For sensitive metrics, decrease is good (invert=True)
+        result = tracker._trend_indicator(-0.2, invert=True)
+
+        assert result["status"] == "improving"
+        assert result["icon"] == "↓"
+
+    def test_trend_indicator_concern_for_sensitive(self, tracker):
+        """Test that increase in sensitive usage shows as concerning."""
+        result = tracker._trend_indicator(0.2, invert=True)
+
+        assert result["status"] == "concerning"
+        assert result["icon"] == "↑"
+
+    def test_trend_indicator_improvement_for_positive_metrics(self, tracker):
+        """Test that increase in human reach-outs shows as improvement."""
+        # For positive metrics, increase is good (invert=False)
+        result = tracker._trend_indicator(0.2, invert=False)
+
+        assert result["status"] == "improving"
+        assert result["icon"] == "↑"
+
+    def test_trend_indicator_stable(self, tracker):
+        """Test that small changes show as stable."""
+        result = tracker._trend_indicator(0.05, invert=True)
+
+        assert result["status"] == "stable"
+        assert result["icon"] == "→"
