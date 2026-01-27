@@ -36,6 +36,50 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Custom CSS for better visual hierarchy (Phase 9.5)
+st.markdown("""
+<style>
+    /* Sidebar section headers */
+    .sidebar-header {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Better button spacing in sidebar */
+    .stButton > button {
+        margin-bottom: 0.25rem;
+    }
+
+    /* Primary action buttons stand out */
+    .stButton > button[kind="primary"] {
+        font-weight: 600;
+    }
+
+    /* Subtle dividers */
+    hr {
+        margin: 1rem 0;
+        border: none;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    /* Main title styling */
+    h1 {
+        margin-bottom: 0 !important;
+    }
+
+    /* Subtitle styling */
+    .subtitle {
+        color: #666;
+        font-style: italic;
+        margin-top: 0;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 
 def display_safety_banner():
     """Display session safety banner when guardrails are active."""
@@ -321,8 +365,10 @@ def display_usage_health():
     elif sessions_today >= 3:
         st.caption("Multiple sessions today. How are you feeling about that?")
 
-    if tracker.is_late_night_session():
-        st.caption("It's late. Consider whether this can wait until tomorrow.")
+    # Only show late-night warning if there's a pattern (2+ late sessions this week)
+    # Not just for being up late once
+    if tracker.is_late_night_session() and tracker.get_late_night_sessions_this_week() >= 2:
+        st.caption("You've been here late at night a few times. Everything okay?")
 
 
 def display_my_patterns_dashboard():
@@ -1075,8 +1121,7 @@ def display_reality_check():
 
     st.markdown(
         "**This is software, not a person.** It reflects patterns in text—"
-        "it doesn't know you, care about you, or have your best interests at heart. "
-        "It's a tool for thinking, not a companion or advisor."
+        "it doesn't truly know you. It's a tool for thinking, not a companion or advisor."
     )
 
     st.markdown("---")
@@ -1359,7 +1404,7 @@ def main():
 
     # Header
     st.markdown("# empathySync")
-    st.markdown("*Help that knows when to stop*")
+    st.markdown('<p class="subtitle">Help that knows when to stop</p>', unsafe_allow_html=True)
 
     # Phase 4: Show connection redirect if user indicated they just want to talk
     if st.session_state.get("show_connection_redirect"):
@@ -1399,45 +1444,57 @@ def main():
 
     # Sidebar
     with st.sidebar:
-        # Style selector
-        st.markdown("**Style**")
-        wellness_mode = st.selectbox(
-            "Communication style",
-            ["Gentle", "Direct", "Balanced"],
-            index=2,
-            label_visibility="collapsed"
-        )
+        # Default communication mode - system auto-adjusts based on domain
+        wellness_mode = "Balanced"
 
-        st.markdown("---")
-
-        # Usage health
+        # === HEALTH SECTION ===
+        st.markdown('<p class="sidebar-header">Session Health</p>', unsafe_allow_html=True)
         display_usage_health()
 
         st.markdown("---")
 
-        # Action buttons
+        # === QUICK ACTIONS SECTION ===
+        st.markdown('<p class="sidebar-header">Quick Actions</p>', unsafe_allow_html=True)
+
+        # Primary actions in a row - toggle behavior (click again to close)
+        reality_active = st.session_state.get("show_reality_check", False)
+        network_active = st.session_state.get("show_network_setup", False)
+        patterns_active = st.session_state.get("show_my_patterns", False)
+
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Reality check", use_container_width=True,
+            if st.button("Reality Check", use_container_width=True,
+                         type="primary" if reality_active else "secondary",
                          help="Am I relying on this too much?"):
-                st.session_state.show_reality_check = True
-                st.session_state.show_network_setup = False
-                st.session_state.show_my_patterns = False
+                if reality_active:
+                    st.session_state.show_reality_check = False
+                else:
+                    st.session_state.show_reality_check = True
+                    st.session_state.show_network_setup = False
+                    st.session_state.show_my_patterns = False
                 st.rerun()
         with col2:
-            if st.button("My people", use_container_width=True,
+            if st.button("My People", use_container_width=True,
+                         type="primary" if network_active else "secondary",
                          help="Manage trusted network"):
-                st.session_state.show_network_setup = True
-                st.session_state.show_reality_check = False
-                st.session_state.show_my_patterns = False
+                if network_active:
+                    st.session_state.show_network_setup = False
+                else:
+                    st.session_state.show_network_setup = True
+                    st.session_state.show_reality_check = False
+                    st.session_state.show_my_patterns = False
                 st.rerun()
 
-        # Phase 7: My Patterns button
+        # Full-width secondary action - toggle behavior
         if st.button("My Patterns", use_container_width=True,
+                     type="primary" if patterns_active else "secondary",
                      help="Track your usage trends (sensitive vs practical)"):
-            st.session_state.show_my_patterns = True
-            st.session_state.show_reality_check = False
-            st.session_state.show_network_setup = False
+            if patterns_active:
+                st.session_state.show_my_patterns = False
+            else:
+                st.session_state.show_my_patterns = True
+                st.session_state.show_reality_check = False
+                st.session_state.show_network_setup = False
             st.rerun()
 
         # Show appropriate panel
@@ -1455,6 +1512,9 @@ def main():
         else:
             st.markdown("---")
 
+            # === HUMAN CONNECTION ===
+            st.markdown('<p class="sidebar-header">Human Connection</p>', unsafe_allow_html=True)
+
             # Get current domain if available
             guide = st.session_state.wellness_guide
             current_domain = "general"
@@ -1462,11 +1522,10 @@ def main():
                 current_domain = guide.last_risk_assessment.get("domain", "general")
 
             # Bring someone in
-            with st.expander("Bring someone in", expanded=False):
+            with st.expander("Reach Out to Someone", expanded=False):
                 display_bring_someone_in(current_domain)
 
             # Phase 3: Independence button and form
-            st.markdown("---")
             if st.session_state.get("show_independence_form"):
                 display_independence_form()
             else:
@@ -1481,51 +1540,55 @@ def main():
 
             st.markdown("---")
 
-            # Controls
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("New Chat", use_container_width=True):
-                    save_session_on_end()
-                    st.session_state.messages = []
-                    st.session_state.session_start = datetime.now()
-                    st.session_state.show_reality_check = False
-                    st.session_state.wellness_guide.reset_session()
-                    # Phase 4: Reset intent state
-                    st.session_state.session_intent = None
-                    st.session_state.pending_shift = None
-                    st.session_state.acknowledged_shift = False
-                    tracker = st.session_state.wellness_tracker
-                    st.session_state.show_intent_check_in = tracker.should_show_intent_check_in()
-                    st.session_state.show_connection_redirect = False
-                    # Phase 3: Reset graduation state
-                    st.session_state.pending_graduation = None
-                    st.session_state.graduation_shown_this_session = False
-                    st.session_state.show_skill_tips = None
-                    st.session_state.last_task_category = None
-                    st.session_state.show_independence_form = False
-                    # Phase 5: Reset handoff state
-                    st.session_state.show_handoff_follow_up = False
-                    st.session_state.show_handoff_outcome = False
-                    st.session_state.pending_handoff_for_outcome = None
-                    st.session_state.pending_handoff_info = None
-                    # Phase 6: Reset transparency state
-                    st.session_state.show_session_summary = False
-                    # Phase 7: Reset metrics state
-                    st.session_state.show_my_patterns = False
-                    st.rerun()
-            with col2:
-                if st.button("Export", use_container_width=True):
-                    tracker = st.session_state.wellness_tracker
-                    data = tracker._load_data()
-                    st.download_button(
-                        "Download",
-                        data=json.dumps(data, indent=2),
-                        file_name=f"empathysync_{date.today()}.json",
-                        mime="application/json"
-                    )
+            # === SESSION CONTROLS ===
+            st.markdown('<p class="sidebar-header">Session</p>', unsafe_allow_html=True)
 
-            # Data Settings expander
-            with st.expander("Data Settings", expanded=False):
+            # New Chat - primary action
+            if st.button("New Chat", use_container_width=True, type="primary"):
+                save_session_on_end()
+                st.session_state.messages = []
+                st.session_state.session_start = datetime.now()
+                st.session_state.show_reality_check = False
+                st.session_state.wellness_guide.reset_session()
+                # Phase 4: Reset intent state
+                st.session_state.session_intent = None
+                st.session_state.pending_shift = None
+                st.session_state.acknowledged_shift = False
+                tracker = st.session_state.wellness_tracker
+                st.session_state.show_intent_check_in = tracker.should_show_intent_check_in()
+                st.session_state.show_connection_redirect = False
+                # Phase 3: Reset graduation state
+                st.session_state.pending_graduation = None
+                st.session_state.graduation_shown_this_session = False
+                st.session_state.show_skill_tips = None
+                st.session_state.last_task_category = None
+                st.session_state.show_independence_form = False
+                # Phase 5: Reset handoff state
+                st.session_state.show_handoff_follow_up = False
+                st.session_state.show_handoff_outcome = False
+                st.session_state.pending_handoff_for_outcome = None
+                st.session_state.pending_handoff_info = None
+                # Phase 6: Reset transparency state
+                st.session_state.show_session_summary = False
+                # Phase 7: Reset metrics state
+                st.session_state.show_my_patterns = False
+                st.rerun()
+
+            # Export - direct download button (simplified from nested approach)
+            tracker = st.session_state.wellness_tracker
+            data = tracker._load_data()
+            st.download_button(
+                "Export Data",
+                data=json.dumps(data, indent=2),
+                file_name=f"empathysync_{date.today()}.json",
+                mime="application/json",
+                use_container_width=True
+            )
+
+            st.markdown("---")
+
+            # === DATA SECTION ===
+            with st.expander("Data & Privacy", expanded=False):
                 st.caption("All data is stored locally on your device.")
 
                 # Initialize reset confirmation state

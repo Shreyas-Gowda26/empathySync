@@ -98,7 +98,7 @@ empathySync/
 ### Core Components
 
 **Entry Point**: [src/app.py](src/app.py) - Streamlit application with:
-- Chat interface with three communication modes (Gentle/Direct/Balanced)
+- Chat interface (communication style auto-adjusts based on detected domain)
 - Wellness sidebar with usage health indicators
 - Reality check panel showing dependency signals
 - Trusted network setup and human handoff templates

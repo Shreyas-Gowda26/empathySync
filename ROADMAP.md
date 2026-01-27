@@ -518,6 +518,46 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 
 ---
 
+## Phase 9.5: UI Polish 🔵 IN PROGRESS
+**Goal**: Improve the user interface for better usability without over-engineering.
+
+**Philosophy**: Functional, not fancy. Every UI element should be clear about what it does.
+
+### 9.5.1 Sidebar Organization ✅ DONE
+- [x] Group related buttons consistently (Quick Actions, Tools, Session Controls)
+- [x] Consistent button sizing and visual hierarchy
+- [x] Clear section headers with visual dividers
+
+### 9.5.2 Button Improvements ✅ DONE
+- [x] Primary actions use `type="primary"` styling
+- [x] Secondary actions are clearly secondary
+- [x] Destructive actions (Reset Data) have confirmation flow
+- [x] Export button simplified (direct download, no nested button)
+
+### 9.5.3 Visual Hierarchy ✅ DONE
+- [x] Add subtle CSS styling for better contrast
+- [x] Consistent spacing between sections
+- [x] Better header styling for main title
+
+### 9.5.4 Prompt Improvements ✅ DONE
+- [x] Fix meta-note leak (model announcing "I'm mirroring...")
+- [x] Prevent model from outputting internal reasoning
+
+### 9.5.5 UI Simplification ✅ DONE
+- [x] Toggle behavior for sidebar panels (Reality Check, My People, My Patterns)
+  - Click button again to close panel (no need for separate "Close" button)
+  - Active panel shows with primary button styling
+- [x] Remove Communication style selector (Gentle/Direct/Balanced)
+  - System auto-adjusts based on detected domain
+  - Reduces UI clutter without losing functionality
+- [x] Fixed late-night warning to be pattern-based (2+ sessions, not single occurrence)
+
+**Files modified**:
+- `src/app.py` - Sidebar reorganization, button improvements, toggle behavior, CSS
+- `scenarios/responses/base_prompt.yaml` - Added rule to prevent meta-commentary
+
+---
+
 ## Phase 10: Advanced Detection (Long-term)
 **Goal**: Further improve classification accuracy as local models improve.
 
@@ -557,17 +597,20 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 | 7. Success Metrics | High | Medium | ✅ COMPLETE |
 | 8. Immunity & Wisdom | **High** | Medium | ✅ COMPLETE (Core) |
 | 9. LLM Classification | **High** | Medium | ✅ COMPLETE |
+| 9.5 UI Polish | Medium | Low | ✅ COMPLETE |
 | 10. Advanced Detection | High | High | 🔵 Long-term |
 
 ---
 
 ## Current Status (2026-01-27)
 
-**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), and 9
+**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, and 9.5
 
 **Recent Bug Fixes**:
 - Fixed spirituality domain risk_weight (was 8.0, now 4.0 per docs)
 - Fixed FORBIDDEN TOPICS bleeding into practical mode prompts
+- Fixed meta-note leak in responses (model saying "I'm mirroring...")
+- Fixed late-night warning to require pattern (2+ sessions, not single occurrence)
 - ✅ Dual-mode operation (practical vs reflective)
 - ✅ Emotional weight detection and acknowledgments
 - ✅ Dynamic timeouts for practical tasks (120s)
