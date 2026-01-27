@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="empathySync logo" width="180"/>
+<img src="assets/logo.png" alt="empathySync logo" width="180" style="border-radius: 50%;"/>
 
 # empathySync
 
