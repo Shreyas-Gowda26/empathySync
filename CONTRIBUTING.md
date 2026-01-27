@@ -82,8 +82,24 @@ Your PR should include:
 - **Offer constructive feedback** - Help others improve
 - **Respect boundaries** - Honor people's time and energy
 
+## Required Reading
+
+Before your first PR, please read:
+- [MANIFESTO.md](MANIFESTO.md) - Non-negotiable design principles
+- [CLAUDE.md](CLAUDE.md) - Technical architecture and safety pipeline
+- [scenarios/README.md](scenarios/README.md) - If modifying the knowledge base
+
+## Testing
+
+Run the full test suite before submitting:
+```bash
+pytest tests/ -v
+```
+
+For changes to safety-critical code (crisis detection, dependency scoring), include specific test cases demonstrating the behavior.
+
 ---
 
 *"Through empathy and collaboration, we build technology that serves human wellbeing."*
 
-**Thank you for helping people develop healthier relationships with AI!** 💝
+**Thank you for helping people develop healthier relationships with AI.**

@@ -261,8 +261,8 @@ All user data is stored locally in JSON files:
 
 ### UI Components (app.py)
 
-- **Chat Interface**: Main conversation with mode selector and message history
-- **Wellness Sidebar**: Health indicators, session stats, check-in prompts
+- **Chat Interface**: Main conversation area with message history
+- **Wellness Sidebar**: Health indicators, check-in prompts, toggle panels
 - **Reality Check Panel**: Dependency signals with human-readable warnings
 - **Trusted Network Setup**: Add/manage trusted contacts by domain
 - **Bring Someone In**: Pre-written templates for human handoff (need_to_talk, reconnecting, checking_in, hard_conversation, asking_for_help)
@@ -282,7 +282,8 @@ Tests are in [tests/test_wellness_guide.py](tests/test_wellness_guide.py) with 1
 - **Singleton Pattern**: `ScenarioLoader` via `get_scenario_loader()`
 - **3-Layer Prompt Composition**: Base rules + style modifier + risk context
 - **Graduated Interventions**: 5 dependency levels (none, early_pattern, mild, concerning, high)
-- **Session State Tracking**: Turns, domains, max risk, last policy action
+- **Session State Tracking**: Turns, domains, max risk, last policy action, post-crisis turn
+- **Post-Crisis Protection**: Tracks when crisis intervention occurred, prevents LLM from apologizing for safety actions
 - **Hot Reload Support**: `loader.reload()` and `loader.clear_cache()`
 - **Transparency Logging**: All policy decisions logged with reasons
 

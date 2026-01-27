@@ -37,7 +37,7 @@ This document provides a visual overview of empathySync's architecture. For deta
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-## Request Flow (7-Step Safety Pipeline)
+## Request Flow (Safety Pipeline)
 
 When a user sends a message, it passes through multiple safety checks:
 
@@ -46,7 +46,16 @@ User Input
     │
     ▼
 ┌─────────────────────────────────────────────┐
-│  1. COOLDOWN CHECK                          │
+│  1. POST-CRISIS CHECK                       │
+│     If previous turn was crisis intervention│
+│     Handle deflection ("just joking") with  │
+│     firm, non-apologetic response           │
+│     Never apologize for crisis intervention │
+└─────────────────────────────────────────────┘
+    │ Pass
+    ▼
+┌─────────────────────────────────────────────┐
+│  2. COOLDOWN CHECK                          │
 │     WellnessTracker.should_enforce_cooldown │
 │     - 7+ sessions today? → Block            │
 │     - 120+ minutes today? → Block           │
@@ -55,7 +64,7 @@ User Input
     │ Pass
     ▼
 ┌─────────────────────────────────────────────┐
-│  2. RISK ASSESSMENT                         │
+│  3. RISK ASSESSMENT                         │
 │     RiskClassifier.classify()               │
 │     Returns: domain, emotional_intensity,   │
 │              dependency_risk, risk_weight   │
@@ -63,21 +72,21 @@ User Input
     │
     ▼
 ┌─────────────────────────────────────────────┐
-│  3. MODE SELECTION                          │
+│  4. MODE SELECTION                          │
 │     domain == "logistics" → Practical Mode  │
 │     else → Reflective Mode                  │
 └─────────────────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────────────────┐
-│  4. HARD STOP CHECK                         │
+│  5. HARD STOP CHECK                         │
 │     domain in [crisis, harmful] → Immediate │
 │     intervention with resources             │
 └─────────────────────────────────────────────┘
     │ Pass
     ▼
 ┌─────────────────────────────────────────────┐
-│  5. TURN LIMIT CHECK                        │
+│  6. TURN LIMIT CHECK                        │
 │     Each domain has max turns:              │
 │     logistics:20, money:8, health:8,        │
 │     relationships:10, spirituality:5        │
@@ -85,14 +94,14 @@ User Input
     │ Pass
     ▼
 ┌─────────────────────────────────────────────┐
-│  6. DEPENDENCY INTERVENTION                 │
+│  7. DEPENDENCY INTERVENTION                 │
 │     If dependency_score > threshold:        │
 │     Inject graduated intervention message   │
 └─────────────────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────────────────┐
-│  7. IDENTITY REMINDER (Reflective only)     │
+│  8. IDENTITY REMINDER (Reflective only)     │
 │     Every 6 turns: "I'm software,           │
 │     not a person..."                        │
 └─────────────────────────────────────────────┘
@@ -149,7 +158,7 @@ Response to User
 ┌───────────────────────────────────────────────────────────────┐
 │                       RiskClassifier                           │
 │                                                                 │
-│   - Domain detection (7 domains)                                │
+│   - Domain detection (8 domains)                                │
 │   - Emotional intensity (0-10)                                  │
 │   - Emotional weight (for practical tasks)                      │
 │   - Dependency risk scoring                                     │
@@ -248,8 +257,8 @@ Response to User
 │                          +                                      │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │ LAYER 2: Style Modifier (prompts/styles.yaml)             │  │
-│  │ - Gentle / Direct / Balanced                              │  │
-│  │ - Selected by user                                        │  │
+│  │ - Balanced (default)                                      │  │
+│  │ - Auto-adjusts based on detected domain                   │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                          +                                      │
 │  ┌───────────────────────────────────────────────────────────┐  │
@@ -348,7 +357,7 @@ empathySync/
 │       └── scenario_loader.py   # YAML knowledge base loader
 │
 ├── scenarios/                    # Knowledge base (YAML)
-│   ├── domains/                 # 7 risk domains
+│   ├── domains/                 # 8 risk domains
 │   ├── emotional_markers/       # 4 intensity levels
 │   ├── interventions/           # Dependency, boundaries
 │   ├── prompts/                 # Check-ins, styles

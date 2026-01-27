@@ -30,15 +30,13 @@ empathySync operates in two modes:
 
 You don't choose the mode—the system detects it from your message.
 
-### Communication Styles
+### Adaptive Communication
 
-In the sidebar, choose how empathySync communicates:
+empathySync automatically adjusts its communication style based on the detected topic:
+- Practical tasks get clear, direct responses
+- Sensitive topics get warmer, more careful phrasing
 
-- **Gentle**: Softer, more supportive language
-- **Direct**: Clear, straightforward communication
-- **Balanced**: A mix of both (default)
-
-This only affects tone, not the safety guardrails.
+You don't need to configure this—the system handles it.
 
 ### Session Intent Check-In
 
@@ -64,12 +62,22 @@ If you're using the app too frequently, you'll see warnings. This is intentional
 
 ### Reality Check Button
 
-Click to see a comparison of your AI usage vs. human connection:
-- How often you're here
-- How often you're reaching out to real people
-- Patterns the system has noticed
+Click to see a grounding reminder:
+- This is software, not a person
+- It reflects patterns in text—it doesn't truly know you
+- It's a tool for thinking, not a companion or advisor
 
-This panel includes the reminder: *"This is software, not a person."*
+This panel helps maintain perspective on what AI is and isn't.
+
+### My Patterns Button
+
+Click to see your usage dashboard:
+- Sensitive vs practical sessions this week
+- Week-over-week comparison
+- Human connection tracking
+- Reliance score (goal: keep it low)
+
+The key metric: **sensitive sessions going down** means you're using the tool healthily.
 
 ### My People (Trusted Network)
 
@@ -139,6 +147,8 @@ If the system detects crisis language (suicidal ideation, self-harm), it immedia
 2. Provides crisis resources (hotlines, text lines)
 3. Strongly encourages professional help
 
+**Post-crisis protection:** If you say "just joking" or try to dismiss the intervention, the system won't apologize. It responds firmly but warmly, because taking crisis language seriously is always the right thing to do—even if it turns out to be a false alarm.
+
 ## Practical Tasks
 
 For practical tasks (writing, coding, explanations), empathySync works like a normal assistant:
@@ -186,6 +196,22 @@ For these, responses are:
 - Limited by turn count
 
 This isn't because the system can't help—it's because it shouldn't replace human support for these topics.
+
+### "What Would You Tell a Friend?"
+
+When you ask "what should I do?" about sensitive topics, the system may flip the question:
+
+> *"If a friend came to you with this exact situation, what would you tell them?"*
+
+This helps you access your own wisdom instead of asking AI for answers you already have. Whatever you'd tell a friend is probably good advice for yourself too.
+
+### "Have You Talked to Someone?"
+
+Before deep-diving into sensitive topics, the system may ask:
+
+> *"Have you talked to someone about this yet?"*
+
+If you haven't, it gently encourages that first. Human connection should come before AI conversation for things that matter.
 
 ## Data Export
 
