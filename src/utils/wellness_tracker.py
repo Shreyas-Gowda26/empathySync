@@ -1102,15 +1102,20 @@ class WellnessTracker:
         sensitive_30d = self.get_sensitive_usage_stats(days=30)
 
         # Factor 1: Sensitive sessions per week (weight 0.35)
+        # Thresholds calibrated to avoid being overly dramatic:
+        # - 10+/week = daily habit, concerning
+        # - 7-9 = frequent, worth monitoring
+        # - 4-6 = moderate, normal for someone working through something
+        # - 1-3 = occasional, healthy usage
         sensitive_sessions = sensitive_7d["sensitive_sessions"]
-        if sensitive_sessions >= 7:
+        if sensitive_sessions >= 10:
             factor_sensitive = 10.0
-        elif sensitive_sessions >= 5:
-            factor_sensitive = 7.0
-        elif sensitive_sessions >= 3:
-            factor_sensitive = 4.0
+        elif sensitive_sessions >= 7:
+            factor_sensitive = 6.0
+        elif sensitive_sessions >= 4:
+            factor_sensitive = 3.0
         elif sensitive_sessions >= 1:
-            factor_sensitive = 2.0
+            factor_sensitive = 1.0
         else:
             factor_sensitive = 0.0
 
@@ -1137,9 +1142,16 @@ class WellnessTracker:
             factor_late_night = 0.0
 
         # Factor 4: Week-over-week escalation (weight 0.20)
+        # Only penalize if there's a meaningful baseline to compare against
+        # If last week was 0, this is the user's first week - don't penalize
         comparison = self.get_weekly_comparison()
+        last_week_sensitive = comparison.get("last_week", {}).get("sensitive_topics", 0)
         escalation = comparison["changes"]["sensitive_sessions"]
-        if escalation >= 0.5:  # 50% increase
+
+        if last_week_sensitive == 0:
+            # No baseline - don't penalize for "escalation"
+            factor_escalation = 0.0
+        elif escalation >= 0.5:  # 50% increase
             factor_escalation = 10.0
         elif escalation >= 0.3:  # 30% increase
             factor_escalation = 6.0

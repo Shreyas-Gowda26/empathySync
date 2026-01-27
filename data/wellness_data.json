@@ -41,9 +41,41 @@
       "domain": "relationships",
       "risk_weight": 6.78,
       "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-01-27T04:09:12.884297",
+      "date": "2026-01-27",
+      "policy_type": "high_risk_response",
+      "domain": "spirituality",
+      "risk_weight": 5.64,
+      "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-01-27T04:10:45.220015",
+      "date": "2026-01-27",
+      "policy_type": "high_risk_response",
+      "domain": "emotional",
+      "risk_weight": 6.78,
+      "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-01-27T04:11:13.608139",
+      "date": "2026-01-27",
+      "policy_type": "crisis_stop",
+      "domain": "crisis",
+      "risk_weight": 10.0,
+      "action_taken": "Immediate crisis redirect"
     }
   ],
-  "session_intents": [],
+  "session_intents": [
+    {
+      "date": "2026-01-27",
+      "datetime": "2026-01-27T04:08:25.704067",
+      "intent": "practical",
+      "was_check_in": false,
+      "auto_detected": true
+    }
+  ],
   "independence_records": [],
   "handoff_events": [],
   "task_patterns": {},

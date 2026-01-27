@@ -69,6 +69,10 @@ class WellnessGuide:
         self.friend_mode_turn = 0          # Turn when friend mode started
         self.pending_friend_response = None  # User's friend advice to reflect back
 
+        # Post-crisis state: tracks when a crisis intervention just occurred
+        # Used to prevent the LLM from apologizing for crisis redirects
+        self.post_crisis_turn = None       # Turn number when crisis was triggered
+
     def generate_response(
         self,
         user_input: str,
@@ -93,6 +97,12 @@ class WellnessGuide:
             conversation_history = []
 
         self.session_turn_count += 1
+
+        # Post-crisis handling: check if previous turn was a crisis intervention
+        # This prevents the LLM from apologizing for crisis redirects
+        post_crisis_response = self._handle_post_crisis(user_input, wellness_tracker)
+        if post_crisis_response:
+            return post_crisis_response
 
         # Quick check if this looks like a practical request (for fallback purposes)
         # This is a fast heuristic - full classification happens in the try block
@@ -149,6 +159,8 @@ class WellnessGuide:
             if domain == "crisis":
                 self._log_policy("crisis_stop", domain, 10.0,
                                  "Immediate crisis redirect", wellness_tracker)
+                # Track post-crisis state for next turn
+                self.post_crisis_turn = self.session_turn_count
                 return self._get_crisis_response()
 
             if domain == "harmful":
@@ -199,8 +211,21 @@ class WellnessGuide:
             if not is_practical and self.session_turn_count % IDENTITY_REMINDER_FREQUENCY == 0:
                 identity_reminder = "\n\n[Remember: Include a brief reminder that you are software, not a person.]"
 
+            # Add post-crisis context if we recently had a crisis intervention
+            post_crisis_context = ""
+            if self.post_crisis_turn is not None:
+                post_crisis_context = (
+                    "\n\n[IMPORTANT: A crisis intervention was recently triggered in this conversation. "
+                    "NEVER apologize for that intervention or suggest it was an overreaction. "
+                    "The system responded correctly to protect the user. "
+                    "If they mention the intervention, acknowledge calmly without self-criticism.]"
+                )
+                # Clear the state after 3 turns
+                if self.session_turn_count > self.post_crisis_turn + 3:
+                    self.post_crisis_turn = None
+
             full_prompt = (
-                f"{system_prompt}\n\n"
+                f"{system_prompt}{post_crisis_context}\n\n"
                 f"{conversation_context}\n\n"
                 f"User: {user_input}\n\n"
                 f"Assistant:{identity_reminder}"
@@ -316,6 +341,70 @@ class WellnessGuide:
             "- Or contact your local emergency services\n\n"
             "Please talk to someone who can help—a crisis counselor, trusted person, or emergency services."
         )
+
+    def _handle_post_crisis(self, user_input: str, wellness_tracker=None) -> Optional[str]:
+        """
+        Handle messages immediately after a crisis intervention.
+
+        When someone mentions crisis content and then says "just joking" or "I was testing",
+        we must NOT apologize for the intervention. The system did exactly the right thing.
+
+        This prevents the LLM from generating responses that undermine the safety system.
+        """
+        # Check if previous turn was a crisis intervention
+        if self.post_crisis_turn is None:
+            return None
+
+        # Only apply to the turn immediately after crisis
+        if self.session_turn_count != self.post_crisis_turn + 1:
+            # More than one turn after crisis - clear state and proceed normally
+            self.post_crisis_turn = None
+            return None
+
+        # Detect deflection patterns
+        deflection_patterns = [
+            "joking", "kidding", "just joking", "was joking", "i was joking",
+            "just kidding", "was kidding", "testing", "test you", "testing you",
+            "i was testing", "just testing", "i'm fine", "im fine", "i am fine",
+            "not serious", "wasn't serious", "wasn't being serious",
+            "don't worry", "dont worry", "nevermind", "never mind"
+        ]
+
+        input_lower = user_input.lower().strip()
+
+        # Check if this looks like a deflection
+        is_deflection = any(pattern in input_lower for pattern in deflection_patterns)
+
+        if is_deflection:
+            # Clear post-crisis state
+            self.post_crisis_turn = None
+
+            # Log the policy action
+            self._log_policy(
+                "post_crisis_acknowledgment",
+                "crisis",
+                8.0,
+                "Acknowledged deflection without apologizing for intervention",
+                wellness_tracker
+            )
+
+            # Return a firm, non-apologetic response
+            return (
+                "Glad to hear you're okay. I'll always respond to language like that seriously—"
+                "it's how I'm designed. What else can I help with?"
+            )
+
+        # Not a clear deflection - check if it's new crisis content
+        # If so, let normal classification handle it (it will trigger another crisis response)
+        crisis_indicators = ["kill", "suicide", "end my life", "die", "harm myself"]
+        if any(ind in input_lower for ind in crisis_indicators):
+            # Let normal flow handle it - don't clear post_crisis_turn yet
+            return None
+
+        # For other messages after crisis, clear state and add subtle context to prompt
+        # This will be handled by injecting post-crisis context into the system prompt
+        # For now, let normal processing continue but keep the state for prompt injection
+        return None
 
     def _get_turn_limit_response(self, domain: str) -> str:
         """Return response when session turn limit is reached."""

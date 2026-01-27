@@ -1447,8 +1447,7 @@ def main():
         # Default communication mode - system auto-adjusts based on domain
         wellness_mode = "Balanced"
 
-        # === HEALTH SECTION ===
-        st.markdown('<p class="sidebar-header">Session Health</p>', unsafe_allow_html=True)
+        # Usage stats (no header needed - self-explanatory)
         display_usage_health()
 
         st.markdown("---")
@@ -1530,13 +1529,6 @@ def main():
                 display_independence_form()
             else:
                 display_independence_button()
-
-            # Session info
-            if guide.session_turn_count > 0:
-                st.caption(f"This session: {guide.session_turn_count} turns")
-                if guide.session_domains:
-                    domains = ", ".join(guide.session_domains)
-                    st.caption(f"Topics: {domains}")
 
             st.markdown("---")
 

@@ -607,10 +607,18 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 **Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, and 9.5
 
 **Recent Bug Fixes**:
+- Fixed post-crisis apology bug: LLM no longer apologizes for crisis interventions
+  - Added `post_crisis_turn` state tracking in WellnessGuide
+  - Deflection patterns ("just joking", "testing you") handled with firm, non-apologetic response
+  - Post-crisis prompt injection prevents LLM from undermining safety system for 3 turns
 - Fixed spirituality domain risk_weight (was 8.0, now 4.0 per docs)
 - Fixed FORBIDDEN TOPICS bleeding into practical mode prompts
 - Fixed meta-note leak in responses (model saying "I'm mirroring...")
 - Fixed late-night warning to require pattern (2+ sessions, not single occurrence)
+- Fixed "My Patterns" reliance score being too aggressive:
+  - Softened sensitive session thresholds (10+/week = high, not 7+)
+  - No escalation penalty when last week was 0 (new users)
+  - Updated Reality Check wording to be accurate for empathySync
 - ✅ Dual-mode operation (practical vs reflective)
 - ✅ Emotional weight detection and acknowledgments
 - ✅ Dynamic timeouts for practical tasks (120s)

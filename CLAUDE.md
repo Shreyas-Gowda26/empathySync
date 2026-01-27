@@ -139,24 +139,25 @@ empathySync/
   - Redirects to human support
   - Identity reminders every 6 turns
 
-### Data Flow (7-Step Safety Pipeline)
+### Data Flow (Safety Pipeline)
 
 1. User input received in Streamlit chat
-2. **Cooldown Check**: `WellnessTracker.should_enforce_cooldown()` blocks if usage limits exceeded
-3. **Risk Assessment**: `RiskClassifier.classify()` returns domain, emotional intensity, dependency risk, and combined risk weight
-4. **Mode Selection**: `logistics` domain → Practical Mode, other domains → Reflective Mode
-5. **Hard Stop Check**: Crisis/harmful domains trigger immediate intervention
-6. **Turn Limit Check**: Domain-specific turn limits enforced:
+2. **Post-Crisis Check**: If previous turn was a crisis intervention, handle deflection patterns ("just joking") with firm, non-apologetic response. Never apologize for crisis interventions.
+3. **Cooldown Check**: `WellnessTracker.should_enforce_cooldown()` blocks if usage limits exceeded
+4. **Risk Assessment**: `RiskClassifier.classify()` returns domain, emotional intensity, dependency risk, and combined risk weight
+5. **Mode Selection**: `logistics` domain → Practical Mode, other domains → Reflective Mode
+6. **Hard Stop Check**: Crisis/harmful domains trigger immediate intervention
+7. **Turn Limit Check**: Domain-specific turn limits enforced:
    - `logistics`: 20 turns (practical tasks)
    - `money`: 8 turns
    - `health`: 8 turns
    - `relationships`: 10 turns
    - `spirituality`: 5 turns
    - `crisis/harmful`: 1 turn
-7. **Dependency Intervention**: Graduated responses if dependency score exceeds thresholds
-8. **Identity Reminder**: Injected every 6 turns (only in Reflective Mode)
-9. System prompt composed (base + style + mode-specific rules), Ollama called locally
-10. Response safety-checked via `_contains_harmful_content()` before display
+8. **Dependency Intervention**: Graduated responses if dependency score exceeds thresholds
+9. **Identity Reminder**: Injected every 6 turns (only in Reflective Mode)
+10. System prompt composed (base + style + mode-specific rules + post-crisis context if applicable), Ollama called locally
+11. Response safety-checked via `_contains_harmful_content()` before display
 
 ### Risk Assessment
 
