@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" width="360" height="120">
+  <!-- Text: empathySync -->
+  <text x="10" y="28" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="600" fill="#2d3748">
+    empathy<tspan fill="#4a90a4">Sync</tspan>
+  </text>
+  <!-- Exit arrow -->
+  <g transform="translate(108, 12)">
+    <line x1="-8" y1="8" x2="4" y2="8" stroke="#6bc5b0" stroke-width="2.5" stroke-linecap="round"/>
+    <polyline points="0,4 6,8 0,12" fill="none" stroke="#6bc5b0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

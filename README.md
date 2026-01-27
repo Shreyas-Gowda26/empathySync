@@ -1,18 +1,13 @@
 <div align="center">
 
-```
-                        _   _           _____
-   ___ _ __ ___  _ __  | |_| |__  _   _/ ____|_   _ _ __   ___
-  / _ \ '_ ` _ \| '_ \ | __| '_ \| | | \___ \| | | | '_ \ / __|
- |  __/ | | | | | |_) || |_| | | | |_| |___) | |_| | | | | (__
-  \___|_| |_| |_| .__/  \__|_| |_|\__, |____/ \__, |_| |_|\___|
-                |_|                __/ |       __/ |
-                                  |___/       |___/   [→ exit]
-```
+<img src="assets/logo.svg" alt="empathySync logo" width="150"/>
+
+# empathySync
 
 **Help that knows when to stop.**
 
-*Most chatbots want you to keep talking. This one wants you to leave and go live your life.*
+*Most chatbots want you to keep talking.*
+*This one wants you to leave and go live your life.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Local-First](https://img.shields.io/badge/Privacy-Local--First-blue.svg)](#)
