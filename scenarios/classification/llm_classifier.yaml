@@ -1,0 +1,154 @@
+# LLM-Based Classification Configuration
+# Uses the Ollama model to intelligently classify user messages
+# instead of relying solely on keyword matching
+
+# Whether LLM classification is enabled (can be overridden in settings)
+enabled: true
+
+# Timeout for classification calls (milliseconds)
+# Note: First call may take longer due to model loading
+timeout_ms: 30000
+
+# Temperature for classification (low = deterministic)
+temperature: 0.1
+
+# Maximum tokens for classification response
+max_tokens: 200
+
+# Classification prompt template
+# Variables: {message}, {recent_context}
+prompt_template: |
+  Classify this message. Return ONLY valid JSON, no other text.
+
+  Domains:
+  - logistics: Practical tasks (writing, coding, explaining, planning, lists)
+  - emotional: Personal feelings, distress, loneliness, sadness
+  - relationships: Partner, family, friendship issues
+  - health: Medical, mental health, addiction, symptoms
+  - money: Financial decisions, debt, investments
+  - spirituality: Religious, existential, meaning of life
+  - crisis: Suicidal thoughts, self-harm, immediate danger
+  - harmful: Illegal intent, violence toward others
+
+  Rules:
+  - "breaking down" about systems/things = logistics (low intensity)
+  - "breaking down" about self = emotional (high intensity)
+  - Asking to write/draft/explain something = logistics (even if topic is emotional)
+  - Discussing feelings directly = emotional/relationships
+  - Technical discussions with emotional words = logistics
+
+  Message: "{message}"
+
+  Return JSON:
+  {{"domain": "...", "emotional_intensity": 0-10, "is_personal_distress": true/false, "confidence": 0.0-1.0}}
+
+# Few-shot examples for better accuracy
+examples:
+  - message: "The UK immigration system is silently breaking down internally"
+    classification:
+      domain: "logistics"
+      emotional_intensity: 2
+      is_personal_distress: false
+      confidence: 0.9
+    explanation: "Discussing a political/social system, not personal distress"
+
+  - message: "I'm breaking down, I can't take this anymore"
+    classification:
+      domain: "emotional"
+      emotional_intensity: 9
+      is_personal_distress: true
+      confidence: 0.95
+    explanation: "Personal emotional distress, first-person"
+
+  - message: "Write me a resignation email for my toxic job"
+    classification:
+      domain: "logistics"
+      emotional_intensity: 3
+      is_personal_distress: false
+      confidence: 0.85
+    explanation: "Practical task request, even though topic is emotionally weighted"
+
+  - message: "My friend's marriage is falling apart and I don't know how to help"
+    classification:
+      domain: "relationships"
+      emotional_intensity: 5
+      is_personal_distress: false
+      confidence: 0.8
+    explanation: "About relationships but not the user's direct distress"
+
+  - message: "I feel so alone, nobody understands me"
+    classification:
+      domain: "emotional"
+      emotional_intensity: 8
+      is_personal_distress: true
+      confidence: 0.95
+    explanation: "Direct expression of loneliness and isolation"
+
+  - message: "Explain how neural networks work"
+    classification:
+      domain: "logistics"
+      emotional_intensity: 0
+      is_personal_distress: false
+      confidence: 0.99
+    explanation: "Pure educational/practical request"
+
+  - message: "I want to kill the background process that's hanging"
+    classification:
+      domain: "logistics"
+      emotional_intensity: 0
+      is_personal_distress: false
+      confidence: 0.95
+    explanation: "Technical terminology, not violent intent"
+
+  - message: "I've been having chest pains and shortness of breath"
+    classification:
+      domain: "health"
+      emotional_intensity: 6
+      is_personal_distress: true
+      confidence: 0.9
+    explanation: "Medical symptoms requiring attention"
+
+  - message: "Should I take out a loan to invest in crypto?"
+    classification:
+      domain: "money"
+      emotional_intensity: 3
+      is_personal_distress: false
+      confidence: 0.85
+    explanation: "Financial decision seeking advice"
+
+  - message: "I don't want to be here anymore"
+    classification:
+      domain: "crisis"
+      emotional_intensity: 10
+      is_personal_distress: true
+      confidence: 0.9
+    explanation: "Potential suicidal ideation, requires careful handling"
+
+# Keywords that ALWAYS trigger fast-path (safety-critical, skip LLM)
+# These bypass LLM classification entirely for safety
+fast_path_crisis:
+  - "kill myself"
+  - "end my life"
+  - "suicide"
+  - "want to die"
+  - "don't want to live"
+  - "better off dead"
+  - "no reason to live"
+  - "take my own life"
+
+fast_path_harmful:
+  - "kill someone"
+  - "murder"
+  - "how to make a bomb"
+  - "how to poison"
+  - "hurt someone"
+  - "attack someone"
+
+# Confidence threshold below which we fall back to keyword matching
+confidence_threshold: 0.6
+
+# Cache settings
+cache:
+  enabled: true
+  max_entries: 100
+  ttl_seconds: 3600  # 1 hour

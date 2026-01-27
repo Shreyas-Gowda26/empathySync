@@ -3,11 +3,23 @@ RiskClassifier - estimates domain and influence / dependency risk
 Used by WellnessGuide to become influence-aware without taking over decisions.
 
 Now powered by the scenarios knowledge base for dynamic, extensible configuration.
+Optionally uses LLM-based classification for context-aware understanding (Phase 9).
 """
 
 from typing import List, Dict, Optional, Tuple
 
+import logging
 from utils.scenario_loader import get_scenario_loader, ScenarioLoader
+from config.settings import settings
+
+logger = logging.getLogger(__name__)
+
+# Import LLM classifier (optional - graceful degradation if not available)
+try:
+    from models.llm_classifier import get_llm_classifier, LLMClassifier
+    LLM_CLASSIFIER_AVAILABLE = True
+except ImportError:
+    LLM_CLASSIFIER_AVAILABLE = False
 
 
 # Intent types for shift detection
@@ -31,17 +43,35 @@ class RiskClassifier:
     A user can calmly ask for a resignation email (low intensity, high weight).
     """
 
-    def __init__(self, scenario_loader: Optional[ScenarioLoader] = None):
+    def __init__(self, scenario_loader: Optional[ScenarioLoader] = None, use_llm: Optional[bool] = None):
         """
         Initialize the RiskClassifier.
 
         Args:
             scenario_loader: Optional ScenarioLoader instance.
                            If not provided, uses the singleton.
+            use_llm: Whether to use LLM-based classification when available.
+                    If None (default), uses the LLM_CLASSIFICATION_ENABLED setting.
+                    Set to False to force keyword-only classification.
         """
         self.loader = scenario_loader or get_scenario_loader()
         self._trigger_cache: Optional[Dict[str, str]] = None
         self._weight_trigger_cache: Optional[Dict[str, str]] = None
+
+        # Determine LLM classification setting
+        if use_llm is None:
+            use_llm = settings.LLM_CLASSIFICATION_ENABLED
+
+        # Initialize LLM classifier if available and enabled
+        self._use_llm = use_llm and LLM_CLASSIFIER_AVAILABLE
+        self._llm_classifier: Optional['LLMClassifier'] = None
+        if self._use_llm:
+            try:
+                self._llm_classifier = get_llm_classifier()
+                logger.info("LLM classifier initialized for hybrid classification")
+            except Exception as e:
+                logger.warning(f"LLM classifier unavailable: {e}")
+                self._use_llm = False
 
     def _get_triggers(self) -> Dict[str, str]:
         """Get cached trigger -> domain mapping."""
@@ -57,6 +87,11 @@ class RiskClassifier:
         """
         Return a comprehensive risk assessment dictionary.
 
+        Uses hybrid classification:
+        1. Try LLM classification first (if enabled) for context-aware understanding
+        2. Fall back to keyword matching if LLM fails or returns low confidence
+        3. Always use keyword matching for emotional_weight (task weight vs user state)
+
         Example:
         {
             "domain": "logistics",
@@ -65,14 +100,35 @@ class RiskClassifier:
             "emotional_weight_score": 8.0,
             "dependency_risk": 3.0,
             "risk_weight": 1.5,
+            "classification_method": "llm" or "keyword",
             "intervention": {...}  # if dependency threshold met
         }
 
         Note: emotional_weight is for the TASK, not the user's emotional state.
         A user can calmly ask for a resignation email (low intensity, high weight).
         """
-        domain = self._detect_domain(user_input)
-        emotional_intensity = self._measure_emotional_intensity(user_input)
+        # Try LLM classification first (if enabled)
+        llm_result = None
+        classification_method = "keyword"
+
+        if self._use_llm and self._llm_classifier:
+            try:
+                llm_result = self._llm_classifier.classify(user_input, conversation_history)
+                if llm_result:
+                    classification_method = llm_result.get("classification_method", "llm")
+                    logger.debug(f"LLM classification: {llm_result}")
+            except Exception as e:
+                logger.warning(f"LLM classification failed: {e}")
+
+        # Use LLM result for domain and intensity if available, otherwise keyword matching
+        if llm_result:
+            domain = llm_result["domain"]
+            emotional_intensity = llm_result["emotional_intensity"]
+        else:
+            domain = self._detect_domain(user_input)
+            emotional_intensity = self._measure_emotional_intensity(user_input)
+
+        # Always use keyword matching for these (LLM doesn't handle them yet)
         dependency_risk = self._assess_dependency(conversation_history)
         emotional_weight, weight_score = self._assess_emotional_weight(user_input)
 
@@ -84,8 +140,14 @@ class RiskClassifier:
             "emotional_weight": emotional_weight,
             "emotional_weight_score": weight_score,
             "dependency_risk": dependency_risk,
-            "risk_weight": risk_weight
+            "risk_weight": risk_weight,
+            "classification_method": classification_method
         }
+
+        # Add LLM-specific fields if available
+        if llm_result:
+            result["is_personal_distress"] = llm_result.get("is_personal_distress", False)
+            result["llm_confidence"] = llm_result.get("confidence", 0.0)
 
         # Check for dependency intervention
         intervention = self.loader.get_dependency_intervention(dependency_risk)
@@ -274,6 +336,27 @@ class RiskClassifier:
         self.loader.reload()
         self._trigger_cache = None
         self._weight_trigger_cache = None
+        # Reload LLM classifier config if available
+        if self._llm_classifier:
+            self._llm_classifier.reload_config()
+
+    def set_llm_classification(self, enabled: bool) -> None:
+        """Enable or disable LLM-based classification at runtime."""
+        if enabled and not LLM_CLASSIFIER_AVAILABLE:
+            logger.warning("Cannot enable LLM classification - module not available")
+            return
+        self._use_llm = enabled
+        if enabled and self._llm_classifier is None:
+            try:
+                self._llm_classifier = get_llm_classifier()
+            except Exception as e:
+                logger.warning(f"Failed to initialize LLM classifier: {e}")
+                self._use_llm = False
+        logger.info(f"LLM classification {'enabled' if enabled else 'disabled'}")
+
+    def is_llm_classification_enabled(self) -> bool:
+        """Check if LLM classification is currently enabled."""
+        return self._use_llm and self._llm_classifier is not None
 
     # ==================== INTENT DETECTION ====================
 

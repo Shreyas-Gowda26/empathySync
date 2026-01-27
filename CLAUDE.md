@@ -51,6 +51,7 @@ Configure in `.env` file (see `.env.example`):
 - `LOG_LEVEL` - DEBUG/INFO/WARNING/ERROR
 - `STORE_CONVERSATIONS` - true/false
 - `CONVERSATION_RETENTION_DAYS` - integer (default: 30)
+- `LLM_CLASSIFICATION_ENABLED` - true/false (default: true) - enables LLM-based intelligent classification (Phase 9)
 
 **Optional PostgreSQL** (all or none): `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 
@@ -61,25 +62,34 @@ Configure in `.env` file (see `.env.example`):
 ```
 empathySync/
 ├── src/                          # Application source code
-│   ├── app.py                   # Streamlit entry point (466 lines)
+│   ├── app.py                   # Streamlit entry point (~1500 lines)
 │   ├── config/settings.py       # Environment configuration
 │   ├── models/
-│   │   ├── ai_wellness_guide.py # Core conversation engine (379 lines)
-│   │   └── risk_classifier.py   # Risk assessment (183 lines)
+│   │   ├── ai_wellness_guide.py # Core conversation engine (~800 lines)
+│   │   ├── risk_classifier.py   # Risk assessment + intent detection (~600 lines)
+│   │   └── llm_classifier.py    # LLM-based classification (Phase 9)
 │   ├── prompts/
-│   │   └── wellness_prompts.py  # Dynamic prompt generation (232 lines)
+│   │   └── wellness_prompts.py  # Dynamic prompt generation (~350 lines)
 │   └── utils/
 │       ├── helpers.py           # Logging and utilities
-│       ├── wellness_tracker.py  # Session/check-in tracking (332 lines)
-│       ├── trusted_network.py   # Human network management (295 lines)
-│       └── scenario_loader.py   # YAML knowledge base loader (301 lines)
-├── scenarios/                    # Knowledge base (22 YAML files)
-│   ├── domains/                 # 7 risk domains
+│       ├── wellness_tracker.py  # Session/check-in/metrics tracking (~1400 lines)
+│       ├── trusted_network.py   # Human network management (~500 lines)
+│       └── scenario_loader.py   # YAML knowledge base loader (~1300 lines)
+├── scenarios/                    # Knowledge base (32 YAML files)
+│   ├── domains/                 # 8 risk domains (crisis, harmful, health, money, emotional, relationships, spirituality, logistics)
 │   ├── emotional_markers/       # 4 intensity levels
-│   ├── interventions/           # Dependency, boundaries, graduation
+│   ├── emotional_weight/        # Task weight detection (high/medium/low)
+│   ├── classification/          # LLM classifier prompts and config
+│   ├── graduation/              # Competence graduation prompts
+│   ├── handoff/                 # Human handoff templates
+│   ├── intents/                 # Session intent configuration
+│   ├── interventions/           # Dependency, boundaries
+│   ├── metrics/                 # Success metrics configuration
 │   ├── prompts/                 # Check-ins, mindfulness, styles
-│   └── responses/               # Fallbacks, safe alternatives, base prompt
-├── tests/                       # Pytest test suite (338 lines, 100+ tests)
+│   ├── responses/               # Fallbacks, safe alternatives, base prompt
+│   ├── transparency/            # Explanation templates
+│   └── wisdom/                  # Immunity building prompts
+├── tests/                       # Pytest test suite (100+ tests)
 ├── data/                        # Local user data (JSON files)
 ├── docs/                        # Documentation
 └── logs/                        # Application logs
@@ -95,8 +105,9 @@ empathySync/
 - Session tracking, export, and policy action transparency
 
 **Models**:
-- [src/models/ai_wellness_guide.py](src/models/ai_wellness_guide.py) - `WellnessGuide` class: main conversation engine with 7-step safety pipeline, session state tracking, and identity reminder injection
-- [src/models/risk_classifier.py](src/models/risk_classifier.py) - `RiskClassifier` class: detects conversation domain (7 domains), measures emotional intensity (0-10), assesses dependency risk, and provides domain-specific rules
+- [src/models/ai_wellness_guide.py](src/models/ai_wellness_guide.py) - `WellnessGuide` class: main conversation engine with 7-step safety pipeline, session state tracking, context persistence, and identity reminder injection
+- [src/models/risk_classifier.py](src/models/risk_classifier.py) - `RiskClassifier` class: detects conversation domain (8 domains), measures emotional intensity (0-10), assesses dependency risk, intent detection, and provides domain-specific rules
+- [src/models/llm_classifier.py](src/models/llm_classifier.py) - `LLMClassifier` class: LLM-based intelligent classification with caching, used for context-aware domain detection when `LLM_CLASSIFICATION_ENABLED=true`
 
 **Prompts**:
 - [src/prompts/wellness_prompts.py](src/prompts/wellness_prompts.py) - `WellnessPrompts` class: builds system prompts via 3-layer composition (base rules + style modifier + risk context)
@@ -152,13 +163,16 @@ empathySync/
 The `RiskClassifier` produces:
 ```python
 {
-    "domain": str,              # money, health, relationships, spirituality, crisis, harmful, logistics
-    "emotional_weight": str,    # high_weight, medium_weight, low_weight (for practical tasks)
+    "domain": str,                  # money, health, relationships, spirituality, crisis, harmful, emotional, logistics
+    "emotional_weight": str,        # high_weight, medium_weight, low_weight (for practical tasks)
     "emotional_weight_score": float,  # 0-10 scale
-    "emotional_intensity": float,  # 0-10 scale
-    "dependency_risk": float,      # 0-10 scale (from conversation patterns)
-    "risk_weight": float,          # Combined 0-10 risk score
-    "intervention": dict           # Present if dependency threshold met
+    "emotional_intensity": float,   # 0-10 scale
+    "dependency_risk": float,       # 0-10 scale (from conversation patterns)
+    "risk_weight": float,           # Combined 0-10 risk score
+    "classification_method": str,   # "llm" or "keyword" (Phase 9)
+    "is_personal_distress": bool,   # LLM-detected personal vs general topic (Phase 9)
+    "llm_confidence": float,        # 0-1 confidence score (when LLM used)
+    "intervention": dict            # Present if dependency threshold met
 }
 ```
 
@@ -189,12 +203,13 @@ All domain rules, prompts, and interventions are defined in YAML files under `sc
 **Domain Files** (`scenarios/domains/`):
 | Domain | Risk Weight | Description |
 |--------|-------------|-------------|
-| money | 6.0 | Financial topics (loans, debt, investments) |
-| health | 5.0 | Medical concerns (symptoms, medications) |
-| relationships | 5.0 | Interpersonal dynamics (partner, family) |
-| spirituality | 4.0 | Religious/spiritual matters |
 | crisis | 10.0 | Suicidal ideation, self-harm |
 | harmful | 10.0 | Illegal/violent intent |
+| health | 7.0 | Medical concerns (symptoms, medications) |
+| money | 6.0 | Financial topics (loans, debt, investments) |
+| emotional | 5.0 | General emotional expressions |
+| relationships | 5.0 | Interpersonal dynamics (partner, family) |
+| spirituality | 4.0 | Religious/spiritual matters |
 | logistics | 1.0 | Neutral/default topics |
 
 **Hot Reloading** (for development):
@@ -273,12 +288,15 @@ Tests are in [tests/test_wellness_guide.py](tests/test_wellness_guide.py) with 1
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for the phased implementation plan covering:
-- Phase 1: Foundation Fixes (DONE)
-- Phase 2: Emotional Weight Layer
-- Phase 3: Competence Graduation
-- Phase 4: "Why Are You Here?" Check-In
-- Phase 5: Enhanced Human Handoff
-- Phase 6: Transparency & Explainability
-- Phase 7: Success Metrics (Local-First)
-- Phase 8: Immunity Building
-- Phase 9: Advanced Detection (Long-term)
+- Phase 1: Foundation Fixes ✅
+- Phase 2: Emotional Weight Layer ✅
+- Phase 2.5: Robustness & Classification Fixes ✅
+- Phase 3: Competence Graduation ✅
+- Phase 4: "Why Are You Here?" Check-In ✅
+- Phase 5: Enhanced Human Handoff ✅
+- Phase 6: Transparency & Explainability ✅
+- Phase 6.5: Context Persistence ✅
+- Phase 7: Success Metrics (Local-First) ✅
+- Phase 8: Immunity Building & Wisdom Prompts ✅ (Core)
+- Phase 9: LLM-Based Intelligent Classification ✅
+- Phase 10: Advanced Detection (Long-term)

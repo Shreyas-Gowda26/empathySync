@@ -42,6 +42,11 @@ class Settings:
     OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "")
     OLLAMA_TEMPERATURE: float = float(os.getenv("OLLAMA_TEMPERATURE", "0.7")) if os.getenv("OLLAMA_TEMPERATURE") else 0.7
+
+    # LLM Classification (Phase 9)
+    # When enabled, uses the Ollama model to intelligently classify messages
+    # instead of relying solely on keyword matching
+    LLM_CLASSIFICATION_ENABLED: bool = os.getenv("LLM_CLASSIFICATION_ENABLED", "true").lower() == "true"
     
     # Privacy & Security
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-key-change-in-production")

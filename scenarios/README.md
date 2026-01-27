@@ -6,11 +6,19 @@ This directory contains the structured knowledge base for empathySync's risk ass
 
 ```
 scenarios/
-├── domains/           # Risk domains and their triggers
-├── emotional_markers/ # Emotional intensity detection
-├── interventions/     # Dependency, boundaries, graduation
-├── prompts/          # Check-ins, mindfulness, styles
-└── responses/        # Fallbacks, safe alternatives, base prompt
+├── classification/    # LLM classifier prompts and config (Phase 9)
+├── domains/           # 8 risk domains and their triggers
+├── emotional_markers/ # Emotional intensity detection (4 levels)
+├── emotional_weight/  # Task weight detection (high/medium/low)
+├── graduation/        # Competence graduation prompts (Phase 3)
+├── handoff/           # Human handoff templates (Phase 5)
+├── intents/           # Session intent configuration (Phase 4)
+├── interventions/     # Dependency, boundaries
+├── metrics/           # Success metrics configuration (Phase 7)
+├── prompts/           # Check-ins, mindfulness, styles
+├── responses/         # Fallbacks, safe alternatives, base prompt
+├── transparency/      # Explanation templates (Phase 6)
+└── wisdom/            # Immunity building prompts (Phase 8)
 ```
 
 ## Quick Start
@@ -57,13 +65,14 @@ Each domain file defines:
 - `redirects`: Pre-written responses for specific scenarios
 
 **Files:**
-- `money.yaml` - Financial topics
-- `health.yaml` - Medical concerns
-- `relationships.yaml` - Interpersonal dynamics
-- `spirituality.yaml` - Religious/spiritual matters
-- `crisis.yaml` - Suicidal ideation, self-harm
-- `harmful.yaml` - Illegal/violent intent
-- `logistics.yaml` - Neutral/default topics
+- `crisis.yaml` - Suicidal ideation, self-harm (risk: 10.0)
+- `harmful.yaml` - Illegal/violent intent (risk: 10.0)
+- `health.yaml` - Medical concerns (risk: 7.0)
+- `money.yaml` - Financial topics (risk: 6.0)
+- `emotional.yaml` - General emotional expressions (risk: 5.0)
+- `relationships.yaml` - Interpersonal dynamics (risk: 5.0)
+- `spirituality.yaml` - Religious/spiritual matters (risk: 4.0)
+- `logistics.yaml` - Neutral/default topics (risk: 1.0)
 
 ### emotional_markers/
 

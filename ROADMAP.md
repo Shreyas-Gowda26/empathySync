@@ -18,29 +18,9 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 - [x] Skip response truncation for practical tasks
 - [x] Update `CLAUDE.md` documentation
 
-### 1.2 Intent Detection (Next)
-**Problem**: Keywords alone can't distinguish "write me a resignation email" from "I don't know if I should resign."
-
-**Implementation**:
-- [ ] Add `IntentClassifier` class in `src/models/intent_classifier.py`
-- [ ] Detect sentence structure patterns:
-  - Imperative requests → practical ("Write me...", "Help me draft...", "Explain...")
-  - Exploratory statements → potentially sensitive ("I've been thinking...", "I'm not sure if...")
-  - Emotional expressions → sensitive ("I feel...", "I'm scared...")
-- [ ] Two-pass classification:
-  1. First pass: keyword-based domain detection (existing)
-  2. Second pass: intent detection (new)
-  3. Override: if domain=logistics but intent=emotional → shift to reflective mode
-
-**Files to create/modify**:
-```
-src/models/intent_classifier.py (new)
-src/models/risk_classifier.py (integrate intent)
-scenarios/intents/ (new directory)
-  - practical_patterns.yaml
-  - emotional_patterns.yaml
-  - exploratory_patterns.yaml
-```
+### 1.2 Intent Detection ✅ SUPERSEDED
+> **Note**: This was superseded by Phase 4 (Session Intent Check-In) and Phase 9 (LLM-Based Classification).
+> Intent detection is now handled by `RiskClassifier.detect_intent()` and the LLM classifier for context-aware understanding.
 
 ---
 
@@ -465,24 +445,97 @@ scenarios/intents/ (new directory)
 
 ---
 
-## Phase 9: Advanced Detection (Long-term)
-**Goal**: Improve classification accuracy as local models improve.
+## Phase 9: LLM-Based Intelligent Classification ✅ COMPLETE
+**Goal**: Replace brittle keyword matching with intelligent LLM-based classification using the existing Ollama model.
 
-### 9.1 Semantic Intent Detection
+**Problem**: Current keyword matching is:
+- Brittle: "the UK system is breaking down" triggers emotional distress markers
+- Maintenance-heavy: Every edge case needs manual YAML updates
+- Context-blind: Can't distinguish political "breaking down" from personal "I'm breaking down"
+
+**Solution**: Use the same Ollama model that generates responses to classify intent first.
+
+### 9.1 Classification Prompt Engineering ✅ DONE
+- [x] Create `scenarios/classification/llm_classifier.yaml` with:
+  - Classification prompt template
+  - Expected JSON output schema
+  - Domain definitions for the LLM
+  - Example classifications for few-shot learning
+- [x] Prompt asks model to return:
+  ```json
+  {
+    "domain": "logistics|money|health|relationships|spirituality|crisis|harmful|emotional",
+    "emotional_intensity": 0-10,
+    "is_personal_distress": true|false,
+    "topic_summary": "brief description",
+    "confidence": 0-1
+  }
+  ```
+- [x] Keep prompt concise (<500 tokens) to minimize latency
+
+### 9.2 LLM Classifier Implementation ✅ DONE
+- [x] Create `src/models/llm_classifier.py`:
+  - `LLMClassifier` class with `classify()` method
+  - Calls Ollama with classification prompt
+  - Parses JSON response with error handling
+  - Returns structured classification result
+- [x] Timeout: 30s (allows for model cold-loading)
+- [x] Temperature: 0.1 (deterministic classification)
+
+### 9.3 Hybrid Classification System ✅ DONE
+- [x] Modify `RiskClassifier` to use hybrid approach:
+  - **Fast path**: Crisis/harmful keywords → immediate classification (safety-critical)
+  - **Smart path**: LLM classification for everything else
+  - **Fallback**: If LLM fails/times out → keyword matching
+- [x] Configurable toggle in settings (`LLM_CLASSIFICATION_ENABLED`)
+- [x] `classification_method` field in result shows which path was used
+
+### 9.4 Classification Caching ✅ DONE
+- [x] LRU cache for recent classifications (max 100 entries)
+- [x] Cache key: hash of (message + recent_context)
+- [x] TTL: 1 hour (configurable)
+- [x] Reduces latency for follow-up messages on same topic
+
+### 9.5 Quality Metrics (Partial)
+- [x] Log confidence scores in classification result
+- [ ] Optional: Track accuracy when keyword and LLM disagree (future)
+- [ ] Optional: User feedback on misclassifications (future)
+
+**Files created/modified**:
+- `scenarios/classification/llm_classifier.yaml` - Prompt template, examples, fast-path patterns, cache config
+- `src/models/llm_classifier.py` - LLMClassifier class with caching, JSON parsing, validation
+- `src/models/risk_classifier.py` - Integrated hybrid classification with fallback
+- `src/config/settings.py` - Added LLM_CLASSIFICATION_ENABLED setting
+- `tests/test_llm_classifier.py` - Unit tests for LLM classifier
+
+**Expected Improvement**:
+| Scenario | Keyword Result | LLM Result |
+|----------|---------------|------------|
+| "UK system breaking down" | health (9.0) | logistics (2.0) ✓ |
+| "I'm breaking down crying" | health (9.0) | emotional (9.0) ✓ |
+| "My friend's dog died" | relationships | emotional (context-aware) ✓ |
+| "Write code to kill the process" | harmful | logistics ✓ |
+
+---
+
+## Phase 10: Advanced Detection (Long-term)
+**Goal**: Further improve classification accuracy as local models improve.
+
+### 10.1 Semantic Intent Detection
 - [ ] When larger models run locally, use embeddings for:
   - Better intent classification
   - Topic drift detection
   - Emotional escalation prediction
 - [ ] Keep keyword fallback for smaller models
 
-### 9.2 Conversation Flow Analysis
+### 10.2 Conversation Flow Analysis
 - [ ] Track patterns across turns:
   - Practical → emotional shift detection
   - Repetitive question patterns (dependency signal)
   - Topic concentration (obsessive patterns)
 - [ ] Use for proactive interventions
 
-### 9.3 Model-Agnostic Safety Layer
+### 10.3 Model-Agnostic Safety Layer
 - [ ] Safety checks that work regardless of model capability
 - [ ] Hard-coded responses for crisis/harmful (never trust model)
 - [ ] Fallback behaviors when model quality is low
@@ -503,13 +556,18 @@ scenarios/intents/ (new directory)
 | 6.5 Context Persistence | **High** | Medium | ✅ COMPLETE |
 | 7. Success Metrics | High | Medium | ✅ COMPLETE |
 | 8. Immunity & Wisdom | **High** | Medium | ✅ COMPLETE (Core) |
-| 9. Advanced Detection | High | High | 🔵 Long-term |
+| 9. LLM Classification | **High** | Medium | ✅ COMPLETE |
+| 10. Advanced Detection | High | High | 🔵 Long-term |
 
 ---
 
-## Current Status (2026-01-25)
+## Current Status (2026-01-27)
 
-**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, and 8 (Core)
+**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), and 9
+
+**Recent Bug Fixes**:
+- Fixed spirituality domain risk_weight (was 8.0, now 4.0 per docs)
+- Fixed FORBIDDEN TOPICS bleeding into practical mode prompts
 - ✅ Dual-mode operation (practical vs reflective)
 - ✅ Emotional weight detection and acknowledgments
 - ✅ Dynamic timeouts for practical tasks (120s)
@@ -545,13 +603,18 @@ scenarios/intents/ (new directory)
 - ✅ Anti-engagement score tracking SENSITIVE topics only
 - ✅ Self-report moments with frequency limits
 - ✅ Trend indicators with appropriate direction
+- ✅ LLM-based intelligent classification using Ollama
+- ✅ Hybrid classification: fast-path for safety-critical, LLM for nuanced cases
+- ✅ Context-aware classification (political "breaking down" vs personal distress)
+- ✅ Classification caching with LRU eviction
+- ✅ Configurable LLM classification toggle (LLM_CLASSIFICATION_ENABLED setting)
 
 **All Core Phases Complete!**
 
 **Remaining Items** (Lower Priority):
 - Phase 8.5: AI Literacy Moments (educational prompts, max 1/week)
 - Phase 8.6: "Spot the Pattern" Feature (manipulation pattern education)
-- Phase 9: Advanced Detection (semantic intent, conversation flow analysis - long-term)
+- Phase 10: Advanced Detection (semantic intent, conversation flow analysis - long-term)
 
 ---
 
@@ -578,7 +641,8 @@ scenarios/intents/ (new directory)
 **v0.5** (Phase 6.5): Context persistence across turns ✅ COMPLETE
 **v0.5.5** (Phase 8): Immunity building and wisdom prompts ✅ COMPLETE
 **v0.6** (Phase 7): Local metrics and anti-engagement scoring ✅ COMPLETE
-**v1.0** (Phase 9): Advanced detection, production-ready
+**v0.7** (Phase 9): LLM-based intelligent classification ✅ COMPLETE
+**v1.0** (Phase 10): Advanced detection, production-ready
 
 ---
 

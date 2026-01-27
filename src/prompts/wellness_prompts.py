@@ -39,13 +39,15 @@ class WellnessPrompts:
         For logistics domain (practical tasks): removes word limits, enables full assistance
         For sensitive domains: applies restraint and word limits
         """
-        prompt_parts = [self._get_base_rules()]
-
         # Check if this is a practical task (logistics domain)
         is_practical = False
         if risk_context:
             domain = risk_context.get("domain", "logistics")
             is_practical = domain == "logistics"
+
+        # For practical mode, use simplified base rules (no forbidden_topics redirect)
+        # This prevents the model from over-applying restrictions to general questions
+        prompt_parts = [self._get_base_rules(include_forbidden_topics=not is_practical)]
 
         # Add style modifier
         modifier = self._get_style_modifier(wellness_mode)
@@ -61,8 +63,15 @@ class WellnessPrompts:
 
         return "\n\n".join(prompt_parts)
 
-    def _get_base_rules(self) -> str:
-        """Core behavioral rules - always enforced."""
+    def _get_base_rules(self, include_forbidden_topics: bool = True) -> str:
+        """
+        Core behavioral rules - always enforced.
+
+        Args:
+            include_forbidden_topics: If False, omits the forbidden_topics redirect.
+                                     Used for practical/logistics mode to prevent
+                                     the model from over-applying restrictions.
+        """
         base_config = self.loader.get_base_prompt_config()
 
         identity = base_config.get("identity", {})
@@ -76,12 +85,21 @@ class WellnessPrompts:
         behavioral_rules = base_config.get("behavioral_rules", [])
         behavioral_rules_text = "\n".join(f"- {rule}" for rule in behavioral_rules)
 
-        forbidden = base_config.get("forbidden_topics", {})
-        forbidden_topics = forbidden.get("topics", [])
-        forbidden_text = ", ".join(forbidden_topics)
-        forbidden_redirect = forbidden.get("redirect", "")
-
         core_purpose = base_config.get("core_purpose", "").strip()
+
+        # Build the forbidden topics section only if requested
+        forbidden_section = ""
+        if include_forbidden_topics:
+            forbidden = base_config.get("forbidden_topics", {})
+            forbidden_topics = forbidden.get("topics", [])
+            forbidden_text = ", ".join(forbidden_topics)
+            forbidden_redirect = forbidden.get("redirect", "")
+            forbidden_section = f"""
+
+## FORBIDDEN TOPICS (redirect immediately)
+If the user asks for advice on: {forbidden_text}—respond ONLY with:
+"{forbidden_redirect}"
+"""
 
         return f"""You are EmpathySync, a clarity tool that helps humans think—not a therapist, advisor, or friend.
 
@@ -93,11 +111,7 @@ class WellnessPrompts:
 
 ## BEHAVIORAL RULES
 {behavioral_rules_text}
-
-## FORBIDDEN TOPICS (redirect immediately)
-If the user asks for advice on: {forbidden_text}—respond ONLY with:
-"{forbidden_redirect}"
-
+{forbidden_section}
 ## REMINDER
 {core_purpose}"""
 
