@@ -582,6 +582,135 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 
 ---
 
+## Phase 11: Persistence Hardening & Multi-Device Sync ✅ COMPLETE (Core)
+**Goal**: Make data storage robust and enable safe multi-device usage.
+
+**Deployment model**: Single user, multiple devices (laptop + desktop), one device active at a time.
+
+### 11.1 Atomic JSON Writes ✅ DONE
+**Problem**: Direct `json.dump()` can leave corrupted files on interrupted writes.
+
+**Implementation**:
+- [x] Write to temp file (`.wellness_data_*.tmp`) in same directory
+- [x] Flush and fsync to ensure data hits disk
+- [x] Atomic rename via `os.replace()` (POSIX-guaranteed atomic)
+- [x] Corrupted file backup as `.corrupted.{timestamp}.json`
+- [x] Proper exception handling (no bare `except:`)
+
+**Files modified**:
+- `src/utils/wellness_tracker.py` - Atomic `_save_data()`, improved `_load_data()`
+- `src/utils/trusted_network.py` - Same pattern applied
+
+### 11.2 Schema Versioning ✅ DONE
+**Problem**: No way to migrate data when schema changes.
+
+**Implementation**:
+- [x] Add `schema_version` field to all data files
+- [x] Migration functions run sequentially on load (v0→v1→v2...)
+- [x] Old files auto-migrated, saved with new version
+- [x] `_get_default_data()` centralizes default structure
+
+**Current schema**: v1 (includes schema_version, all required fields)
+
+### 11.3 SQLite Migration ✅ DONE
+**Why**: Better transactions, partial updates, schema evolution, queryability.
+
+**Implementation**:
+- [x] Create SQLite schema with version table (`src/utils/database.py`)
+- [x] Migration script: JSON → SQLite (`migrate_from_json()`)
+- [x] WAL mode for crash safety (`PRAGMA journal_mode=WAL`)
+- [x] Checkpoint on clean shutdown (`checkpoint_for_sync()`)
+- [x] Storage backend abstraction (`src/utils/storage_backend.py`)
+- [x] Backward-compatible integration with WellnessTracker and TrustedNetwork
+
+**Configuration**:
+```bash
+# Enable SQLite backend (default: false)
+USE_SQLITE=true
+```
+
+**Files created**:
+- `src/utils/database.py` - SQLite database layer with WAL, transactions, migrations
+- `src/utils/storage_backend.py` - Unified interface for JSON/SQLite backends
+
+**Files modified**:
+- `src/utils/wellness_tracker.py` - Backend-aware operations
+- `src/utils/trusted_network.py` - Backend-aware operations
+- `src/config/settings.py` - Added USE_SQLITE setting
+
+**Documentation**: See [docs/persistence.md](docs/persistence.md)
+
+### 11.4 Lock File Mechanism ✅ DONE
+**Why**: Prevent data conflicts when multiple devices sync.
+
+**Implementation**:
+- [x] Heartbeat-based lock (not PID-based) - stale detection via timestamp
+- [x] Stale lock detection (configurable via `LOCK_STALE_TIMEOUT`)
+- [x] UI warning when lock detected on another device
+- [x] "Take Over" option for force access
+- [x] Automatic heartbeat updates (60-second interval)
+- [x] Clean release on app shutdown (via atexit)
+- [x] Same-device lock re-entry (handles crash recovery gracefully)
+- [x] Lock timeout now reads from `settings.LOCK_STALE_TIMEOUT` (not hardcoded)
+
+**Configuration**:
+```bash
+# Enable device lock (default: false)
+ENABLE_DEVICE_LOCK=true
+# Stale timeout in seconds (default: 300)
+LOCK_STALE_TIMEOUT=300
+```
+
+**Files created**:
+- `src/utils/lockfile.py` - Lock file management with heartbeat
+
+**Files modified**:
+- `src/app.py` - Lock status check on startup, warning UI, read-only indicator in sidebar
+- `src/config/settings.py` - Added ENABLE_DEVICE_LOCK, LOCK_STALE_TIMEOUT settings
+
+### 11.5 Write Gate & Defense-in-Depth ✅ DONE
+**Why**: Ensure no code path can accidentally write data when another device owns the lock.
+
+**Implementation**:
+- [x] Centralized write gate module (`src/utils/write_gate.py`)
+- [x] All 31 storage backend write methods check `_ensure_write_allowed()` before executing
+- [x] Checkpoint blocked in read-only mode (prevents modifying DB while another device writes)
+- [x] "Writes blocked" indicator in sidebar when read-only
+- [x] Defense layers: UI disabling → write gate flag → storage method checks
+- [x] `WriteBlockedError` exception with user-friendly message
+
+**Files created**:
+- `src/utils/write_gate.py` - Centralized write permission control
+
+**Files modified**:
+- `src/utils/storage_backend.py` - Added write checks to all mutating methods
+- `src/utils/database.py` - Checkpoint respects read-only mode
+- `src/app.py` - Calls `set_read_only()` on lock status changes, sidebar indicator
+
+### 11.6 SQLite Schema v2 ✅ DONE
+**Why**: Cascade delete prevents orphaned reach_out records when a trusted person is removed.
+
+**Implementation**:
+- [x] `ON DELETE CASCADE` on reach_outs → trusted_people foreign key
+- [x] Migration `_migrate_v1_to_v2()` for existing databases (table rebuild pattern)
+- [x] `PRAGMA foreign_key_check` after migration to verify no FK violations
+- [x] Schema version bumped to 2
+
+### 11.7 Migration Gating Hardening ✅ DONE
+**Why**: Prevent re-running JSON→SQLite migration if user has data in some tables but not others.
+
+**Implementation**:
+- [x] Migration checks for marker record in `schema_info` ("migrated from JSON")
+- [x] Fallback check: any of 4 core tables has data
+- [x] More robust than checking only `check_ins` count
+
+### 11.8 Sync Folder Documentation 🔜 PLANNED
+- [ ] User guide for Syncthing/Dropbox setup
+- [ ] Operating rules: "Close app before switching devices"
+- [ ] Troubleshooting for conflict files
+
+---
+
 ## Implementation Priority Matrix
 
 | Phase | Impact | Effort | Priority |
@@ -599,12 +728,15 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 | 9. LLM Classification | **High** | Medium | ✅ COMPLETE |
 | 9.5 UI Polish | Medium | Low | ✅ COMPLETE |
 | 10. Advanced Detection | High | High | 🔵 Long-term |
+| 11. Persistence Hardening | **High** | Medium | ✅ COMPLETE (Core) |
 
 ---
 
-## Current Status (2026-01-27)
+## Current Status (2026-01-28)
 
-**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, and 9.5
+**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.5, and 11.1-11.7 (Atomic Writes, Schema Versioning, SQLite Migration, Lock File, Write Gate, Schema v2, Migration Hardening)
+
+**In Progress**: Phase 11.8 (Sync Folder Documentation)
 
 **Recent Bug Fixes**:
 - Fixed post-crisis apology bug: LLM no longer apologizes for crisis interventions
@@ -659,6 +791,19 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 - ✅ Context-aware classification (political "breaking down" vs personal distress)
 - ✅ Classification caching with LRU eviction
 - ✅ Configurable LLM classification toggle (LLM_CLASSIFICATION_ENABLED setting)
+- ✅ SQLite storage backend with WAL mode for crash safety
+- ✅ Storage abstraction layer (JSON/SQLite backends)
+- ✅ Automatic JSON → SQLite migration when enabled
+- ✅ Heartbeat-based lock file for multi-device sync safety
+- ✅ Lock status UI warning with "Take Over" option
+- ✅ Configurable storage settings (USE_SQLITE, ENABLE_DEVICE_LOCK, LOCK_STALE_TIMEOUT)
+- ✅ Write gate system with defense-in-depth (UI → flag → storage checks)
+- ✅ All 31 storage write methods protected by write permission checks
+- ✅ Checkpoint blocked in read-only mode
+- ✅ "Writes blocked" indicator in sidebar
+- ✅ SQLite schema v2 with ON DELETE CASCADE for reach_outs
+- ✅ Migration gating hardened (checks marker + multiple tables)
+- ✅ Lock timeout now configurable via settings
 
 **All Core Phases Complete!**
 
@@ -666,6 +811,7 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 - Phase 8.5: AI Literacy Moments (educational prompts, max 1/week)
 - Phase 8.6: "Spot the Pattern" Feature (manipulation pattern education)
 - Phase 10: Advanced Detection (semantic intent, conversation flow analysis - long-term)
+- Phase 11.8: Sync Folder Documentation (user guide for Syncthing/Dropbox)
 
 ---
 
@@ -693,6 +839,7 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 **v0.5.5** (Phase 8): Immunity building and wisdom prompts ✅ COMPLETE
 **v0.6** (Phase 7): Local metrics and anti-engagement scoring ✅ COMPLETE
 **v0.7** (Phase 9): LLM-based intelligent classification ✅ COMPLETE
+**v0.8** (Phase 11): SQLite backend, multi-device sync, lock file ✅ COMPLETE
 **v1.0** (Phase 10): Advanced detection, production-ready
 
 ---

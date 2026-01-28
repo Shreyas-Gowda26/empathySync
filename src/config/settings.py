@@ -47,7 +47,20 @@ class Settings:
     # When enabled, uses the Ollama model to intelligently classify messages
     # instead of relying solely on keyword matching
     LLM_CLASSIFICATION_ENABLED: bool = os.getenv("LLM_CLASSIFICATION_ENABLED", "true").lower() == "true"
-    
+
+    # Storage Backend (Phase 11)
+    # When enabled, uses SQLite instead of JSON for data storage
+    # SQLite provides better concurrent access, transactions, and partial updates
+    USE_SQLITE: bool = os.getenv("USE_SQLITE", "false").lower() == "true"
+
+    # Device Lock (Phase 11)
+    # When enabled, prevents data conflicts when syncing between devices
+    # Uses heartbeat-based lock with 5-minute stale detection
+    ENABLE_DEVICE_LOCK: bool = os.getenv("ENABLE_DEVICE_LOCK", "false").lower() == "true"
+
+    # Lock file stale timeout in seconds (default: 5 minutes)
+    LOCK_STALE_TIMEOUT: int = int(os.getenv("LOCK_STALE_TIMEOUT", "300"))
+
     # Privacy & Security
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-key-change-in-production")
     ENABLE_ANALYTICS: bool = os.getenv("ENABLE_ANALYTICS", "false").lower() == "true"

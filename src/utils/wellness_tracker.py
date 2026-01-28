@@ -1,14 +1,34 @@
 """
 Wellness tracking for empathySync users
 Local storage of wellness check-ins, usage patterns, and dependency monitoring
+
+Supports two storage backends:
+- JSON files (default, backward compatible)
+- SQLite database (when USE_SQLITE=true, better for multi-device sync)
 """
 
 import json
+import os
+import tempfile
+import logging
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from config.settings import settings
+
+logger = logging.getLogger(__name__)
+
+
+def _get_storage_backend():
+    """Lazy import to avoid circular dependency."""
+    if settings.USE_SQLITE:
+        from utils.storage_backend import get_storage_backend
+        return get_storage_backend()
+    return None
+
+# Schema version for data migration support
+SCHEMA_VERSION = 1
 
 
 # Session intent types
@@ -24,26 +44,45 @@ class WellnessTracker:
 
     Monitors session frequency, duration, and patterns to detect
     dependency and enforce healthy usage boundaries.
+
+    Supports two storage backends:
+    - JSON files (default)
+    - SQLite database (when settings.USE_SQLITE is True)
     """
 
     def __init__(self):
         self.data_file = settings.DATA_DIR / "wellness_data.json"
+        self._backend = _get_storage_backend()
         self.ensure_data_file()
 
     def ensure_data_file(self):
-        """Ensure wellness data file exists"""
+        """Ensure wellness data file exists with current schema"""
         if not self.data_file.exists():
-            self._save_data({
-                "check_ins": [],
-                "usage_sessions": [],
-                "policy_events": [],  # Track when safety policies fire
-                "created_at": datetime.now().isoformat()
-            })
+            self._save_data(self._get_default_data())
+
+    def _get_default_data(self) -> Dict:
+        """Return default data structure with current schema version"""
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "check_ins": [],
+            "usage_sessions": [],
+            "policy_events": [],
+            "session_intents": [],
+            "independence_records": [],
+            "handoff_events": [],
+            "self_reports": [],
+            "created_at": datetime.now().isoformat()
+        }
 
     # ==================== CHECK-INS ====================
 
     def add_check_in(self, feeling_score: int, notes: str = ""):
         """Add a wellness check-in (1-5 scale)"""
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            return self._backend.add_check_in(feeling_score, notes)
+
+        # JSON backend
         data = self._load_data()
 
         check_in = {
@@ -88,6 +127,13 @@ class WellnessTracker:
             domains_touched: List of risk domains encountered
             max_risk_weight: Highest risk weight seen in session
         """
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            return self._backend.add_session(
+                duration_minutes, turn_count, domains_touched, max_risk_weight
+            )
+
+        # JSON backend
         data = self._load_data()
 
         session = {
@@ -250,6 +296,13 @@ class WellnessTracker:
             risk_weight: The calculated risk weight
             action_taken: What the system did
         """
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            return self._backend.add_policy_event(
+                policy_type, domain, action_taken, risk_weight
+            )
+
+        # JSON backend
         data = self._load_data()
 
         if "policy_events" not in data:
@@ -316,41 +369,167 @@ class WellnessTracker:
     # ==================== DATA MANAGEMENT ====================
 
     def _load_data(self) -> Dict:
-        """Load wellness data from file"""
+        """
+        Load wellness data from the configured storage backend.
+
+        When USE_SQLITE is enabled, loads from SQLite and converts to dict format.
+        Otherwise, loads from JSON file with schema migration support.
+        """
+        # SQLite backend - reconstruct dict from database queries
+        if self._backend is not None and settings.USE_SQLITE:
+            return self._load_data_from_sqlite()
+
+        # JSON backend (default)
         try:
             with open(self.data_file, 'r') as f:
-                return json.load(f)
-        except:
-            return {"check_ins": [], "usage_sessions": [], "policy_events": []}
+                data = json.load(f)
+            return self._migrate_schema(data)
+        except FileNotFoundError:
+            logger.info("Wellness data file not found, returning defaults")
+            return self._get_default_data()
+        except json.JSONDecodeError as e:
+            logger.error(f"Corrupted wellness data file: {e}")
+            # Attempt recovery: backup corrupted file and return defaults
+            self._backup_corrupted_file()
+            return self._get_default_data()
+        except Exception as e:
+            logger.error(f"Unexpected error loading wellness data: {e}")
+            return self._get_default_data()
+
+    def _load_data_from_sqlite(self) -> Dict:
+        """Load data from SQLite and convert to dict format for compatibility."""
+        try:
+            # Get data from SQLite via storage backend
+            # We query with a wide date range to get all historical data
+            far_past = date(2020, 1, 1)
+            today = date.today()
+
+            check_ins = self._backend.get_recent_check_ins(days=3650)  # ~10 years
+            sessions = self._backend.get_sessions_for_period(far_past, today)
+            policy_events = self._backend.get_recent_policy_events(limit=1000)
+            intents = self._backend.get_session_intents_for_period(far_past, today)
+            independence = self._backend.get_independence_records_for_period(far_past, today)
+            handoffs = self._backend.get_handoff_events_for_period(far_past, today)
+            self_reports = self._backend.get_recent_self_reports(limit=100)
+            task_patterns = self._backend.get_all_task_patterns()
+
+            # Convert to the dict format expected by existing code
+            return {
+                "schema_version": SCHEMA_VERSION,
+                "check_ins": check_ins,
+                "usage_sessions": sessions,
+                "policy_events": policy_events,
+                "session_intents": intents,
+                "independence_records": independence,
+                "handoff_events": handoffs,
+                "self_reports": self_reports,
+                "task_patterns": task_patterns,
+                "created_at": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error loading from SQLite, falling back to JSON: {e}")
+            # Fall back to JSON on error
+            try:
+                with open(self.data_file, 'r') as f:
+                    return json.load(f)
+            except Exception:
+                return self._get_default_data()
+
+    def _migrate_schema(self, data: Dict) -> Dict:
+        """Migrate data from older schema versions"""
+        current_version = data.get("schema_version", 0)
+
+        if current_version < SCHEMA_VERSION:
+            logger.info(f"Migrating wellness data from v{current_version} to v{SCHEMA_VERSION}")
+
+            # v0 -> v1: Add schema_version and ensure all fields exist
+            if current_version < 1:
+                data["schema_version"] = SCHEMA_VERSION
+                defaults = self._get_default_data()
+                for key in defaults:
+                    if key not in data:
+                        data[key] = defaults[key]
+
+            # Future migrations would go here:
+            # if current_version < 2:
+            #     data = self._migrate_v1_to_v2(data)
+
+            # Save migrated data
+            self._save_data(data)
+
+        return data
+
+    def _backup_corrupted_file(self):
+        """Backup a corrupted data file before overwriting"""
+        if self.data_file.exists():
+            backup_path = self.data_file.with_suffix(
+                f".corrupted.{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            try:
+                self.data_file.rename(backup_path)
+                logger.warning(f"Corrupted file backed up to: {backup_path}")
+            except Exception as e:
+                logger.error(f"Failed to backup corrupted file: {e}")
 
     def _save_data(self, data: Dict):
-        """Save wellness data to file"""
-        with open(self.data_file, 'w') as f:
-            json.dump(data, f, indent=2)
+        """
+        Save wellness data atomically using temp file + rename pattern.
+
+        This ensures that an interrupted write never leaves a corrupted file:
+        1. Write to temp file in same directory
+        2. Flush and fsync to ensure data hits disk
+        3. Atomic rename (os.replace) to target path
+        """
+        # Ensure schema version is set
+        if "schema_version" not in data:
+            data["schema_version"] = SCHEMA_VERSION
+
+        # Ensure parent directory exists
+        self.data_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write to temp file, then atomic rename
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.data_file.parent,
+            prefix=".wellness_data_",
+            suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(data, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+
+            # Atomic rename (POSIX guarantees atomicity on same filesystem)
+            os.replace(temp_path, self.data_file)
+
+        except Exception as e:
+            # Clean up temp file on failure
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            logger.error(f"Failed to save wellness data: {e}")
+            raise
 
     def clear_data(self):
         """Clear all wellness data (user-initiated)"""
-        self._save_data({
-            "check_ins": [],
-            "usage_sessions": [],
-            "policy_events": [],
-            "session_intents": [],
-            "created_at": datetime.now().isoformat()
-        })
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            self._backend.clear_all_data()
+            return
+
+        self._save_data(self._get_default_data())
 
     def reset_all_data(self):
         """Reset ALL data - complete fresh start (user-initiated)"""
-        self._save_data({
-            "check_ins": [],
-            "usage_sessions": [],
-            "policy_events": [],
-            "session_intents": [],
-            "independence_records": [],
-            "handoff_events": [],
-            "task_patterns": {},
-            "self_reports": [],
-            "created_at": datetime.now().isoformat()
-        })
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            self._backend.clear_all_data()
+            return
+
+        data = self._get_default_data()
+        data["task_patterns"] = {}
+        self._save_data(data)
 
     # ==================== SESSION INTENT CHECK-IN ====================
 
@@ -425,6 +604,11 @@ class WellnessTracker:
             was_check_in: Whether this came from explicit user selection
             auto_detected: Whether this was auto-detected from message content
         """
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            return self._backend.add_session_intent(intent, was_check_in, auto_detected)
+
+        # JSON backend
         data = self._load_data()
 
         if "session_intents" not in data:
@@ -497,6 +681,22 @@ class WellnessTracker:
         Returns:
             Updated stats for this category
         """
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            result = self._backend.record_task_pattern(category)
+            # Convert to expected format
+            return {
+                "category": category,
+                "count": result.get("count", 0),
+                "last_7_days": result.get("last_7_days", 0),
+                "last_30_days": result.get("last_30_days", 0),
+                "first_use": result.get("first_use") or result.get("created_at"),
+                "last_use": result.get("last_use") or result.get("last_seen"),
+                "graduation_shown_count": result.get("graduation_shown_count", 0),
+                "dismissal_count": result.get("dismissal_count", 0)
+            }
+
+        # JSON backend
         data = self._load_data()
 
         if "task_patterns" not in data:
@@ -680,6 +880,11 @@ class WellnessTracker:
         Returns:
             Independence record
         """
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            return self._backend.add_independence_record(category, "", notes)
+
+        # JSON backend
         data = self._load_data()
 
         if "independence_records" not in data:
@@ -765,6 +970,14 @@ class WellnessTracker:
             action_taken=f"Handoff {event_type}: {context or 'general'}"
         )
 
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            notes = json.dumps(details) if details else ""
+            return self._backend.add_handoff_event(
+                event_type, domain, context, outcome == "reached_out", notes
+            )
+
+        # JSON backend
         data = self._load_data()
 
         if "handoff_events" not in data:
@@ -1376,6 +1589,12 @@ class WellnessTracker:
             response: The user's response value
             details: Optional additional context
         """
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            content = json.dumps({"response": response, "details": details})
+            return self._backend.add_self_report(report_type, content)
+
+        # JSON backend
         data = self._load_data()
 
         if "self_reports" not in data:

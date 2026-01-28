@@ -53,6 +53,11 @@ Configure in `.env` file (see `.env.example`):
 - `CONVERSATION_RETENTION_DAYS` - integer (default: 30)
 - `LLM_CLASSIFICATION_ENABLED` - true/false (default: true) - enables LLM-based intelligent classification (Phase 9)
 
+**Storage Backend (Phase 11):**
+- `USE_SQLITE` - true/false (default: false) - enables SQLite backend with WAL mode
+- `ENABLE_DEVICE_LOCK` - true/false (default: false) - enables heartbeat-based lock file for multi-device sync
+- `LOCK_STALE_TIMEOUT` - integer (default: 300) - seconds until a lock is considered stale
+
 **Optional PostgreSQL** (all or none): `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 
 ## Architecture
@@ -117,6 +122,10 @@ empathySync/
 - [src/utils/trusted_network.py](src/utils/trusted_network.py) - `TrustedNetwork` class: manages trusted contacts, domain-specific suggestions, reach-out history, connection health metrics
 - [src/utils/scenario_loader.py](src/utils/scenario_loader.py) - `ScenarioLoader` class: singleton loader for YAML knowledge base with caching and hot-reload support
 - [src/utils/helpers.py](src/utils/helpers.py) - Logging setup and environment validation
+- [src/utils/database.py](src/utils/database.py) - SQLite database layer with WAL mode, transactions, schema migrations (Phase 11)
+- [src/utils/storage_backend.py](src/utils/storage_backend.py) - Unified storage abstraction for JSON/SQLite backends with write gate protection (Phase 11)
+- [src/utils/lockfile.py](src/utils/lockfile.py) - Heartbeat-based lock file for multi-device sync safety (Phase 11)
+- [src/utils/write_gate.py](src/utils/write_gate.py) - Centralized write permission control for read-only mode (Phase 11)
 
 **Config**:
 - [src/config/settings.py](src/config/settings.py) - `Settings` class: environment-based configuration with validation
@@ -222,11 +231,38 @@ loader.reload()  # Picks up changes from disk
 
 ### Data Persistence
 
-All user data is stored locally in JSON files:
+All user data is stored locally with **atomic writes**, **schema versioning**, and optional **SQLite backend**.
 
-**`data/wellness_data.json`**:
+For detailed multi-device sync documentation, see [docs/persistence.md](docs/persistence.md).
+
+**Storage Backends:**
+- **JSON Backend** (default): Simple, human-readable files with atomic writes
+- **SQLite Backend** (`USE_SQLITE=true`): WAL mode, transactions, better concurrency
+
+**Write Safety (JSON):**
+- Writes to temp file (`.wellness_data_*.tmp`)
+- Flushes and fsyncs to disk
+- Atomic rename via `os.replace()` (POSIX-guaranteed atomic)
+- Corrupted files backed up as `.corrupted.{timestamp}.json`
+
+**Write Safety (SQLite):**
+- WAL mode (`PRAGMA journal_mode=WAL`) for crash safety
+- `PRAGMA synchronous=FULL` for durability
+- `PRAGMA foreign_keys=ON` enforced per-connection
+- Checkpoint on close (`wal_checkpoint(TRUNCATE)`)
+- Schema v2: `ON DELETE CASCADE` for reach_outs → trusted_people
+
+**Write Gate (Phase 11):**
+When another device holds the lock (`ENABLE_DEVICE_LOCK=true`), all write operations are blocked:
+- `src/utils/write_gate.py` provides centralized control
+- All storage backend write methods check permission before executing
+- Checkpoint is skipped in read-only mode
+- UI shows "Writes blocked" indicator in sidebar
+
+**`data/wellness_data.json`** (or SQLite `empathySync.db`):
 ```json
 {
+  "schema_version": 1,    // For safe migrations
   "check_ins": [...],       // Daily wellness scores (1-5 scale)
   "usage_sessions": [...],  // Session metadata (duration, turns, domains, risk)
   "policy_events": [...],   // Transparency log of policy actions
@@ -234,14 +270,21 @@ All user data is stored locally in JSON files:
 }
 ```
 
-**`data/trusted_network.json`**:
+**`data/trusted_network.json`** (or SQLite tables):
 ```json
 {
+  "schema_version": 1,    // For safe migrations
   "people": [...],      // Trusted contacts with domains and relationship info
-  "reach_outs": [...],  // History of human connection attempts
+  "reach_outs": [...],  // History of human connection attempts (cascade delete on person removal)
   "created_at": "datetime"
 }
 ```
+
+**Schema Versions:**
+- v1: Initial schema with all required fields
+- v2 (SQLite): Added `ON DELETE CASCADE` to reach_outs foreign key
+
+**Schema Migration:** On load, files/databases are automatically migrated from older schema versions. Migration functions run sequentially (v0→v1→v2...) and save the updated data.
 
 ### Cooldown Enforcement
 
@@ -279,13 +322,16 @@ Tests are in [tests/test_wellness_guide.py](tests/test_wellness_guide.py) with 1
 
 ### Key Patterns
 
-- **Singleton Pattern**: `ScenarioLoader` via `get_scenario_loader()`
+- **Singleton Pattern**: `ScenarioLoader` via `get_scenario_loader()`, `StorageBackend` via `get_storage_backend()`
 - **3-Layer Prompt Composition**: Base rules + style modifier + risk context
 - **Graduated Interventions**: 5 dependency levels (none, early_pattern, mild, concerning, high)
 - **Session State Tracking**: Turns, domains, max risk, last policy action, post-crisis turn
 - **Post-Crisis Protection**: Tracks when crisis intervention occurred, prevents LLM from apologizing for safety actions
 - **Hot Reload Support**: `loader.reload()` and `loader.clear_cache()`
 - **Transparency Logging**: All policy decisions logged with reasons
+- **Defense-in-Depth Write Protection**: UI disabling → write gate flag → storage method checks (Phase 11)
+- **Heartbeat-Based Lock**: Device lock uses timestamp heartbeats, not PIDs, for stale detection (Phase 11)
+- **Storage Backend Abstraction**: Unified interface for JSON/SQLite with automatic migration (Phase 11)
 
 ## Roadmap
 
@@ -302,3 +348,4 @@ See [ROADMAP.md](ROADMAP.md) for the phased implementation plan covering:
 - Phase 8: Immunity Building & Wisdom Prompts ✅ (Core)
 - Phase 9: LLM-Based Intelligent Classification ✅
 - Phase 10: Advanced Detection (Long-term)
+- Phase 11: Persistence Hardening & Multi-Device Sync ✅ (Core)

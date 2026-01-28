@@ -23,8 +23,18 @@ This document provides a visual overview of empathySync's architecture. For deta
 │  │         │                │               │                    │   │
 │  │         ▼                ▼               ▼                    │   │
 │  │  ┌───────────────────────────────────────────────────────┐   │   │
-│  │  │                   Local JSON Storage                   │   │   │
-│  │  │   data/trusted_network.json    data/wellness_data.json │   │   │
+│  │  │              Storage Backend (Write-Gated)             │   │   │
+│  │  │  ┌─────────────────┐    ┌──────────────────────────┐  │   │   │
+│  │  │  │  JSON Backend   │ OR │     SQLite Backend       │  │   │   │
+│  │  │  │  (default)      │    │   (USE_SQLITE=true)      │  │   │   │
+│  │  │  └─────────────────┘    └──────────────────────────┘  │   │   │
+│  │  │       ↑ Write Gate blocks if another device has lock  │   │   │
+│  │  └───────────────────────────────────────────────────────┘   │   │
+│  │                              │                                │   │
+│  │                              ▼                                │   │
+│  │  ┌───────────────────────────────────────────────────────┐   │   │
+│  │  │               Lock File (.empathySync.lock)            │   │   │
+│  │  │           Heartbeat-based multi-device sync            │   │   │
 │  │  └───────────────────────────────────────────────────────┘   │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 │                                                                      │
@@ -274,33 +284,62 @@ Response to User
 
 ## Data Storage
 
+All data is stored locally with **write-gated backends** and **defense-in-depth** protection. See [persistence.md](persistence.md) for details.
+
+### Storage Backends
+
+| Backend | Enable | Files |
+|---------|--------|-------|
+| **JSON** (default) | `USE_SQLITE=false` | `wellness_data.json`, `trusted_network.json` |
+| **SQLite** | `USE_SQLITE=true` | `empathySync.db`, `.db-wal`, `.db-shm` |
+
+### Multi-Device Sync
+
+| Setting | Enable | Purpose |
+|---------|--------|---------|
+| **Device Lock** | `ENABLE_DEVICE_LOCK=true` | Prevents concurrent writes |
+| **Write Gate** | Automatic | Blocks writes when another device has lock |
+
 ```
 data/
-├── wellness_data.json          # User wellness tracking
-│   ├── check_ins[]             # Daily 1-5 wellness scores
-│   ├── usage_sessions[]        # Session metadata
-│   │   ├── duration            # Minutes
-│   │   ├── turn_count          # Conversation turns
-│   │   ├── domains_touched[]   # Which domains came up
-│   │   └── max_risk_weight     # Highest risk in session
-│   ├── policy_events[]         # Transparency log
-│   │   ├── type                # What guardrail fired
-│   │   ├── domain              # Related domain
-│   │   ├── action_taken        # What happened
-│   │   └── timestamp           # When
-│   └── session_intents[]       # Intent check-in data (Phase 4)
-│
-└── trusted_network.json        # Human connection network
-    ├── people[]                # Trusted contacts
-    │   ├── name                # Display name
-    │   ├── relationship        # "friend", "therapist", etc.
-    │   ├── domains[]           # What they're good for
-    │   └── contact             # How to reach them
-    └── reach_outs[]            # Connection attempts
-        ├── person_name         # Who they reached out to
-        ├── method              # How (call, text, etc.)
-        └── timestamp           # When
+├── wellness_data.json          # (JSON backend) Atomic writes, schema v1
+├── trusted_network.json        # (JSON backend) Atomic writes, schema v1
+├── empathySync.db              # (SQLite backend) WAL mode, schema v2
+├── empathySync.db-wal          # (SQLite) Write-ahead log
+├── empathySync.db-shm          # (SQLite) Shared memory
+├── .empathySync.lock           # Lock file (if ENABLE_DEVICE_LOCK=true)
+└── .device_id                  # Persistent device identifier
+
+# Data structure (both backends):
+├── check_ins[]                 # Daily 1-5 wellness scores
+├── usage_sessions[]            # Session metadata
+│   ├── duration                # Minutes
+│   ├── turn_count              # Conversation turns
+│   ├── domains_touched[]       # Which domains came up
+│   └── max_risk_weight         # Highest risk in session
+├── policy_events[]             # Transparency log
+├── session_intents[]           # Intent check-in data
+├── trusted_people[]            # Trusted contacts
+└── reach_outs[]                # Connection attempts (cascade delete with person)
 ```
+
+### Write Safety
+
+**JSON Backend:**
+- Writes to temp file, flushed to disk (`fsync`), atomically renamed
+- Corrupted files backed up with timestamp
+
+**SQLite Backend:**
+- WAL mode for crash safety
+- `PRAGMA synchronous=FULL` for durability
+- `PRAGMA foreign_keys=ON` enforced per-connection
+- Schema v2: `ON DELETE CASCADE` for reach_outs
+
+**Write Gate (defense-in-depth):**
+1. UI disables inputs when read-only
+2. `write_gate.py` flag blocks at module level
+3. All 31 write methods check `_ensure_write_allowed()`
+4. Checkpoint skipped in read-only mode
 
 ## Key Design Principles
 
@@ -347,14 +386,19 @@ empathySync/
 │   │   └── settings.py          # Environment configuration
 │   ├── models/
 │   │   ├── ai_wellness_guide.py # Core conversation engine
-│   │   └── risk_classifier.py   # Risk assessment
+│   │   ├── risk_classifier.py   # Risk assessment
+│   │   └── llm_classifier.py    # LLM-based classification (Phase 9)
 │   ├── prompts/
 │   │   └── wellness_prompts.py  # Dynamic prompt generation
 │   └── utils/
 │       ├── helpers.py           # Logging and utilities
 │       ├── wellness_tracker.py  # Session/check-in tracking
 │       ├── trusted_network.py   # Human network management
-│       └── scenario_loader.py   # YAML knowledge base loader
+│       ├── scenario_loader.py   # YAML knowledge base loader
+│       ├── database.py          # SQLite layer (Phase 11)
+│       ├── storage_backend.py   # JSON/SQLite abstraction (Phase 11)
+│       ├── lockfile.py          # Multi-device lock (Phase 11)
+│       └── write_gate.py        # Write permission control (Phase 11)
 │
 ├── scenarios/                    # Knowledge base (YAML)
 │   ├── domains/                 # 8 risk domains
@@ -362,11 +406,12 @@ empathySync/
 │   ├── interventions/           # Dependency, boundaries
 │   ├── prompts/                 # Check-ins, styles
 │   ├── responses/               # Fallbacks, base prompt
-│   └── intents/                 # Session intent config
+│   ├── intents/                 # Session intent config
+│   └── classification/          # LLM classifier config (Phase 9)
 │
-├── data/                        # Local user data (JSON)
+├── data/                        # Local user data (JSON/SQLite)
 ├── logs/                        # Application logs
-├── tests/                       # Pytest test suite
+├── tests/                       # Pytest test suite (140+ tests)
 └── docs/                        # Documentation
 ```
 

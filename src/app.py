@@ -1220,8 +1220,10 @@ def display_chat_interface(wellness_mode):
         st.session_state.pending_graduation = None
         st.session_state.graduation_shown_this_session = True
 
-    # Chat input
-    if prompt := st.chat_input("What are you thinking through?"):
+    # Chat input (disabled in read-only mode)
+    if is_read_only():
+        st.chat_input("Read-only mode: close empathySync on other device first", disabled=True)
+    elif prompt := st.chat_input("What are you thinking through?"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -1333,6 +1335,109 @@ def save_session_on_end():
         )
 
 
+def display_lock_warning():
+    """
+    Check device lock status and configure read-only mode if needed (Phase 11).
+
+    Instead of blocking the entire app when another device has the lock,
+    we allow read-only viewing but disable write operations. This provides
+    a better UX while maintaining data safety.
+
+    Returns:
+        True if locked by another device (app in read-only mode)
+        False if we have the lock or lock checking is disabled
+    """
+    from utils.write_gate import set_read_only
+
+    if not settings.ENABLE_DEVICE_LOCK:
+        st.session_state.read_only_mode = False
+        set_read_only(False)
+        return False
+
+    # Only check lock status once per session
+    if "lock_status_checked" in st.session_state:
+        return st.session_state.get("read_only_mode", False)
+
+    try:
+        from utils.lockfile import check_lock_status, acquire_lock
+
+        status = check_lock_status()
+        st.session_state.lock_status_checked = True
+
+        if status["locked_by_other"]:
+            st.session_state.read_only_mode = True
+            st.session_state.lock_status = status
+            set_read_only(True)  # Enable write gate
+            return True
+        else:
+            # Try to acquire lock
+            if not status["locked_by_us"]:
+                acquire_lock()
+            st.session_state.read_only_mode = False
+            set_read_only(False)  # Disable write gate
+            return False
+
+    except Exception as e:
+        # If lock check fails, log and continue (don't block the app)
+        import logging
+        logging.warning(f"Lock file check failed: {e}")
+        st.session_state.lock_status_checked = True
+        st.session_state.read_only_mode = False
+        set_read_only(False)
+        return False
+
+
+def display_lock_banner():
+    """Display a persistent banner when in read-only mode due to device lock."""
+    if not st.session_state.get("read_only_mode"):
+        return
+
+    status = st.session_state.get("lock_status", {})
+    hostname = status.get("hostname", "another device")
+    started = status.get("started_at", "unknown time")
+
+    # Parse started time for friendly display
+    try:
+        started_dt = datetime.fromisoformat(started)
+        started = started_dt.strftime("%I:%M %p on %b %d")
+    except (ValueError, TypeError):
+        pass
+
+    col1, col2, col3 = st.columns([5, 2, 1])
+    with col1:
+        st.warning(
+            f"**Read-only mode**: empathySync is open on {hostname} (since {started}). "
+            f"Writes are blocked to prevent sync conflicts. Close it there first."
+        )
+    with col2:
+        if st.button("Take Over", type="primary", help="Force access - use only if the other device is unavailable"):
+            handle_lock_takeover()
+    with col3:
+        if st.button("Dismiss"):
+            st.session_state.lock_banner_dismissed = True
+            st.rerun()
+
+
+def handle_lock_takeover():
+    """Handle user clicking 'Take Over' to force lock acquisition."""
+    try:
+        from utils.lockfile import acquire_lock
+        from utils.write_gate import set_read_only
+        if acquire_lock(force=True):
+            st.session_state.read_only_mode = False
+            st.session_state.lock_status = None
+            set_read_only(False)  # Re-enable writes
+            st.success("Lock acquired. You now have full access.")
+            st.rerun()
+    except Exception as e:
+        st.error(f"Failed to take over lock: {e}")
+
+
+def is_read_only():
+    """Check if the app is in read-only mode due to device lock."""
+    return st.session_state.get("read_only_mode", False)
+
+
 def main():
     """Main application function"""
 
@@ -1346,6 +1451,9 @@ def main():
             st.code(f"{config}=your_value_here")
         st.markdown("See `.env.example` for guidance.")
         return
+
+    # Phase 11: Check device lock status (enables read-only mode if locked by other)
+    display_lock_warning()
 
     # Initialize session state
     if "messages" not in st.session_state:
@@ -1406,6 +1514,10 @@ def main():
     st.markdown("# empathySync")
     st.markdown('<p class="subtitle">Help that knows when to stop</p>', unsafe_allow_html=True)
 
+    # Phase 11: Show lock banner if in read-only mode
+    if is_read_only() and not st.session_state.get("lock_banner_dismissed"):
+        display_lock_banner()
+
     # Phase 4: Show connection redirect if user indicated they just want to talk
     if st.session_state.get("show_connection_redirect"):
         display_connection_redirect()
@@ -1446,6 +1558,10 @@ def main():
     with st.sidebar:
         # Default communication mode - system auto-adjusts based on domain
         wellness_mode = "Balanced"
+
+        # Read-only mode indicator (Phase 11)
+        if is_read_only():
+            st.error("**Writes blocked** - another device has the lock")
 
         # Usage stats (no header needed - self-explanatory)
         display_usage_health()

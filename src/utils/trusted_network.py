@@ -3,9 +3,16 @@ Trusted Network - Local storage and management of user's trusted humans
 
 This module helps users identify, remember, and reach out to
 the real humans in their life. All data stays local.
+
+Supports two storage backends:
+- JSON files (default, backward compatible)
+- SQLite database (when USE_SQLITE=true, better for multi-device sync)
 """
 
 import json
+import os
+import tempfile
+import logging
 from datetime import datetime, date
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -14,6 +21,19 @@ import random
 from config.settings import settings
 from utils.scenario_loader import get_scenario_loader
 
+logger = logging.getLogger(__name__)
+
+
+def _get_storage_backend():
+    """Lazy import to avoid circular dependency."""
+    if settings.USE_SQLITE:
+        from utils.storage_backend import get_storage_backend
+        return get_storage_backend()
+    return None
+
+# Schema version for data migration support
+SCHEMA_VERSION = 1
+
 
 class TrustedNetwork:
     """
@@ -21,34 +41,116 @@ class TrustedNetwork:
 
     Helps answer the question: "Who in your life could you talk to about this?"
     All data stored locally. No external calls.
+
+    Supports two storage backends:
+    - JSON files (default)
+    - SQLite database (when settings.USE_SQLITE is True)
     """
 
     def __init__(self):
         self.data_file = settings.DATA_DIR / "trusted_network.json"
         self.loader = get_scenario_loader()
+        self._backend = _get_storage_backend()
         self._ensure_data_file()
 
     def _ensure_data_file(self):
-        """Ensure data file exists with default structure."""
+        """Ensure data file exists with current schema."""
         if not self.data_file.exists():
-            self._save_data({
-                "people": [],
-                "reach_outs": [],  # Log of when user reached out
-                "created_at": datetime.now().isoformat()
-            })
+            self._save_data(self._get_default_data())
+
+    def _get_default_data(self) -> Dict:
+        """Return default data structure with current schema version."""
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "people": [],
+            "reach_outs": [],
+            "created_at": datetime.now().isoformat()
+        }
 
     def _load_data(self) -> Dict:
-        """Load network data from file."""
+        """Load network data from file with schema migration support."""
         try:
             with open(self.data_file, 'r') as f:
-                return json.load(f)
-        except:
-            return {"people": [], "reach_outs": []}
+                data = json.load(f)
+            return self._migrate_schema(data)
+        except FileNotFoundError:
+            logger.info("Trusted network file not found, returning defaults")
+            return self._get_default_data()
+        except json.JSONDecodeError as e:
+            logger.error(f"Corrupted trusted network file: {e}")
+            self._backup_corrupted_file()
+            return self._get_default_data()
+        except Exception as e:
+            logger.error(f"Unexpected error loading trusted network: {e}")
+            return self._get_default_data()
+
+    def _migrate_schema(self, data: Dict) -> Dict:
+        """Migrate data from older schema versions."""
+        current_version = data.get("schema_version", 0)
+
+        if current_version < SCHEMA_VERSION:
+            logger.info(f"Migrating trusted network from v{current_version} to v{SCHEMA_VERSION}")
+
+            # v0 -> v1: Add schema_version and ensure all fields exist
+            if current_version < 1:
+                data["schema_version"] = SCHEMA_VERSION
+                defaults = self._get_default_data()
+                for key in defaults:
+                    if key not in data:
+                        data[key] = defaults[key]
+
+            self._save_data(data)
+
+        return data
+
+    def _backup_corrupted_file(self):
+        """Backup a corrupted data file before overwriting."""
+        if self.data_file.exists():
+            backup_path = self.data_file.with_suffix(
+                f".corrupted.{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            try:
+                self.data_file.rename(backup_path)
+                logger.warning(f"Corrupted file backed up to: {backup_path}")
+            except Exception as e:
+                logger.error(f"Failed to backup corrupted file: {e}")
 
     def _save_data(self, data: Dict):
-        """Save network data to file."""
-        with open(self.data_file, 'w') as f:
-            json.dump(data, f, indent=2)
+        """
+        Save network data atomically using temp file + rename pattern.
+
+        This ensures that an interrupted write never leaves a corrupted file.
+        """
+        # Ensure schema version is set
+        if "schema_version" not in data:
+            data["schema_version"] = SCHEMA_VERSION
+
+        # Ensure parent directory exists
+        self.data_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write to temp file, then atomic rename
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.data_file.parent,
+            prefix=".trusted_network_",
+            suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(data, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+
+            # Atomic rename (POSIX guarantees atomicity on same filesystem)
+            os.replace(temp_path, self.data_file)
+
+        except Exception as e:
+            # Clean up temp file on failure
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            logger.error(f"Failed to save trusted network: {e}")
+            raise
 
     # ==================== MANAGING TRUSTED PEOPLE ====================
 
@@ -65,6 +167,13 @@ class TrustedNetwork:
             notes: Any notes about this person
             domains: Topics they're good for (e.g., ["money", "relationships"])
         """
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            return self._backend.add_trusted_person(
+                name, relationship, contact, notes, domains
+            )
+
+        # JSON backend
         data = self._load_data()
 
         person = {
@@ -85,6 +194,10 @@ class TrustedNetwork:
 
     def get_all_people(self) -> List[Dict]:
         """Get all trusted people."""
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            return self._backend.get_all_trusted_people()
+
         data = self._load_data()
         return data.get("people", [])
 
@@ -110,6 +223,11 @@ class TrustedNetwork:
 
     def update_person(self, person_id: int, updates: Dict) -> Optional[Dict]:
         """Update a person's information."""
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            return self._backend.update_trusted_person(person_id, updates)
+
+        # JSON backend
         data = self._load_data()
 
         for person in data["people"]:
@@ -122,6 +240,11 @@ class TrustedNetwork:
 
     def remove_person(self, person_id: int) -> bool:
         """Remove a person from the network."""
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            return self._backend.remove_trusted_person(person_id)
+
+        # JSON backend
         data = self._load_data()
         original_count = len(data["people"])
         data["people"] = [p for p in data["people"] if p["id"] != person_id]
@@ -140,6 +263,20 @@ class TrustedNetwork:
 
         This is a success metric - we want to see this increase.
         """
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            # Find person_id by name
+            people = self._backend.get_all_trusted_people()
+            person_id = None
+            for person in people:
+                if person["name"].lower() == person_name.lower():
+                    person_id = person["id"]
+                    break
+            return self._backend.add_reach_out(
+                person_id, person_name, method, notes
+            )
+
+        # JSON backend
         data = self._load_data()
 
         reach_out = {
@@ -163,6 +300,13 @@ class TrustedNetwork:
 
     def get_recent_reach_outs(self, days: int = 30) -> List[Dict]:
         """Get reach outs from the last N days."""
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            from datetime import timedelta
+            start_date = date.today() - timedelta(days=days)
+            return self._backend.get_reach_outs_for_period(start_date)
+
+        # JSON backend
         data = self._load_data()
         cutoff = (datetime.now().date() - __import__('datetime').timedelta(days=days)).isoformat()
 
@@ -287,6 +431,12 @@ class TrustedNetwork:
 
     def clear_data(self):
         """Clear all network data."""
+        # Use storage backend if SQLite is enabled
+        if self._backend is not None and settings.USE_SQLITE:
+            self._backend.clear_all_data()
+            return
+
+        # JSON backend
         self._save_data({
             "people": [],
             "reach_outs": [],
