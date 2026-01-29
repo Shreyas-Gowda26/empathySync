@@ -65,6 +65,22 @@
       "domain": "crisis",
       "risk_weight": 10.0,
       "action_taken": "Immediate crisis redirect"
+    },
+    {
+      "datetime": "2026-01-28T23:37:40.724108",
+      "date": "2026-01-28",
+      "policy_type": "high_risk_response",
+      "domain": "spirituality",
+      "risk_weight": 5.04,
+      "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-01-28T23:56:14.452866",
+      "date": "2026-01-28",
+      "policy_type": "high_risk_response",
+      "domain": "spirituality",
+      "risk_weight": 5.64,
+      "action_taken": "Response generated with high-risk guardrails"
     }
   ],
   "session_intents": [

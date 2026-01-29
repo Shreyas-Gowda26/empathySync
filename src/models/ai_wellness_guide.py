@@ -144,8 +144,13 @@ class WellnessGuide:
             if risk_assessment.get("context_inherited"):
                 context_note = f" | context_inherited=True (was {risk_assessment.get('original_weight')})"
 
+            # Log practical technique detection (Phase 9.1)
+            technique_note = ""
+            if risk_assessment.get("is_practical_technique") and domain != "logistics":
+                technique_note = f" | is_practical_technique=True (practical mode in {domain})"
+
             logger.info(
-                "Risk assessment | turn=%d | domain=%s | intensity=%.2f | dependency=%.2f | weight=%.2f | emotional_weight=%s%s",
+                "Risk assessment | turn=%d | domain=%s | intensity=%.2f | dependency=%.2f | weight=%.2f | emotional_weight=%s%s%s",
                 self.session_turn_count,
                 domain,
                 risk_assessment["emotional_intensity"],
@@ -153,6 +158,7 @@ class WellnessGuide:
                 risk_assessment["risk_weight"],
                 risk_assessment.get("emotional_weight", "unknown"),
                 context_note,
+                technique_note,
             )
 
             # 3) Hard-coded safety responses (don't trust model to comply)
@@ -203,8 +209,11 @@ class WellnessGuide:
             system_prompt = self.prompts.get_system_prompt(wellness_mode, risk_context=risk_assessment)
             conversation_context = self._build_context(conversation_history)
 
-            # Check if this is a practical task (logistics domain)
-            is_practical = domain == "logistics"
+            # Check if this is a practical task
+            # Phase 9.1: Also treat practical technique questions as practical
+            # This allows full responses for "how do I meditate?" even in spirituality domain
+            is_practical_technique = risk_assessment.get("is_practical_technique", False)
+            is_practical = domain == "logistics" or is_practical_technique
 
             # Add identity reminder periodically (only for non-practical conversations)
             identity_reminder = ""

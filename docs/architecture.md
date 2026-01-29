@@ -84,6 +84,7 @@ User Input
 ┌─────────────────────────────────────────────┐
 │  4. MODE SELECTION                          │
 │     domain == "logistics" → Practical Mode  │
+│     OR is_practical_technique → Practical   │
 │     else → Reflective Mode                  │
 └─────────────────────────────────────────────┘
     │
@@ -209,10 +210,12 @@ Response to User
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                       PRACTICAL MODE                            │
-│                   (domain == "logistics")                       │
+│       (domain == "logistics" OR is_practical_technique)         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│   Triggered by: writing requests, coding, explanations          │
+│   Triggered by:                                                 │
+│   - logistics domain: writing requests, coding, explanations    │
+│   - is_practical_technique=true: "How do I X?" in any domain    │
 │                                                                 │
 │   Behavior:                                                     │
 │   ┌─────────────────────────────────────────────────────────┐   │
@@ -224,18 +227,21 @@ Response to User
 │   │ ✓ Complete the task thoroughly                          │   │
 │   └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
-│   Example: "Help me write an email to my landlord"              │
-│   → Full email draft with formatting                            │
+│   Examples:                                                     │
+│   - "Help me write an email" → Full draft                       │
+│   - "How do I meditate?" → Full technique instructions          │
+│   - "What are some budgeting methods?" → Full practical list    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                      REFLECTIVE MODE                            │
-│              (domain in sensitive domains)                      │
+│    (sensitive domain AND is_practical_technique=false)          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│   Triggered by: emotional, health, money, relationships,        │
-│                 spirituality content                            │
+│   Triggered by: guidance questions in sensitive domains         │
+│   - "Should I X?" / "Is this right?" / "What does X want?"      │
+│   - emotional, health, money, relationships, spirituality       │
 │                                                                 │
 │   Behavior:                                                     │
 │   ┌─────────────────────────────────────────────────────────┐   │
@@ -246,8 +252,34 @@ Response to User
 │   │ ✓ Brief, restrained responses                           │   │
 │   └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
-│   Example: "I'm worried about my marriage"                      │
-│   → Brief acknowledgment + redirect to therapist/friend         │
+│   Examples:                                                     │
+│   - "I'm worried about my marriage" → Brief + human redirect    │
+│   - "Should I get this surgery?" → Brief + doctor redirect      │
+│   - "Is this my spiritual calling?" → Brief + mentor redirect   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                PRACTICAL TECHNIQUE DETECTION                    │
+│                       (Phase 9.1)                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   The LLM classifier distinguishes:                             │
+│   - Technique questions: "How do I X?" → is_practical_technique │
+│   - Guidance questions: "Should I X?" → reflective mode         │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │ Domain       │ Technique (✓)          │ Guidance (✗)    │   │
+│   │──────────────│────────────────────────│─────────────────│   │
+│   │ Spirituality │ "How to meditate?"     │ "Is this God's  │   │
+│   │              │                        │  will for me?"  │   │
+│   │ Health       │ "How to do a squat?"   │ "Should I get   │   │
+│   │              │                        │  this surgery?" │   │
+│   │ Money        │ "How to budget?"       │ "Should I       │   │
+│   │              │                        │  invest?"       │   │
+│   │ Relationships│ "How to write a        │ "Should I       │   │
+│   │              │  wedding toast?"       │  break up?"     │   │
+│   └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```

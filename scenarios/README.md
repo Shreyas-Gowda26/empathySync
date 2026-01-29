@@ -6,7 +6,7 @@ This directory contains the structured knowledge base for empathySync's risk ass
 
 ```
 scenarios/
-├── classification/    # LLM classifier prompts and config (Phase 9)
+├── classification/    # LLM classifier prompts and config (Phase 9, 9.1)
 ├── domains/           # 8 risk domains and their triggers
 ├── emotional_markers/ # Emotional intensity detection (4 levels)
 ├── emotional_weight/  # Task weight detection (high/medium/low)
@@ -102,6 +102,47 @@ Response templates:
 - `fallbacks.yaml` - When AI can't generate suitable response
 - `safe_alternatives.yaml` - When response contains harmful patterns
 - `base_prompt.yaml` - Core system prompt configuration
+
+### classification/
+
+LLM classifier configuration (Phase 9, 9.1):
+- `llm_classifier.yaml` - Classification prompt template, examples, and fast-path patterns
+
+**Key fields in classification output:**
+- `domain` - One of 8 domains (crisis, harmful, health, money, emotional, relationships, spirituality, logistics)
+- `emotional_intensity` - 0-10 scale
+- `is_personal_distress` - Whether user is personally distressed
+- `is_practical_technique` - (Phase 9.1) Whether user is asking "how to" vs "should I"
+- `confidence` - 0-1 confidence score
+
+**Practical Technique Detection (Phase 9.1):**
+
+The `is_practical_technique` field distinguishes:
+- **Technique questions** → Practical Mode (full help): "How do I meditate?", "What are budgeting methods?"
+- **Guidance questions** → Reflective Mode (restraint): "Should I get this surgery?", "Is this God's will?"
+
+To add classification examples, edit `llm_classifier.yaml`:
+
+```yaml
+examples:
+  - message: "How do I meditate for beginners?"
+    classification:
+      domain: "spirituality"
+      emotional_intensity: 1
+      is_personal_distress: false
+      is_practical_technique: true  # Technique question → Practical Mode
+      confidence: 0.95
+    explanation: "Asking for meditation technique, not spiritual guidance"
+
+  - message: "Is this my spiritual calling?"
+    classification:
+      domain: "spirituality"
+      emotional_intensity: 6
+      is_personal_distress: true
+      is_practical_technique: false  # Guidance question → Reflective Mode
+      confidence: 0.9
+    explanation: "Seeking spiritual direction, needs human support"
+```
 
 ## Contributing New Scenarios
 

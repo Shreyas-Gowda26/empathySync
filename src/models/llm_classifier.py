@@ -119,6 +119,7 @@ class LLMClassifier:
                     "domain": "crisis",
                     "emotional_intensity": 10.0,
                     "is_personal_distress": True,
+                    "is_practical_technique": False,
                     "confidence": 1.0,
                     "classification_method": "fast_path_crisis"
                 }
@@ -131,6 +132,7 @@ class LLMClassifier:
                     "domain": "harmful",
                     "emotional_intensity": 0.0,
                     "is_personal_distress": False,
+                    "is_practical_technique": False,
                     "confidence": 1.0,
                     "classification_method": "fast_path_harmful"
                 }
@@ -246,6 +248,12 @@ class LLMClassifier:
         if isinstance(is_distress, str):
             is_distress = is_distress.lower() in ("true", "yes", "1")
 
+        # Normalize is_practical_technique (Phase 9.1)
+        # This distinguishes "how do I do X?" from "should I do X?"
+        is_technique = result.get("is_practical_technique", False)
+        if isinstance(is_technique, str):
+            is_technique = is_technique.lower() in ("true", "yes", "1")
+
         # Normalize confidence
         confidence = result.get("confidence", 0.7)
         try:
@@ -258,6 +266,7 @@ class LLMClassifier:
             "domain": domain,
             "emotional_intensity": intensity,
             "is_personal_distress": bool(is_distress),
+            "is_practical_technique": bool(is_technique),
             "confidence": confidence,
             "classification_method": "llm"
         }

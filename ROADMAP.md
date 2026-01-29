@@ -518,6 +518,49 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 
 ---
 
+## Phase 9.1: Practical Technique Detection ✅ COMPLETE
+**Goal**: Allow full practical responses for "how to" questions in sensitive domains.
+
+**Problem**: User asks "How do I read the Bible with childlike wonder?" - this is classified as `spirituality` domain, triggering Reflective Mode with brief responses and human redirect. But the user isn't asking for spiritual guidance - they're asking for practical reading techniques.
+
+**Solution**: Add `is_practical_technique` field to LLM classification to distinguish:
+- **Technique questions**: "How do I X?" → Practical Mode (full help)
+- **Guidance questions**: "Should I X?" / "Is this right?" → Reflective Mode (restraint + redirect)
+
+### 9.1.1 LLM Classifier Prompt Update ✅ DONE
+- [x] Added `is_practical_technique` field to classification prompt template
+- [x] Added clear guidance for distinguishing technique vs guidance questions
+- [x] Added 12 cross-domain examples covering spirituality, health, money, relationships
+- [x] Updated existing examples to include the new field
+
+### 9.1.2 Classification Pipeline Update ✅ DONE
+- [x] `LLMClassifier._validate_classification()` parses and normalizes `is_practical_technique`
+- [x] Fast-path responses (crisis/harmful) set `is_practical_technique: false`
+- [x] `RiskClassifier.classify()` passes through `is_practical_technique` from LLM result
+
+### 9.1.3 Mode Selection Update ✅ DONE
+- [x] `WellnessGuide.generate_response()` updated:
+  ```python
+  is_practical = domain == "logistics" or risk_assessment.get("is_practical_technique", False)
+  ```
+- [x] Added logging for practical technique detection in sensitive domains
+
+**Cross-Domain Examples**:
+| Domain | Technique Question (Practical Mode) | Guidance Question (Reflective Mode) |
+|--------|-------------------------------------|-------------------------------------|
+| Spirituality | "How do I meditate?" | "Is this God's calling for me?" |
+| Health | "How do I do a proper squat?" | "Should I get this surgery?" |
+| Money | "How do I create a budget?" | "Should I invest in crypto?" |
+| Relationships | "How do I write a wedding toast?" | "Should I break up with them?" |
+
+**Files modified**:
+- `scenarios/classification/llm_classifier.yaml` - Added prompt guidance and 12 examples
+- `src/models/llm_classifier.py` - Parse `is_practical_technique` field
+- `src/models/risk_classifier.py` - Pass through field from LLM result
+- `src/models/ai_wellness_guide.py` - Updated mode selection logic
+
+---
+
 ## Phase 9.5: UI Polish 🔵 IN PROGRESS
 **Goal**: Improve the user interface for better usability without over-engineering.
 
@@ -726,15 +769,16 @@ LOCK_STALE_TIMEOUT=300
 | 7. Success Metrics | High | Medium | ✅ COMPLETE |
 | 8. Immunity & Wisdom | **High** | Medium | ✅ COMPLETE (Core) |
 | 9. LLM Classification | **High** | Medium | ✅ COMPLETE |
+| 9.1 Practical Technique Detection | **High** | Low | ✅ COMPLETE |
 | 9.5 UI Polish | Medium | Low | ✅ COMPLETE |
 | 10. Advanced Detection | High | High | 🔵 Long-term |
 | 11. Persistence Hardening | **High** | Medium | ✅ COMPLETE (Core) |
 
 ---
 
-## Current Status (2026-01-28)
+## Current Status (2026-01-29)
 
-**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.5, and 11.1-11.7 (Atomic Writes, Schema Versioning, SQLite Migration, Lock File, Write Gate, Schema v2, Migration Hardening)
+**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, and 11.1-11.7 (Atomic Writes, Schema Versioning, SQLite Migration, Lock File, Write Gate, Schema v2, Migration Hardening)
 
 **In Progress**: Phase 11.8 (Sync Folder Documentation)
 
@@ -791,6 +835,9 @@ LOCK_STALE_TIMEOUT=300
 - ✅ Context-aware classification (political "breaking down" vs personal distress)
 - ✅ Classification caching with LRU eviction
 - ✅ Configurable LLM classification toggle (LLM_CLASSIFICATION_ENABLED setting)
+- ✅ Practical technique detection across all sensitive domains (Phase 9.1)
+- ✅ Cross-domain "how to" vs "should I" distinction for mode selection
+- ✅ `is_practical_technique` field in classification output
 - ✅ SQLite storage backend with WAL mode for crash safety
 - ✅ Storage abstraction layer (JSON/SQLite backends)
 - ✅ Automatic JSON → SQLite migration when enabled
@@ -839,6 +886,7 @@ LOCK_STALE_TIMEOUT=300
 **v0.5.5** (Phase 8): Immunity building and wisdom prompts ✅ COMPLETE
 **v0.6** (Phase 7): Local metrics and anti-engagement scoring ✅ COMPLETE
 **v0.7** (Phase 9): LLM-based intelligent classification ✅ COMPLETE
+**v0.7.1** (Phase 9.1): Practical technique detection ✅ COMPLETE
 **v0.8** (Phase 11): SQLite backend, multi-device sync, lock file ✅ COMPLETE
 **v1.0** (Phase 10): Advanced detection, production-ready
 

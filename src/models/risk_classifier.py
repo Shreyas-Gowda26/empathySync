@@ -147,6 +147,7 @@ class RiskClassifier:
         # Add LLM-specific fields if available
         if llm_result:
             result["is_personal_distress"] = llm_result.get("is_personal_distress", False)
+            result["is_practical_technique"] = llm_result.get("is_practical_technique", False)
             result["llm_confidence"] = llm_result.get("confidence", 0.0)
 
         # Check for dependency intervention

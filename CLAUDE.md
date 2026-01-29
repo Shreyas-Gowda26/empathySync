@@ -132,29 +132,45 @@ empathySync/
 
 ### Two Operating Modes
 
-**1. Practical Mode** (logistics domain)
-- Triggered by: writing requests, coding, explanations, general questions
+**1. Practical Mode** (logistics domain OR practical technique questions)
+- Triggered by:
+  - `logistics` domain: writing requests, coding, explanations, general questions
+  - `is_practical_technique: true` in any domain (Phase 9.1): "How do I meditate?", "What are budgeting methods?"
 - Behavior: Full assistant capability
   - No word limits (up to 2000 tokens)
   - Markdown formatting, code blocks, lists allowed
   - Complete the task thoroughly
   - No identity reminders or therapeutic framing
 
-**2. Reflective Mode** (sensitive domains)
+**2. Reflective Mode** (sensitive domains with guidance questions)
 - Triggered by: emotional content, financial decisions, health concerns, relationships, spirituality
+  - Only when `is_practical_technique: false` (asking for guidance, not techniques)
+  - Examples: "Should I get this surgery?", "Is this God's will?", "Should I break up?"
 - Behavior: Brief, restrained responses
   - Word limits enforced (50-150 words)
   - Plain prose, no formatting
   - Redirects to human support
   - Identity reminders every 6 turns
 
+**Phase 9.1: Practical Technique Detection**
+The LLM classifier distinguishes between:
+- **Technique questions** (`is_practical_technique: true`): "How do I X?" → Full practical help
+- **Guidance questions** (`is_practical_technique: false`): "Should I X?" → Restraint + human redirect
+
+| Domain | Technique Question | Guidance Question |
+|--------|-------------------|-------------------|
+| Health | "How do I do a proper squat?" ✓ | "Should I get this surgery?" ✗ |
+| Money | "How do I create a budget?" ✓ | "Should I invest in crypto?" ✗ |
+| Relationships | "How do I write a wedding toast?" ✓ | "Should I break up?" ✗ |
+| Spirituality | "How do I meditate?" ✓ | "Is this my calling?" ✗ |
+
 ### Data Flow (Safety Pipeline)
 
 1. User input received in Streamlit chat
 2. **Post-Crisis Check**: If previous turn was a crisis intervention, handle deflection patterns ("just joking") with firm, non-apologetic response. Never apologize for crisis interventions.
 3. **Cooldown Check**: `WellnessTracker.should_enforce_cooldown()` blocks if usage limits exceeded
-4. **Risk Assessment**: `RiskClassifier.classify()` returns domain, emotional intensity, dependency risk, and combined risk weight
-5. **Mode Selection**: `logistics` domain → Practical Mode, other domains → Reflective Mode
+4. **Risk Assessment**: `RiskClassifier.classify()` returns domain, emotional intensity, dependency risk, `is_practical_technique`, and combined risk weight
+5. **Mode Selection**: `logistics` domain OR `is_practical_technique=true` → Practical Mode, otherwise → Reflective Mode
 6. **Hard Stop Check**: Crisis/harmful domains trigger immediate intervention
 7. **Turn Limit Check**: Domain-specific turn limits enforced:
    - `logistics`: 20 turns (practical tasks)
@@ -181,9 +197,15 @@ The `RiskClassifier` produces:
     "risk_weight": float,           # Combined 0-10 risk score
     "classification_method": str,   # "llm" or "keyword" (Phase 9)
     "is_personal_distress": bool,   # LLM-detected personal vs general topic (Phase 9)
+    "is_practical_technique": bool, # True = "how to" question, False = guidance question (Phase 9.1)
     "llm_confidence": float,        # 0-1 confidence score (when LLM used)
     "intervention": dict            # Present if dependency threshold met
 }
+```
+
+**Mode Selection Logic** (Phase 9.1):
+```python
+is_practical = domain == "logistics" or risk_assessment.get("is_practical_technique", False)
 ```
 
 ### Emotional Weight (Practical Tasks Only)
@@ -347,5 +369,6 @@ See [ROADMAP.md](ROADMAP.md) for the phased implementation plan covering:
 - Phase 7: Success Metrics (Local-First) ✅
 - Phase 8: Immunity Building & Wisdom Prompts ✅ (Core)
 - Phase 9: LLM-Based Intelligent Classification ✅
+- Phase 9.1: Practical Technique Detection ✅ (cross-domain "how to" vs "should I" distinction)
 - Phase 10: Advanced Detection (Long-term)
 - Phase 11: Persistence Hardening & Multi-Device Sync ✅ (Core)

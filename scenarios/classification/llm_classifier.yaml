@@ -37,10 +37,28 @@ prompt_template: |
   - Discussing feelings directly = emotional/relationships
   - Technical discussions with emotional words = logistics
 
+  IMPORTANT - Practical Technique Detection:
+  When domain is health, money, relationships, or spirituality, also determine if this is a TECHNIQUE question:
+  - is_practical_technique: true = User asking HOW to do something (methods, steps, techniques, approaches)
+  - is_practical_technique: false = User asking for GUIDANCE or DECISIONS (should I, what does X want, is this right)
+
+  Examples of practical technique questions (is_practical_technique: true):
+  - "How do I meditate?" (spirituality - technique)
+  - "What are some budgeting methods?" (money - technique)
+  - "How do I do a proper squat?" (health - technique)
+  - "How do I write a wedding toast?" (relationships - technique)
+  - "Ways to approach reading the Bible" (spirituality - technique)
+
+  Examples of guidance questions (is_practical_technique: false):
+  - "Is this God's will for me?" (spirituality - guidance)
+  - "Should I invest in crypto?" (money - guidance)
+  - "Should I get this surgery?" (health - guidance)
+  - "Should I break up with them?" (relationships - guidance)
+
   Message: "{message}"
 
   Return JSON:
-  {{"domain": "...", "emotional_intensity": 0-10, "is_personal_distress": true/false, "confidence": 0.0-1.0}}
+  {{"domain": "...", "emotional_intensity": 0-10, "is_personal_distress": true/false, "is_practical_technique": true/false, "confidence": 0.0-1.0}}
 
 # Few-shot examples for better accuracy
 examples:
@@ -49,6 +67,7 @@ examples:
       domain: "logistics"
       emotional_intensity: 2
       is_personal_distress: false
+      is_practical_technique: false
       confidence: 0.9
     explanation: "Discussing a political/social system, not personal distress"
 
@@ -57,6 +76,7 @@ examples:
       domain: "emotional"
       emotional_intensity: 9
       is_personal_distress: true
+      is_practical_technique: false
       confidence: 0.95
     explanation: "Personal emotional distress, first-person"
 
@@ -65,6 +85,7 @@ examples:
       domain: "logistics"
       emotional_intensity: 3
       is_personal_distress: false
+      is_practical_technique: true
       confidence: 0.85
     explanation: "Practical task request, even though topic is emotionally weighted"
 
@@ -73,6 +94,7 @@ examples:
       domain: "relationships"
       emotional_intensity: 5
       is_personal_distress: false
+      is_practical_technique: false
       confidence: 0.8
     explanation: "About relationships but not the user's direct distress"
 
@@ -81,6 +103,7 @@ examples:
       domain: "emotional"
       emotional_intensity: 8
       is_personal_distress: true
+      is_practical_technique: false
       confidence: 0.95
     explanation: "Direct expression of loneliness and isolation"
 
@@ -89,6 +112,7 @@ examples:
       domain: "logistics"
       emotional_intensity: 0
       is_personal_distress: false
+      is_practical_technique: true
       confidence: 0.99
     explanation: "Pure educational/practical request"
 
@@ -97,6 +121,7 @@ examples:
       domain: "logistics"
       emotional_intensity: 0
       is_personal_distress: false
+      is_practical_technique: true
       confidence: 0.95
     explanation: "Technical terminology, not violent intent"
 
@@ -105,24 +130,143 @@ examples:
       domain: "health"
       emotional_intensity: 6
       is_personal_distress: true
+      is_practical_technique: false
       confidence: 0.9
-    explanation: "Medical symptoms requiring attention"
+    explanation: "Medical symptoms requiring attention, not technique question"
 
   - message: "Should I take out a loan to invest in crypto?"
     classification:
       domain: "money"
       emotional_intensity: 3
       is_personal_distress: false
+      is_practical_technique: false
       confidence: 0.85
-    explanation: "Financial decision seeking advice"
+    explanation: "Financial decision seeking advice, not technique question"
 
   - message: "I don't want to be here anymore"
     classification:
       domain: "crisis"
       emotional_intensity: 10
       is_personal_distress: true
+      is_practical_technique: false
       confidence: 0.9
     explanation: "Potential suicidal ideation, requires careful handling"
+
+  # Cross-domain practical technique examples (Phase 9.1)
+  # These demonstrate the distinction between technique questions (full help)
+  # and guidance questions (restraint + human redirect)
+
+  # Spirituality domain
+  - message: "How do I meditate for beginners?"
+    classification:
+      domain: "spirituality"
+      emotional_intensity: 1
+      is_personal_distress: false
+      is_practical_technique: true
+      confidence: 0.95
+    explanation: "Asking for meditation technique, not spiritual guidance"
+
+  - message: "What are some ways to approach reading the Bible with childlike wonder?"
+    classification:
+      domain: "spirituality"
+      emotional_intensity: 2
+      is_personal_distress: false
+      is_practical_technique: true
+      confidence: 0.9
+    explanation: "Asking for reading approaches/methods, not theological guidance"
+
+  - message: "Is this my spiritual calling? Should I become a priest?"
+    classification:
+      domain: "spirituality"
+      emotional_intensity: 6
+      is_personal_distress: true
+      is_practical_technique: false
+      confidence: 0.9
+    explanation: "Seeking spiritual direction/discernment, needs human support"
+
+  # Health domain
+  - message: "How do I do a proper squat without hurting my knees?"
+    classification:
+      domain: "health"
+      emotional_intensity: 1
+      is_personal_distress: false
+      is_practical_technique: true
+      confidence: 0.95
+    explanation: "Asking for exercise technique, not medical advice"
+
+  - message: "What stretches help with lower back pain?"
+    classification:
+      domain: "health"
+      emotional_intensity: 2
+      is_personal_distress: false
+      is_practical_technique: true
+      confidence: 0.9
+    explanation: "Asking for stretching techniques, practical request"
+
+  - message: "Should I get this surgery? My doctor recommended it but I'm not sure"
+    classification:
+      domain: "health"
+      emotional_intensity: 7
+      is_personal_distress: true
+      is_practical_technique: false
+      confidence: 0.9
+    explanation: "Medical decision requiring professional guidance"
+
+  # Money domain
+  - message: "How do I create a budget spreadsheet?"
+    classification:
+      domain: "money"
+      emotional_intensity: 1
+      is_personal_distress: false
+      is_practical_technique: true
+      confidence: 0.95
+    explanation: "Asking for budgeting technique, practical task"
+
+  - message: "What are some methods for tracking expenses?"
+    classification:
+      domain: "money"
+      emotional_intensity: 1
+      is_personal_distress: false
+      is_practical_technique: true
+      confidence: 0.9
+    explanation: "Asking for tracking methods, practical request"
+
+  - message: "Should I take out a loan to invest in crypto?"
+    classification:
+      domain: "money"
+      emotional_intensity: 3
+      is_personal_distress: false
+      is_practical_technique: false
+      confidence: 0.85
+    explanation: "Financial decision seeking advice, needs restraint"
+
+  # Relationships domain
+  - message: "How do I write a wedding toast for my best friend?"
+    classification:
+      domain: "relationships"
+      emotional_intensity: 2
+      is_personal_distress: false
+      is_practical_technique: true
+      confidence: 0.9
+    explanation: "Asking for writing technique, practical task"
+
+  - message: "What are some ways to start a difficult conversation?"
+    classification:
+      domain: "relationships"
+      emotional_intensity: 3
+      is_personal_distress: false
+      is_practical_technique: true
+      confidence: 0.85
+    explanation: "Asking for communication techniques, practical request"
+
+  - message: "Should I break up with my partner? We've been having problems"
+    classification:
+      domain: "relationships"
+      emotional_intensity: 8
+      is_personal_distress: true
+      is_practical_technique: false
+      confidence: 0.95
+    explanation: "Major relationship decision, needs human support"
 
 # Keywords that ALWAYS trigger fast-path (safety-critical, skip LLM)
 # These bypass LLM classification entirely for safety
