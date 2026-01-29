@@ -17,7 +17,7 @@
 
 ## What It Is
 
-An open-source, local-first AI assistant that provides full help for practical tasks but applies restraint on sensitive topics. Everything runs on your machine via Ollama—no cloud APIs, no data harvesting, no telemetry.
+An open-source, local-first AI assistant that provides full help for practical tasks but applies restraint on sensitive topics. Everything runs on your machine via Ollama, no cloud APIs, no data harvesting, no telemetry.
 
 ## The Philosophy
 
@@ -33,7 +33,7 @@ We optimize for exit, not engagement.
 
 - **Tracks dependency patterns** and warns you if you're relying on it too much
 - **Suggests real humans** to talk to instead of continuing the conversation
-- **Crisis detection** that redirects to helplines—never engages with crisis content
+- **Crisis detection** that redirects to helplines, never engages with crisis content
 - **Transparency panel** showing exactly why it responded the way it did
 - **Anti-engagement metrics**: fewer sensitive sessions = success
 - **Post-crisis protection**: never apologizes for safety interventions
@@ -81,7 +81,7 @@ Build your list of real humans to reach out to, with pre-written templates for h
 Monitors usage patterns across sessions. Gently intervenes when over-reliance is detected.
 
 ### My Patterns Dashboard
-Track your usage—sensitive vs practical. Week-over-week comparisons. The goal: sensitive sessions going *down*.
+Track your usage, sensitive vs practical. Week-over-week comparisons. The goal: sensitive sessions going *down*.
 
 ### "What Would You Tell a Friend?"
 For tough decisions, helps you access your own wisdom instead of asking AI for answers.
