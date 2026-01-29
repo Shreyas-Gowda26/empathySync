@@ -1,0 +1,159 @@
+# Connection Building: First Contact Templates
+# Templates for initiating NEW connections (vs reaching out to existing trusted people)
+#
+# Philosophy: Many people struggle not because they don't want connection,
+# but because they don't know HOW to initiate it. These are practical skills.
+# This is "practical technique" territory - full help allowed.
+
+version: 1
+
+# Context-specific templates for different situations
+situations:
+
+  at_a_group_or_meetup:
+    title: "Starting a conversation at a group or meetup"
+    intro: "The first time at any group is awkward. Here's how to make it easier:"
+
+    before_tips:
+      - "Arrive a few minutes early - it's easier to talk to one person than join an existing conversation"
+      - "Look for someone else who seems new or on the edges - they're probably feeling the same way"
+      - "Give yourself permission to leave early if you need to"
+
+    conversation_starters:
+      - opener: "Hi, is this your first time here?"
+        why_it_works: "If yes, instant bond. If no, they become your guide."
+
+      - opener: "How did you find out about this group?"
+        why_it_works: "Opens up their story without being too personal."
+
+      - opener: "I'm new here and a little nervous - mind if I hang with you for a bit?"
+        why_it_works: "Vulnerability is disarming. Most people want to help."
+
+      - opener: "What got you interested in [topic/activity]?"
+        why_it_works: "People love talking about their interests."
+
+    follow_up_tips:
+      - "Ask follow-up questions about what they share - people feel heard when you're curious"
+      - "Share something about yourself too - connection is reciprocal"
+      - "It's okay if the conversation is short - you showed up, that's the win"
+
+  turning_acquaintance_into_friend:
+    title: "Moving an acquaintance toward friendship"
+    intro: "You know someone casually but want to deepen the connection. This is the hardest gap to cross."
+
+    signals_they_might_be_open:
+      - "They seem genuinely happy to see you"
+      - "Conversations naturally go longer than necessary"
+      - "They've mentioned things they enjoy doing"
+      - "They've shared something personal"
+
+    ways_to_suggest_hanging_out:
+      - template: "Hey, I really enjoy talking with you. Want to grab coffee sometime?"
+        context: "Direct and simple. Works for most situations."
+
+      - template: "I've been meaning to check out [place/activity]. Would you want to come along?"
+        context: "Lower pressure - it's about the activity, not just 'hanging out'."
+
+      - template: "A few of us are doing [activity] this weekend - want to join?"
+        context: "Group setting feels less intense for both of you."
+
+      - template: "I'm trying to get out more and meet people. Would you be up for [specific activity]?"
+        context: "Honest about your intention. Many people respect that."
+
+    if_they_say_no:
+      - "A 'no' usually means 'not right now' - not 'never'"
+      - "Don't take it personally - they might be overwhelmed with other things"
+      - "Leave the door open: 'No worries, another time maybe'"
+      - "One rejection doesn't define the relationship"
+
+  reconnecting_with_someone_from_the_past:
+    title: "Reaching out to someone you've lost touch with"
+    intro: "Time passing doesn't erase connection. Most people are happy to hear from old friends."
+
+    templates:
+      - template: "Hey [name], I know it's been a while. I was thinking about [shared memory] and wanted to reach out. How have you been?"
+        context: "Warm, specific, low-pressure."
+
+      - template: "I came across [something that reminded you of them] and thought of you. It's been too long - how are things?"
+        context: "Gives a natural reason for reaching out."
+
+      - template: "I've been trying to reconnect with people who mattered to me. You came to mind. How's life treating you?"
+        context: "Honest about your intention. Most people find this touching."
+
+    tips:
+      - "Don't over-apologize for the time gap - just acknowledge it briefly"
+      - "Be specific about a shared memory - it shows you actually remember them"
+      - "Keep expectations low for the first message"
+      - "If they don't respond, that's okay - you tried"
+
+  joining_a_new_community:
+    title: "Becoming part of a new community"
+    intro: "Belonging takes time. Here's how to ease into a new group:"
+
+    first_visits:
+      - "Show up consistently - people need to see you multiple times before you feel 'part of it'"
+      - "Learn names - even if you forget, the effort is noticed"
+      - "Offer to help with something small - it gives you a role"
+      - "Find the 'welcomer' - every group has someone who naturally includes newcomers"
+
+    building_over_time:
+      - "Three to six visits before you start feeling comfortable is normal"
+      - "One real conversation per visit is enough"
+      - "You don't have to be the most social person - quiet regulars are valued too"
+      - "If it doesn't feel right after several tries, it's okay to try a different group"
+
+  asking_for_help_or_support:
+    title: "Asking someone for help (even if you're not close yet)"
+    intro: "Asking for help can actually BUILD connection - it's not just a burden."
+
+    why_asking_helps_connection:
+      - "People like feeling useful and trusted"
+      - "Vulnerability creates intimacy"
+      - "It gives them permission to ask you for help later"
+
+    templates:
+      - template: "I'm dealing with [situation] and I'm not sure what to do. You seem like someone who might have perspective - would you mind if I asked your advice?"
+        context: "Frames them as capable and trusted."
+
+      - template: "I don't usually ask for help, but I'm struggling with [thing]. Do you have a few minutes?"
+        context: "Acknowledges the difficulty of asking."
+
+      - template: "I know we don't know each other super well, but I trust your judgment. Can I run something by you?"
+        context: "Directly addresses the 'are we close enough?' worry."
+
+    tips:
+      - "Be specific about what you need - vague asks are harder to respond to"
+      - "Accept whatever they can offer gracefully"
+      - "Follow up to let them know how things went - it closes the loop"
+
+# General principles for all first-contact situations
+general_principles:
+  - title: "Rejection is redirection"
+    content: "Not every connection will click. That's information, not failure."
+
+  - title: "Consistency beats intensity"
+    content: "Showing up regularly matters more than making a big impression once."
+
+  - title: "Shared activities > forced conversation"
+    content: "Doing something together is easier than sitting across from someone trying to 'connect'."
+
+  - title: "Quality over quantity"
+    content: "One genuine connection is worth more than ten acquaintances."
+
+  - title: "Give it time"
+    content: "Friendship often takes 50+ hours of shared time to develop. Be patient with the process."
+
+# Affirmations for people who find this hard
+affirmations:
+  - "Finding connection as an adult is genuinely difficult. You're not broken for struggling with it."
+  - "The fact that you're thinking about this means you care about having real relationships."
+  - "Every person you admire for their social ease was once awkward too."
+  - "You don't have to be extroverted to have deep friendships."
+  - "Starting is the hardest part. You're already doing it by being here."
+
+# When to show these templates
+triggers:
+  - network_empty: true
+  - user_asks_how_to_meet_people: true
+  - user_expresses_loneliness: true
+  - after_signpost_shown: true  # Natural follow-up to "where to find people"

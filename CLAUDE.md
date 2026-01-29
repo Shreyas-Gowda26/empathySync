@@ -80,11 +80,12 @@ empathySync/
 │       ├── wellness_tracker.py  # Session/check-in/metrics tracking (~1400 lines)
 │       ├── trusted_network.py   # Human network management (~500 lines)
 │       └── scenario_loader.py   # YAML knowledge base loader (~1300 lines)
-├── scenarios/                    # Knowledge base (32 YAML files)
+├── scenarios/                    # Knowledge base (34 YAML files)
 │   ├── domains/                 # 8 risk domains (crisis, harmful, health, money, emotional, relationships, spirituality, logistics)
 │   ├── emotional_markers/       # 4 intensity levels
 │   ├── emotional_weight/        # Task weight detection (high/medium/low)
 │   ├── classification/          # LLM classifier prompts and config
+│   ├── connection_building/     # Signposts and first-contact templates (Phase 12)
 │   ├── graduation/              # Competence graduation prompts
 │   ├── handoff/                 # Human handoff templates
 │   ├── intents/                 # Session intent configuration
@@ -119,7 +120,7 @@ empathySync/
 
 **Utils**:
 - [src/utils/wellness_tracker.py](src/utils/wellness_tracker.py) - `WellnessTracker` class: tracks sessions, check-ins, policy events; calculates dependency signals; enforces cooldowns
-- [src/utils/trusted_network.py](src/utils/trusted_network.py) - `TrustedNetwork` class: manages trusted contacts, domain-specific suggestions, reach-out history, connection health metrics
+- [src/utils/trusted_network.py](src/utils/trusted_network.py) - `TrustedNetwork` class: manages trusted contacts, domain-specific suggestions, reach-out history, connection health metrics, signposts for finding connection, first-contact templates (Phase 12)
 - [src/utils/scenario_loader.py](src/utils/scenario_loader.py) - `ScenarioLoader` class: singleton loader for YAML knowledge base with caching and hot-reload support
 - [src/utils/helpers.py](src/utils/helpers.py) - Logging setup and environment validation
 - [src/utils/database.py](src/utils/database.py) - SQLite database layer with WAL mode, transactions, schema migrations (Phase 11)
@@ -372,3 +373,4 @@ See [ROADMAP.md](ROADMAP.md) for the phased implementation plan covering:
 - Phase 9.1: Practical Technique Detection ✅ (cross-domain "how to" vs "should I" distinction)
 - Phase 10: Advanced Detection (Long-term)
 - Phase 11: Persistence Hardening & Multi-Device Sync ✅ (Core)
+- Phase 12: Connection Building ✅ (signposts, first-contact templates for empty networks)

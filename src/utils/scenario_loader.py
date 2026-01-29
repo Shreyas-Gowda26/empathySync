@@ -1135,6 +1135,94 @@ class ScenarioLoader:
         config = self.get_ai_literacy_config()
         return config.get("manipulation_patterns", {})
 
+    # ==================== CONNECTION BUILDING (PHASE 12) ====================
+
+    def get_all_connection_building(self) -> Dict[str, Dict]:
+        """Load all connection building configurations."""
+        return self._load_directory("connection_building")
+
+    def get_signposts_config(self) -> Dict:
+        """Get signposts configuration (types of places to find connection)."""
+        connection = self.get_all_connection_building()
+        return connection.get("signposts", {})
+
+    def get_first_contact_config(self) -> Dict:
+        """Get first contact templates configuration."""
+        connection = self.get_all_connection_building()
+        return connection.get("first_contact", {})
+
+    def get_general_signposts(self) -> List[Dict]:
+        """Get general signpost categories (not domain-specific)."""
+        config = self.get_signposts_config()
+        return config.get("general_signposts", [])
+
+    def get_domain_signposts(self, domain: str) -> Dict:
+        """
+        Get signposts for a specific domain.
+
+        Args:
+            domain: e.g., 'relationships', 'money', 'health', 'spirituality'
+
+        Returns:
+            Dict with intro and categories, or empty dict
+        """
+        config = self.get_signposts_config()
+        domain_signposts = config.get("domain_signposts", {})
+        return domain_signposts.get(domain, {})
+
+    def get_signpost_reflection_prompt(self) -> str:
+        """Get a random reflection prompt for signposting."""
+        import random
+        config = self.get_signposts_config()
+        prompts = config.get("reflection_prompts", [])
+        if prompts:
+            return random.choice(prompts)
+        return "What kind of people do you feel most comfortable around?"
+
+    def get_signpost_encouragement(self) -> str:
+        """Get a random encouragement message for connection building."""
+        import random
+        config = self.get_signposts_config()
+        messages = config.get("encouragement", [])
+        if messages:
+            return random.choice(messages)
+        return "Building connection takes time. One small step is enough for today."
+
+    def get_first_contact_situation(self, situation: str) -> Dict:
+        """
+        Get templates for a specific first-contact situation.
+
+        Args:
+            situation: e.g., 'at_a_group_or_meetup', 'turning_acquaintance_into_friend',
+                      'reconnecting_with_someone_from_the_past', 'joining_a_new_community',
+                      'asking_for_help_or_support'
+
+        Returns:
+            Dict with title, intro, tips, and templates
+        """
+        config = self.get_first_contact_config()
+        situations = config.get("situations", {})
+        return situations.get(situation, {})
+
+    def get_all_first_contact_situations(self) -> Dict[str, Dict]:
+        """Get all first-contact situation templates."""
+        config = self.get_first_contact_config()
+        return config.get("situations", {})
+
+    def get_first_contact_principles(self) -> List[Dict]:
+        """Get general principles for initiating connection."""
+        config = self.get_first_contact_config()
+        return config.get("general_principles", [])
+
+    def get_first_contact_affirmation(self) -> str:
+        """Get a random affirmation for people struggling with connection."""
+        import random
+        config = self.get_first_contact_config()
+        affirmations = config.get("affirmations", [])
+        if affirmations:
+            return random.choice(affirmations)
+        return "Finding connection as an adult is genuinely difficult. You're not broken for struggling with it."
+
     # ==================== UTILITY METHODS ====================
 
     def clear_cache(self) -> None:

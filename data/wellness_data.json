@@ -81,6 +81,30 @@
       "domain": "spirituality",
       "risk_weight": 5.64,
       "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-01-29T05:12:02.341687",
+      "date": "2026-01-29",
+      "policy_type": "high_risk_response",
+      "domain": "spirituality",
+      "risk_weight": 5.64,
+      "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-01-29T05:20:16.781285",
+      "date": "2026-01-29",
+      "policy_type": "high_risk_response",
+      "domain": "spirituality",
+      "risk_weight": 5.64,
+      "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-01-29T05:25:31.036775",
+      "date": "2026-01-29",
+      "policy_type": "high_risk_response",
+      "domain": "spirituality",
+      "risk_weight": 5.64,
+      "action_taken": "Response generated with high-risk guardrails"
     }
   ],
   "session_intents": [

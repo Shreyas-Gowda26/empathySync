@@ -1,0 +1,120 @@
+# Connection Building: Signposts
+# Categories of places to find human connection
+# No specific services or APIs - just types of places for users to search locally
+#
+# Philosophy: When someone has no trusted network, "talk to someone" is a dead end.
+# Instead, we point them toward TYPES of places where they might find their people.
+# The user does the local search - we just plant the seeds.
+
+version: 1
+
+# General categories - shown when no specific domain context
+general_signposts:
+  - category: "Community groups around shared interests"
+    description: "Book clubs, hiking groups, gaming communities, craft circles, sports leagues"
+    why_it_works: "Connection built around shared activities feels more natural than forced socializing"
+    search_hint: "Try searching: '[your city] [hobby] group' or check community boards at libraries"
+
+  - category: "Volunteering opportunities"
+    description: "Food banks, animal shelters, community gardens, tutoring programs, habitat builds"
+    why_it_works: "Working alongside others toward a shared goal creates bonds without the pressure of 'making friends'"
+    search_hint: "Search: 'volunteer opportunities near me' or check local nonprofits"
+
+  - category: "Support groups for shared experiences"
+    description: "Grief groups, divorce support, new parents groups, chronic illness communities, recovery meetings"
+    why_it_works: "People who've been through what you're going through understand in ways others can't"
+    search_hint: "Search: '[your situation] support group [your city]' or ask at community centers"
+
+  - category: "Classes and skill-building"
+    description: "Cooking classes, language exchanges, art workshops, dance lessons, fitness classes"
+    why_it_works: "Learning together creates natural conversation starters and regular touchpoints"
+    search_hint: "Check community colleges, recreation centers, or local studios"
+
+  - category: "Religious or spiritual communities"
+    description: "Churches, temples, mosques, meditation groups, philosophical discussion circles"
+    why_it_works: "Shared values and regular gatherings create a foundation for deeper connection"
+    search_hint: "Many welcome visitors regardless of belief level - try attending a few"
+
+# Domain-specific signposts - shown when user is dealing with specific topics
+domain_signposts:
+  relationships:
+    intro: "Navigating relationship stuff is hard alone. Here are places where people understand:"
+    categories:
+      - category: "Relationship-focused support groups"
+        examples: "Divorce support, co-parenting groups, relationship skills workshops"
+        search_hint: "Search: 'relationship support group [your city]' or check therapy centers"
+
+      - category: "Social skills or connection groups"
+        examples: "Toastmasters, social anxiety groups, singles meetups (not necessarily for dating)"
+        search_hint: "Search: 'social skills group [your city]' or 'meetup social anxiety'"
+
+  money:
+    intro: "Money stress is isolating because people don't talk about it. But others are going through it too:"
+    categories:
+      - category: "Financial literacy groups"
+        examples: "Free financial education workshops, debt support groups, investing clubs"
+        search_hint: "Check libraries, credit unions, or community centers for free workshops"
+
+      - category: "Professional networking"
+        examples: "Industry meetups, job seeker groups, entrepreneur communities"
+        search_hint: "Search: '[your industry] meetup [your city]' or check LinkedIn events"
+
+  health:
+    intro: "Health concerns are easier when you're not alone. Others are navigating similar paths:"
+    categories:
+      - category: "Condition-specific support groups"
+        examples: "Cancer support, chronic pain groups, mental health peer support, caregiver groups"
+        search_hint: "Ask your healthcare provider, or search: '[condition] support group [your city]'"
+
+      - category: "Wellness communities"
+        examples: "Walking groups, yoga communities, mindfulness circles, gym buddies"
+        search_hint: "Check local gyms, recreation centers, or search: 'walking group near me'"
+
+  spirituality:
+    intro: "Spiritual questions are meant to be explored in community. Here are places to find fellow seekers:"
+    categories:
+      - category: "Faith communities"
+        examples: "Churches, temples, mosques, synagogues, Quaker meetings"
+        search_hint: "Many welcome visitors - try attending a service or two"
+
+      - category: "Spiritual exploration groups"
+        examples: "Meditation groups, philosophical discussion circles, interfaith dialogues"
+        search_hint: "Search: 'meditation group [your city]' or 'spiritual discussion group'"
+
+      - category: "Service-oriented communities"
+        examples: "Faith-based volunteering, community service organizations"
+        search_hint: "Many faith communities have service projects open to all"
+
+  emotional:
+    intro: "Feeling overwhelmed is common but isolating. These places understand:"
+    categories:
+      - category: "Peer support groups"
+        examples: "Mental health peer support, anxiety groups, depression support circles"
+        search_hint: "Search: 'peer support group [your city]' or check NAMI (National Alliance on Mental Illness)"
+
+      - category: "Mindfulness and wellness communities"
+        examples: "Meditation groups, stress management workshops, wellness circles"
+        search_hint: "Check yoga studios, community centers, or search: 'mindfulness group near me'"
+
+# Prompts to help user reflect on what might work for them
+reflection_prompts:
+  - "What did you used to enjoy doing with others?"
+  - "Is there something you've always wanted to try but haven't?"
+  - "What kind of people do you feel most comfortable around?"
+  - "Have you ever felt connected somewhere unexpectedly?"
+  - "What matters to you that others might also care about?"
+
+# Encouragement messages - acknowledge that this is hard
+encouragement:
+  - "Building connection takes time. One small step is enough for today."
+  - "It's okay if this feels hard. Most people find it difficult to put themselves out there."
+  - "You don't have to find your people immediately. Just showing up somewhere is progress."
+  - "Connection often happens when we're focused on something else - an activity, a cause, a shared interest."
+  - "The first time is always the hardest. It gets easier."
+
+# When to show signposts (triggers)
+triggers:
+  - network_empty: true  # User has no trusted people configured
+  - explicitly_requested: true  # User asks "where can I meet people?"
+  - connection_seeking_detected: true  # User seems to be looking for connection
+  - after_redirect: true  # After redirecting user to "talk to someone" but they have no one

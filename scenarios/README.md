@@ -6,19 +6,20 @@ This directory contains the structured knowledge base for empathySync's risk ass
 
 ```
 scenarios/
-├── classification/    # LLM classifier prompts and config (Phase 9, 9.1)
-├── domains/           # 8 risk domains and their triggers
-├── emotional_markers/ # Emotional intensity detection (4 levels)
-├── emotional_weight/  # Task weight detection (high/medium/low)
-├── graduation/        # Competence graduation prompts (Phase 3)
-├── handoff/           # Human handoff templates (Phase 5)
-├── intents/           # Session intent configuration (Phase 4)
-├── interventions/     # Dependency, boundaries
-├── metrics/           # Success metrics configuration (Phase 7)
-├── prompts/           # Check-ins, mindfulness, styles
-├── responses/         # Fallbacks, safe alternatives, base prompt
-├── transparency/      # Explanation templates (Phase 6)
-└── wisdom/            # Immunity building prompts (Phase 8)
+├── classification/       # LLM classifier prompts and config (Phase 9, 9.1)
+├── connection_building/  # Signposts and first-contact templates (Phase 12)
+├── domains/              # 8 risk domains and their triggers
+├── emotional_markers/    # Emotional intensity detection (4 levels)
+├── emotional_weight/     # Task weight detection (high/medium/low)
+├── graduation/           # Competence graduation prompts (Phase 3)
+├── handoff/              # Human handoff templates (Phase 5)
+├── intents/              # Session intent configuration (Phase 4)
+├── interventions/        # Dependency, boundaries
+├── metrics/              # Success metrics configuration (Phase 7)
+├── prompts/              # Check-ins, mindfulness, styles
+├── responses/            # Fallbacks, safe alternatives, base prompt
+├── transparency/         # Explanation templates (Phase 6)
+└── wisdom/               # Immunity building prompts (Phase 8)
 ```
 
 ## Quick Start
@@ -142,6 +143,61 @@ examples:
       is_practical_technique: false  # Guidance question → Reflective Mode
       confidence: 0.9
     explanation: "Seeking spiritual direction, needs human support"
+```
+
+### connection_building/
+
+Connection building resources for users with empty or limited trusted networks (Phase 12):
+- `signposts.yaml` - Types of places to find human connection (no specific services, just categories)
+- `first_contact.yaml` - Templates for initiating new connections
+
+**Signposts** are organized into:
+- **General categories**: Community groups, volunteering, support groups, classes, religious communities
+- **Domain-specific categories**: Tailored suggestions when user is dealing with specific topics (relationships, money, health, spirituality, emotional)
+- **Reflection prompts**: Help users identify where they might find their people
+- **Encouragement messages**: Acknowledge that building connection is hard
+
+**First-contact templates** cover 5 situations:
+- Starting a conversation at a group or meetup
+- Turning an acquaintance into a friend
+- Reconnecting with someone from the past
+- Joining a new community
+- Asking someone for help
+
+To add a new signpost category, edit `signposts.yaml`:
+
+```yaml
+general_signposts:
+  - category: "Your new category"
+    description: "What kinds of groups/activities this includes"
+    why_it_works: "Why this helps build connection"
+    search_hint: "How to find this locally"
+```
+
+To add domain-specific signposts:
+
+```yaml
+domain_signposts:
+  your_domain:
+    intro: "Context-setting message for this domain"
+    categories:
+      - category: "Specific category"
+        examples: "Concrete examples"
+        search_hint: "How to search"
+```
+
+To add a new first-contact situation, edit `first_contact.yaml`:
+
+```yaml
+situations:
+  your_situation:
+    title: "Situation title"
+    intro: "Brief intro text"
+    templates:
+      - template: "Example message or opener"
+        context: "When to use this"
+    tips:
+      - "Practical advice"
 ```
 
 ## Contributing New Scenarios

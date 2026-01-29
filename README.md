@@ -32,7 +32,7 @@ We optimize for exit, not engagement.
 ## What Makes It Different
 
 - **Tracks dependency patterns** and warns you if you're relying on it too much
-- **Suggests real humans** to talk to instead of continuing the conversation
+- **Suggests real humans** to talk to, and helps you find them if you don't have anyone yet
 - **Crisis detection** that redirects to helplines, never engages with crisis content
 - **Transparency panel** showing exactly why it responded the way it did
 - **Anti-engagement metrics**: fewer sensitive sessions = success
@@ -74,8 +74,8 @@ Full assistance for practical tasks (emails, code, explanations). Restraint on s
 ### Emotional Weight Awareness
 Recognizes emotionally heavy tasks (resignation emails, difficult conversations) and adds brief human acknowledgment without being therapeutic.
 
-### Trusted Network
-Build your list of real humans to reach out to, with pre-written templates for hard conversations.
+### Trusted Network & Connection Building
+Build your list of real humans to reach out to, with pre-written templates for hard conversations. Don't have anyone yet? The "Building Your Network" guide helps you find your people — with signposts for types of places to connect (support groups, volunteering, community groups) and first-contact templates for initiating new connections.
 
 ### Dependency Detection
 Monitors usage patterns across sessions. Gently intervenes when over-reliance is detected.

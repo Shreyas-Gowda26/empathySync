@@ -137,7 +137,9 @@ def display_transparency_panel():
         st.markdown("---")
 
         # Response mode
-        is_practical = domain == "logistics"
+        # Phase 9.1: Check both domain and is_practical_technique flag
+        is_practical_technique = assessment.get("is_practical_technique", False)
+        is_practical = domain == "logistics" or is_practical_technique
         mode = "practical" if is_practical else "reflective"
         mode_info = loader.get_mode_explanation(mode)
 
@@ -146,7 +148,11 @@ def display_transparency_panel():
             st.markdown(f"**{ui_labels.get('mode_label', 'Response mode')}**")
         with col2:
             st.markdown(f"{mode_info.get('name', mode.title())}")
-            st.caption(mode_info.get('description', ''))
+            # Phase 9.1: Show note if practical technique detected in sensitive domain
+            if is_practical_technique and domain != "logistics":
+                st.caption(f"Technique question detected in {domain} domain → full response allowed")
+            else:
+                st.caption(mode_info.get('description', ''))
 
         # Word limit
         word_limit = ui_labels.get("no_limit", "None") if is_practical else "50-150 words"
@@ -609,6 +615,191 @@ def display_trusted_network_setup():
                 network.add_person(name, relationship, contact, domains=domains)
                 st.success(f"Added {name}")
                 st.rerun()
+
+    # Phase 12: Always show "Expand Your Network" option
+    st.markdown("---")
+    with st.expander("Expand Your Network", expanded=False):
+        st.markdown("*Looking to find new people to connect with?*")
+
+        # Get current domain if available for context-aware signposts
+        guide = st.session_state.wellness_guide
+        current_domain = None
+        if guide.last_risk_assessment:
+            current_domain = guide.last_risk_assessment.get("domain")
+
+        content = network.get_building_network_content(current_domain)
+        signposts = content.get("signposts", {})
+        first_contact = content.get("first_contact", {})
+
+        # Signposts section
+        st.markdown("**Places to find connection:**")
+        general = signposts.get("general_signposts", [])
+        for signpost in general[:3]:  # Show top 3
+            st.markdown(f"- **{signpost.get('category', '')}**")
+            st.caption(f"  {signpost.get('search_hint', '')}")
+
+        # Domain-specific signposts if available
+        if "domain_signposts" in signposts:
+            domain_content = signposts["domain_signposts"]
+            st.markdown(f"\n*For {signposts.get('domain', 'your situation')}:*")
+            for cat in domain_content.get("categories", [])[:2]:
+                st.markdown(f"- {cat.get('category', '')}")
+
+        # First-contact tip
+        st.markdown("---")
+        st.markdown("**Making first contact:**")
+        principles = first_contact.get("principles", [])
+        if principles:
+            p = principles[0]  # Show just one principle
+            st.markdown(f"*{p.get('title', '')}*: {p.get('content', '')}")
+
+        # Encouragement
+        encouragement = signposts.get("encouragement", "")
+        if encouragement:
+            st.info(encouragement)
+
+
+def display_building_your_network(domain: str = None):
+    """
+    Display full "Building Your Network" panel (Phase 12).
+
+    Primary use: When trusted network is empty, this replaces the simple "add someone" form.
+    Also accessible via "Expand Your Network" expander in regular network setup.
+
+    Shows:
+    - Signposts: Types of places to find connection (tabbed view)
+    - First-contact templates: How to initiate new connections
+    - Add someone form: For when they already have someone in mind
+    """
+    network = st.session_state.trusted_network
+
+    st.markdown("### Building Your Network")
+    st.markdown("*Let's think about where you might find your people.*")
+
+    # Get all content
+    content = network.get_building_network_content(domain)
+    signposts = content.get("signposts", {})
+    first_contact = content.get("first_contact", {})
+
+    # Tabs for different content types
+    tab1, tab2, tab3 = st.tabs(["Where to Look", "Making First Contact", "Add Someone"])
+
+    with tab1:
+        st.markdown("**Places where people find connection:**")
+        st.caption("No specific services—just types of places to search locally.")
+
+        # Show general signposts
+        general = signposts.get("general_signposts", [])
+        for signpost in general:
+            with st.expander(signpost.get("category", ""), expanded=False):
+                st.markdown(signpost.get("description", ""))
+                st.markdown(f"**Why it works:** {signpost.get('why_it_works', '')}")
+                st.caption(signpost.get("search_hint", ""))
+
+        # Show domain-specific signposts if available
+        if "domain_signposts" in signposts:
+            domain_content = signposts["domain_signposts"]
+            st.markdown("---")
+            st.markdown(f"**{domain_content.get('intro', '')}**")
+            for cat in domain_content.get("categories", []):
+                with st.expander(cat.get("category", ""), expanded=False):
+                    st.markdown(cat.get("examples", ""))
+                    st.caption(cat.get("search_hint", ""))
+
+        # Reflection prompt
+        st.markdown("---")
+        reflection = signposts.get("reflection_prompt", "")
+        if reflection:
+            st.markdown(f"*Think about: {reflection}*")
+
+        # Encouragement
+        encouragement = signposts.get("encouragement", "")
+        if encouragement:
+            st.info(encouragement)
+
+    with tab2:
+        st.markdown("**Practical tips for initiating connection:**")
+
+        situations = first_contact.get("situations", {})
+
+        # Show each situation as an expander
+        situation_titles = {
+            "at_a_group_or_meetup": "Starting a conversation at a group",
+            "turning_acquaintance_into_friend": "Moving from acquaintance to friend",
+            "reconnecting_with_someone_from_the_past": "Reconnecting with someone",
+            "joining_a_new_community": "Becoming part of a new community",
+            "asking_for_help_or_support": "Asking someone for help"
+        }
+
+        for key, title in situation_titles.items():
+            if key in situations:
+                sit = situations[key]
+                with st.expander(title, expanded=False):
+                    st.markdown(sit.get("intro", ""))
+
+                    # Show tips if available
+                    tips = sit.get("before_tips", []) or sit.get("first_visits", [])
+                    if tips:
+                        st.markdown("**Tips:**")
+                        for tip in tips:
+                            st.markdown(f"- {tip}")
+
+                    # Show conversation starters if available
+                    starters = sit.get("conversation_starters", [])
+                    if starters:
+                        st.markdown("**Conversation starters:**")
+                        for starter in starters:
+                            st.markdown(f"- \"{starter.get('opener', '')}\"")
+                            st.caption(f"  *{starter.get('why_it_works', '')}*")
+
+                    # Show templates if available
+                    templates = sit.get("templates", []) or sit.get("ways_to_suggest_hanging_out", [])
+                    if templates:
+                        st.markdown("**Templates:**")
+                        for template in templates:
+                            if isinstance(template, dict):
+                                st.markdown(f"- \"{template.get('template', '')}\"")
+                                if template.get("context"):
+                                    st.caption(f"  *{template.get('context', '')}*")
+                            else:
+                                st.markdown(f"- \"{template}\"")
+
+        # General principles
+        principles = first_contact.get("principles", [])
+        if principles:
+            st.markdown("---")
+            st.markdown("**Remember:**")
+            for p in principles[:3]:  # Show just 3
+                st.markdown(f"- **{p.get('title', '')}**: {p.get('content', '')}")
+
+        # Affirmation
+        affirmation = first_contact.get("affirmation", "")
+        if affirmation:
+            st.info(affirmation)
+
+    with tab3:
+        st.markdown("**Already have someone in mind?**")
+        st.caption("Add them here so empathySync can suggest reaching out when it matters.")
+
+        # Reuse the existing add person form
+        with st.form("add_person_building", clear_on_submit=True):
+            name = st.text_input("Name", placeholder="e.g., Mom, Jake, Dr. Smith")
+            relationship = st.text_input("Relationship", placeholder="e.g., friend, sister, therapist")
+            contact = st.text_input("How to reach them", placeholder="e.g., phone, usually free evenings")
+
+            domains = st.multiselect(
+                "Good for talking about",
+                ["relationships", "money", "health", "spirituality", "general"],
+                default=["general"],
+                key="building_domains"
+            )
+
+            if st.form_submit_button("Add"):
+                if name:
+                    network.add_person(name, relationship, contact, domains=domains)
+                    st.success(f"Added {name}!")
+                    st.balloons()
+                    st.rerun()
 
 
 def display_bring_someone_in(domain: str = "general"):
@@ -1546,13 +1737,23 @@ def main():
     if st.session_state.get("show_session_summary"):
         display_session_summary()
 
-    # Check if network is empty - prompt setup
+    # Check if network is empty - show Building Your Network (Phase 12)
     network = st.session_state.trusted_network
     if not network.get_all_people() and not st.session_state.show_network_setup:
-        st.info("**First time?** Consider adding your trusted people—the humans you could actually talk to.")
-        if st.button("Set up my trusted network"):
-            st.session_state.show_network_setup = True
-            st.rerun()
+        # Get current domain if available for context-aware signposts
+        current_domain = None
+        if st.session_state.messages:
+            guide = st.session_state.wellness_guide
+            if hasattr(guide, '_session_state') and guide._session_state.get("domains"):
+                # Get most recent domain
+                current_domain = guide._session_state["domains"][-1] if guide._session_state["domains"] else None
+
+        st.info("**No trusted network yet.** Instead of 'talk to someone', let's think about where you might find your people.")
+
+        # Show Building Your Network panel
+        display_building_your_network(domain=current_domain)
+
+        st.markdown("---")
 
     # Sidebar
     with st.sidebar:
@@ -1620,7 +1821,17 @@ def main():
             display_reality_check()
         elif st.session_state.get("show_network_setup"):
             st.markdown("---")
-            display_trusted_network_setup()
+            # Phase 12: Show Building Your Network if empty, otherwise regular setup
+            network = st.session_state.trusted_network
+            if network.is_network_empty():
+                # Get current domain for context-aware signposts
+                guide = st.session_state.wellness_guide
+                current_domain = None
+                if guide.last_risk_assessment:
+                    current_domain = guide.last_risk_assessment.get("domain")
+                display_building_your_network(domain=current_domain)
+            else:
+                display_trusted_network_setup()
             if st.button("Done", use_container_width=True):
                 st.session_state.show_network_setup = False
                 st.rerun()

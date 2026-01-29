@@ -407,6 +407,78 @@ class TrustedNetwork:
             return random.choice(people)
         return None
 
+    # ==================== CONNECTION BUILDING (PHASE 12) ====================
+
+    def is_network_empty(self) -> bool:
+        """Check if the trusted network is empty."""
+        return len(self.get_all_people()) == 0
+
+    def get_signposts(self, domain: str = None) -> Dict:
+        """
+        Get signpost suggestions for building connections.
+
+        Args:
+            domain: Optional domain for domain-specific suggestions
+
+        Returns:
+            Dict with general signposts and optional domain-specific ones
+        """
+        general = self.loader.get_general_signposts()
+        result = {
+            "general_signposts": general,
+            "reflection_prompt": self.loader.get_signpost_reflection_prompt(),
+            "encouragement": self.loader.get_signpost_encouragement()
+        }
+
+        if domain and domain not in ["logistics", "crisis", "harmful"]:
+            domain_signposts = self.loader.get_domain_signposts(domain)
+            if domain_signposts:
+                result["domain_signposts"] = domain_signposts
+                result["domain"] = domain
+
+        return result
+
+    def get_first_contact_templates(self, situation: str = None) -> Dict:
+        """
+        Get first-contact templates for initiating new connections.
+
+        Args:
+            situation: Specific situation (e.g., 'at_a_group_or_meetup')
+                      If None, returns all situations
+
+        Returns:
+            Dict with templates and guidance
+        """
+        if situation:
+            return self.loader.get_first_contact_situation(situation)
+
+        return {
+            "situations": self.loader.get_all_first_contact_situations(),
+            "principles": self.loader.get_first_contact_principles(),
+            "affirmation": self.loader.get_first_contact_affirmation()
+        }
+
+    def get_building_network_content(self, domain: str = None) -> Dict:
+        """
+        Get all content for the "Building Your Network" mode.
+
+        This is shown when the user's trusted network is empty,
+        shifting the framing from "reach out to someone" to
+        "let's think about where you might find your people."
+
+        Args:
+            domain: Optional current conversation domain
+
+        Returns:
+            Dict with signposts, first-contact templates, and prompts
+        """
+        return {
+            "signposts": self.get_signposts(domain),
+            "first_contact": self.get_first_contact_templates(),
+            "setup_prompt": self.get_setup_prompt(),
+            "is_empty": self.is_network_empty()
+        }
+
     # ==================== HEALTH METRICS ====================
 
     def get_connection_health(self) -> Dict:

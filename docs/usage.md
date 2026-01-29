@@ -89,6 +89,30 @@ Manage your trusted contacts:
 
 The system will suggest specific people when you're discussing topics in their domains.
 
+### Building Your Network (When You Don't Have Anyone Yet)
+
+If your trusted network is empty, empathySync shifts from "reach out to someone" to "let's find your people." You'll see a tabbed panel:
+
+1. **Where to Look** — Types of places to find connection:
+   - Community groups around shared interests
+   - Volunteering opportunities
+   - Support groups for shared experiences
+   - Classes and skill-building
+   - Religious or spiritual communities
+
+   Each category includes a "why it works" explanation and a search hint. If you're dealing with a specific topic (health, money, relationships), domain-relevant suggestions appear first.
+
+2. **Making First Contact** — Practical templates for:
+   - Starting a conversation at a group or meetup
+   - Turning an acquaintance into a friend
+   - Reconnecting with someone from the past
+   - Joining a new community
+   - Asking someone for help
+
+3. **Add Someone** — When you have someone in mind, add them directly.
+
+Even after you have people in your network, the "Expand Your Network" section remains accessible via the My People panel.
+
 ### Bring Someone In
 
 When you're ready to talk to a real human, this panel helps:

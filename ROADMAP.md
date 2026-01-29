@@ -754,6 +754,69 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
+## Phase 12: Connection Building ✅ COMPLETE
+**Goal**: Help users with empty trusted networks find their people, instead of dead-ending at "talk to someone."
+
+**Problem**: "Talk to someone" assumes you have someone. For users in the loneliness epidemic, that's not restraint — it's a dead end. The trusted network feature required *existing* relationships.
+
+**Philosophy**: When someone has no network, shift the framing from "reach out to someone" to "let's think about where you might find your people." This is practical technique territory — full help allowed.
+
+### 12.1 Signpost Categories ✅ DONE
+**What**: Types of places to find connection — not specific services, just categories for users to search locally.
+
+**Categories**:
+- Community groups around shared interests (book clubs, sports, hobbies)
+- Volunteering opportunities (food banks, community gardens)
+- Support groups for shared experiences (grief, divorce, health conditions)
+- Classes and skill-building (cooking, languages, fitness)
+- Religious or spiritual communities (if that resonates)
+
+**Domain-aware**: When user is dealing with specific topics (money, health, relationships, spirituality), show domain-relevant categories first.
+
+**Files created**:
+- `scenarios/connection_building/signposts.yaml` - Category definitions with search hints and "why it works" explanations
+
+### 12.2 First-Contact Templates ✅ DONE
+**What**: Practical guidance for *initiating* new connections (vs reaching out to existing contacts).
+
+**Situations covered**:
+- Starting a conversation at a group or meetup
+- Moving an acquaintance toward friendship
+- Reconnecting with someone from the past
+- Joining a new community
+- Asking someone for help (even if not close)
+
+**Includes**:
+- Conversation starters with "why it works" explanations
+- Templates for suggesting hanging out
+- Tips for handling rejection
+- General principles (consistency beats intensity, shared activities > forced conversation)
+- Affirmations for people who find this hard
+
+**Files created**:
+- `scenarios/connection_building/first_contact.yaml` - Situation-specific templates and tips
+
+### 12.3 "Building Your Network" Mode ✅ DONE
+**What**: Enhanced UI for users with empty trusted networks.
+
+**Behavior**:
+- When network is empty, show tabbed interface instead of just "add someone"
+- Tab 1: "Where to Look" — signpost categories with expandable details
+- Tab 2: "Making First Contact" — situation-specific templates
+- Tab 3: "Add Someone" — the existing add form (for when they already have someone in mind)
+
+**Integration points**:
+- Main chat area: Shown when network empty (instead of simple "set up network" button)
+- Sidebar "My People" button: Shows Building Your Network when empty, regular setup when populated
+- Context-aware: Uses current conversation domain to surface relevant signposts
+
+**Files modified**:
+- `src/utils/scenario_loader.py` - Added connection_building directory loading
+- `src/utils/trusted_network.py` - Added `is_network_empty()`, `get_signposts()`, `get_first_contact_templates()`, `get_building_network_content()`
+- `src/app.py` - Added `display_building_your_network()` function, updated empty network handling
+
+---
+
 ## Implementation Priority Matrix
 
 | Phase | Impact | Effort | Priority |
@@ -762,6 +825,7 @@ LOCK_STALE_TIMEOUT=300
 | 2. Emotional Weight | High | Medium | ✅ COMPLETE |
 | 2.5 Robustness & Classification | High | Medium | ✅ COMPLETE |
 | 4. Why Are You Here | High | Low | ✅ COMPLETE |
+| 12. Connection Building | High | Medium | ✅ COMPLETE |
 | 3. Competence Graduation | Medium | Medium | ✅ COMPLETE |
 | 5. Enhanced Handoff | Medium | Low | ✅ COMPLETE |
 | 6. Transparency | Medium | Medium | ✅ COMPLETE |
@@ -778,7 +842,7 @@ LOCK_STALE_TIMEOUT=300
 
 ## Current Status (2026-01-29)
 
-**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, and 11.1-11.7 (Atomic Writes, Schema Versioning, SQLite Migration, Lock File, Write Gate, Schema v2, Migration Hardening)
+**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, and 12 (Connection Building)
 
 **In Progress**: Phase 11.8 (Sync Folder Documentation)
 
@@ -851,6 +915,10 @@ LOCK_STALE_TIMEOUT=300
 - ✅ SQLite schema v2 with ON DELETE CASCADE for reach_outs
 - ✅ Migration gating hardened (checks marker + multiple tables)
 - ✅ Lock timeout now configurable via settings
+- ✅ Connection building signposts (types of places to find connection)
+- ✅ First-contact templates (initiating new connections vs reaching out to existing)
+- ✅ "Building Your Network" mode for users with empty trusted networks
+- ✅ Domain-aware signpost suggestions
 
 **All Core Phases Complete!**
 
@@ -888,6 +956,7 @@ LOCK_STALE_TIMEOUT=300
 **v0.7** (Phase 9): LLM-based intelligent classification ✅ COMPLETE
 **v0.7.1** (Phase 9.1): Practical technique detection ✅ COMPLETE
 **v0.8** (Phase 11): SQLite backend, multi-device sync, lock file ✅ COMPLETE
+**v0.8.1** (Phase 12): Connection building (signposts, first-contact templates) ✅ COMPLETE
 **v1.0** (Phase 10): Advanced detection, production-ready
 
 ---

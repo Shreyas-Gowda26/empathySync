@@ -189,6 +189,7 @@ Response to User
 │   - Emotional markers                                           │
 │   - Intervention configurations                                 │
 │   - Intent indicators                                           │
+│   - Connection building signposts (Phase 12)                    │
 └─────────────────────────────┬─────────────────────────────────┘
                               │ reads
                               ▼
@@ -196,12 +197,13 @@ Response to User
 │                     scenarios/                                  │
 │                  (YAML Knowledge Base)                          │
 │                                                                 │
-│   domains/          - Risk domains and triggers                 │
-│   emotional_markers/ - Intensity detection                      │
-│   interventions/    - Dependency, boundaries, graduation        │
-│   prompts/          - Check-ins, mindfulness, styles            │
-│   responses/        - Fallbacks, base prompt                    │
-│   intents/          - Session intent configuration              │
+│   domains/             - Risk domains and triggers              │
+│   emotional_markers/   - Intensity detection                    │
+│   connection_building/ - Signposts, first-contact (Phase 12)   │
+│   interventions/       - Dependency, boundaries, graduation     │
+│   prompts/             - Check-ins, mindfulness, styles         │
+│   responses/           - Fallbacks, base prompt                 │
+│   intents/             - Session intent configuration           │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -403,6 +405,7 @@ data/
 │   5. HUMAN-CENTRIC                                              │
 │      Trusted Network is core feature, not afterthought          │
 │      Handoff templates reduce friction to real connection       │
+│      Connection building helps users find people (Phase 12)    │
 │      AI usage tracked alongside human connection                │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -435,11 +438,12 @@ empathySync/
 ├── scenarios/                    # Knowledge base (YAML)
 │   ├── domains/                 # 8 risk domains
 │   ├── emotional_markers/       # 4 intensity levels
+│   ├── classification/          # LLM classifier config (Phase 9)
+│   ├── connection_building/     # Signposts, first-contact (Phase 12)
 │   ├── interventions/           # Dependency, boundaries
 │   ├── prompts/                 # Check-ins, styles
 │   ├── responses/               # Fallbacks, base prompt
-│   ├── intents/                 # Session intent config
-│   └── classification/          # LLM classifier config (Phase 9)
+│   └── intents/                 # Session intent config
 │
 ├── data/                        # Local user data (JSON/SQLite)
 ├── logs/                        # Application logs
