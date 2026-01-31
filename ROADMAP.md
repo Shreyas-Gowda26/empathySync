@@ -561,7 +561,7 @@ This roadmap implements the suggestions for making EmpathySync a more nuanced, e
 
 ---
 
-## Phase 9.5: UI Polish 🔵 IN PROGRESS
+## Phase 9.5: UI Polish ✅ COMPLETE
 **Goal**: Improve the user interface for better usability without over-engineering.
 
 **Philosophy**: Functional, not fancy. Every UI element should be clear about what it does.
@@ -747,10 +747,7 @@ LOCK_STALE_TIMEOUT=300
 - [x] Fallback check: any of 4 core tables has data
 - [x] More robust than checking only `check_ins` count
 
-### 11.8 Sync Folder Documentation 🔜 PLANNED
-- [ ] User guide for Syncthing/Dropbox setup
-- [ ] Operating rules: "Close app before switching devices"
-- [ ] Troubleshooting for conflict files
+### 11.8 Sync Folder Documentation → Moved to Phase 15.3
 
 ---
 
@@ -817,6 +814,166 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
+## Phase 13: Project Health & Stability 🔵 IN PROGRESS
+**Goal**: Fix known issues and ensure the app fails gracefully when dependencies are missing.
+
+**Why now**: 6 tests are failing, `.env.example` is incomplete, and if Ollama isn't running the user gets a cryptic error after 30 seconds. These are table stakes before anyone else touches the project.
+
+### 13.1 Fix Failing Tests 🔜 PLANNED
+**Problem**: 6 of 314 tests are failing, suggesting edge cases in production code.
+
+**Failing tests**:
+- `test_detect_domain_spirituality` — domain detection mismatch (`logistics` vs `spirituality`)
+- `test_classify_crisis_input` — crisis risk weight assertion off (10 vs 9.0)
+- `test_generate_response_handles_api_error` — fallback response wording changed
+- `test_anti_engagement_score_empty` — score not zeroing for empty data (2.4 vs 0)
+- `test_anti_engagement_ignores_practical` — practical sessions leaking into score (4.1 vs 0)
+- `test_get_self_report_history` — count mismatch (3 vs 2)
+
+**Implementation**:
+- [ ] Investigate each failure — determine if test or code is wrong
+- [ ] Fix root causes (not just assertions)
+- [ ] Ensure 314/314 tests pass
+
+### 13.2 Ollama Health Check 🔜 PLANNED
+**Problem**: If Ollama isn't running or the model isn't downloaded, the user sees "Technical issue" after a 30-second timeout. No guidance on how to fix it.
+
+**Implementation**:
+- [ ] On app startup, ping Ollama API (`/api/tags` endpoint)
+- [ ] If Ollama unreachable: show clear error with install instructions
+- [ ] If Ollama running but model missing: show which models are available, suggest download command
+- [ ] If Ollama running and model ready: proceed normally
+- [ ] Add health status indicator in sidebar
+
+### 13.3 Startup Validation 🔜 PLANNED
+**Problem**: Multiple dependencies and settings can be misconfigured. Users discover issues mid-session, not at startup.
+
+**Implementation**:
+- [ ] Validate all required environment variables on startup
+- [ ] Check data directory exists and is writable
+- [ ] Verify SQLite database is accessible (if USE_SQLITE=true)
+- [ ] Check lock file status (if ENABLE_DEVICE_LOCK=true)
+- [ ] Show validation summary before launching chat interface
+- [ ] Block on critical failures, warn on non-critical issues
+
+### 13.4 Complete .env.example 🔜 PLANNED
+**Problem**: `.env.example` is missing Phase 11 settings (USE_SQLITE, ENABLE_DEVICE_LOCK, LOCK_STALE_TIMEOUT). New users won't know these options exist.
+
+**Implementation**:
+- [ ] Add Storage Backend section with USE_SQLITE
+- [ ] Add Multi-Device Sync section with ENABLE_DEVICE_LOCK, LOCK_STALE_TIMEOUT
+- [ ] Add comments explaining when/why to enable each option
+- [ ] Ensure every setting mentioned in CLAUDE.md has a corresponding entry
+
+---
+
+## Phase 14: Packaging & Distribution 🔜 PLANNED
+**Goal**: Make empathySync installable by developers without reading the source code.
+
+**Why now**: The product is ready but nobody can use it. There's no path from "interested person" to "running the app" without significant technical knowledge. A developer landing on the repo should be able to run it in under 5 minutes.
+
+### 14.1 Create pyproject.toml 🔜 PLANNED
+**Problem**: No standard Python packaging. Can't `pip install .` or `pip install empathysync`.
+
+**Implementation**:
+- [ ] Create `pyproject.toml` with project metadata, dependencies, and entry points
+- [ ] Define `[project.scripts]` entry point (e.g., `empathysync = "src.app:main"`)
+- [ ] Pin dependency versions from current `requirements.txt`
+- [ ] Add `[project.optional-dependencies]` for dev tools (pytest, black, flake8, mypy)
+- [ ] Verify `pip install -e .` works for development
+- [ ] Verify `pip install .` works for end users
+
+### 14.2 Installation Script 🔜 PLANNED
+**Problem**: Setup requires multiple manual steps (clone, create venv, install deps, copy .env, check Ollama).
+
+**Implementation**:
+- [ ] Create `install.sh` for Linux/Mac one-command setup:
+  - Check Python version (>=3.9)
+  - Create virtual environment
+  - Install dependencies
+  - Copy `.env.example` to `.env` if not present
+  - Check if Ollama is installed and running
+  - Suggest model download if needed
+  - Print "Ready to run" message with launch command
+- [ ] Add Windows equivalent guidance in README
+
+### 14.3 Docker Compose 🔜 PLANNED
+**Problem**: Running empathySync requires Ollama installed separately. Docker Compose can bundle both.
+
+**Implementation**:
+- [ ] Write working `Dockerfile` (current one is empty)
+- [ ] Create `docker-compose.yml` with two services:
+  - `app`: empathySync Streamlit app
+  - `ollama`: Ollama server with model auto-pull
+- [ ] Volume mounts for `data/` directory (persistence)
+- [ ] Environment variable passthrough from `.env`
+- [ ] Health checks for both services
+- [ ] Document in README: `docker compose up` one-command start
+
+### 14.4 Tag v0.8.1 Release 🔜 PLANNED
+**Problem**: No releases, no changelog. Contributors and users have no sense of project maturity.
+
+**Implementation**:
+- [ ] Create CHANGELOG.md summarizing all phases
+- [ ] Tag `v0.8.1-beta` as first official release
+- [ ] Create GitHub Release with:
+  - Summary of what's included (12 completed phases)
+  - Installation instructions
+  - Known limitations
+  - Link to MANIFESTO.md
+- [ ] Update README badges (version, license, tests passing)
+
+---
+
+## Phase 15: CI/CD & Documentation 🔜 PLANNED
+**Goal**: Make the project contributor-friendly and self-maintaining.
+
+**Why now**: Any contributor landing on the repo should see: tests pass automatically, code style is enforced, and common issues are documented. This is what separates "personal project" from "open source project."
+
+### 15.1 GitHub Actions CI 🔜 PLANNED
+**Problem**: No automated testing. Changes can break things silently. Contributors can't verify their changes pass without manual test runs.
+
+**Implementation**:
+- [ ] Create `.github/workflows/ci.yml`:
+  - Trigger on push and pull request to main
+  - Python 3.9, 3.10, 3.11 matrix
+  - Install dependencies
+  - Run `black --check src/` (formatting)
+  - Run `flake8 src/` (linting)
+  - Run `pytest tests/` (tests)
+  - Run `mypy src/` (type checking, if feasible)
+- [ ] Add "Tests Passing" badge to README
+- [ ] Consider coverage reporting (optional)
+
+### 15.2 Troubleshooting Guide 🔜 PLANNED
+**Problem**: Common issues (Ollama not running, database locked, model too slow) have no documented solutions. Users hit a wall and give up.
+
+**Implementation**:
+- [ ] Create `docs/troubleshooting.md` covering:
+  - "Ollama not responding" — install, start, verify
+  - "Model not found" — download commands for recommended models
+  - "Database locked" — lock file explanation, force takeover
+  - "Slow responses" — model size vs hardware, recommended models by RAM
+  - "App won't start" — dependency check, Python version, .env validation
+  - "Data corruption" — backup recovery, schema migration
+- [ ] Link from README and error messages in the app
+
+### 15.3 Sync Folder Documentation 🔜 PLANNED
+> **Note**: Moved from Phase 11.8. Covers multi-device sync setup.
+
+**Problem**: Phase 11 added lock file and multi-device support, but there's no user guide for setting it up with Syncthing, Dropbox, or similar tools.
+
+**Implementation**:
+- [ ] Expand `docs/persistence.md` or create `docs/sync-setup.md`:
+  - Syncthing configuration for `data/` directory
+  - Dropbox/iCloud/OneDrive considerations
+  - Operating rules: "Close app before switching devices"
+  - What happens if you forget (lock file protection)
+  - Troubleshooting conflict files
+  - SQLite vs JSON recommendations for sync
+
+---
+
 ## Implementation Priority Matrix
 
 | Phase | Impact | Effort | Priority |
@@ -835,16 +992,19 @@ LOCK_STALE_TIMEOUT=300
 | 9. LLM Classification | **High** | Medium | ✅ COMPLETE |
 | 9.1 Practical Technique Detection | **High** | Low | ✅ COMPLETE |
 | 9.5 UI Polish | Medium | Low | ✅ COMPLETE |
-| 10. Advanced Detection | High | High | 🔵 Long-term |
 | 11. Persistence Hardening | **High** | Medium | ✅ COMPLETE (Core) |
+| **13. Project Health & Stability** | **High** | **Low** | 🔵 **Next** |
+| **14. Packaging & Distribution** | **High** | **Medium** | 🔜 After Phase 13 |
+| **15. CI/CD & Documentation** | **Medium** | **Low** | 🔜 After Phase 14 |
+| 10. Advanced Detection | High | High | 🔵 Long-term |
 
 ---
 
-## Current Status (2026-01-29)
+## Current Status (2026-01-31)
 
 **Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, and 12 (Connection Building)
 
-**In Progress**: Phase 11.8 (Sync Folder Documentation)
+**Next Up**: Phase 13 (Project Health & Stability) → Phase 14 (Packaging & Distribution) → Phase 15 (CI/CD & Documentation)
 
 **Recent Bug Fixes**:
 - Fixed post-crisis apology bug: LLM no longer apologizes for crisis interventions
@@ -922,11 +1082,15 @@ LOCK_STALE_TIMEOUT=300
 
 **All Core Phases Complete!**
 
-**Remaining Items** (Lower Priority):
+**Distribution Readiness** (Priority):
+- Phase 13: Project Health & Stability (fix tests, Ollama health check, startup validation, .env)
+- Phase 14: Packaging & Distribution (pyproject.toml, install script, Docker, first release)
+- Phase 15: CI/CD & Documentation (GitHub Actions, troubleshooting guide, sync docs)
+
+**Feature Backlog** (Lower Priority):
 - Phase 8.5: AI Literacy Moments (educational prompts, max 1/week)
 - Phase 8.6: "Spot the Pattern" Feature (manipulation pattern education)
 - Phase 10: Advanced Detection (semantic intent, conversation flow analysis - long-term)
-- Phase 11.8: Sync Folder Documentation (user guide for Syncthing/Dropbox)
 
 ---
 
@@ -957,6 +1121,9 @@ LOCK_STALE_TIMEOUT=300
 **v0.7.1** (Phase 9.1): Practical technique detection ✅ COMPLETE
 **v0.8** (Phase 11): SQLite backend, multi-device sync, lock file ✅ COMPLETE
 **v0.8.1** (Phase 12): Connection building (signposts, first-contact templates) ✅ COMPLETE
+**v0.8.2** (Phase 13): Test fixes, Ollama health check, startup validation, .env completion
+**v0.9** (Phase 14): pyproject.toml, install script, Docker Compose, first tagged release
+**v0.9.5** (Phase 15): GitHub Actions CI, troubleshooting guide, sync documentation
 **v1.0** (Phase 10): Advanced detection, production-ready
 
 ---
