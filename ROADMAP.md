@@ -931,18 +931,18 @@ LOCK_STALE_TIMEOUT=300
 - `docker-compose.yml` — Two-service orchestration
 - `.dockerignore` — Excludes venv, tests, git, data from image
 
-### 14.4 Tag v0.8.2 Release 🔜 PLANNED
+### 14.4 Tag v0.9-beta Release ✅ DONE
 **Problem**: No releases, no changelog. Contributors and users have no sense of project maturity.
 
 **Implementation**:
-- [ ] Create CHANGELOG.md summarizing all phases
-- [ ] Tag `v0.8.2-beta` as first official release
-- [ ] Create GitHub Release with:
-  - Summary of what's included (13 completed phases)
+- [x] Create CHANGELOG.md summarizing all phases
+- [x] Tag `v0.9-beta` as first official release
+- [x] Create GitHub Release with:
+  - Summary of what's included (14 completed phases)
   - Installation instructions (3 methods: install.sh, pip, Docker)
   - Known limitations
   - Link to MANIFESTO.md
-- [ ] Update README badges (version, license, tests passing)
+- [x] Update README badges (version, tests passing, license)
 
 ---
 
@@ -995,6 +995,229 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
+## Phase 16: Core Decoupling & Interface Abstraction 🔜 PLANNED
+**Goal**: Extract a `ConversationSession` class that owns all session state, so any interface (Streamlit, CLI, messaging adapter) can drive the conversation engine.
+
+**Why now**: The core engine (`WellnessGuide`, `RiskClassifier`, `WellnessPrompts`, `StorageBackend`, `WellnessTracker`, `TrustedNetwork`, `ScenarioLoader`) is already ~80% framework-agnostic. Only `st.session_state` usage in `app.py` and UI display functions are tightly coupled to Streamlit. This makes decoupling a realistic extraction task, not a rewrite.
+
+### 16.1 Extract ConversationSession Class 🔜 PLANNED
+**Problem**: Session state (turns, domains, risk history, post-crisis state, emotional context) is scattered across `st.session_state` in `app.py`. This makes it impossible to drive the conversation engine from any interface other than Streamlit.
+
+**Implementation**:
+- [ ] Create `src/models/conversation_session.py`:
+  - Encapsulates all per-session state (turns, domains visited, max risk, post-crisis turn, emotional context)
+  - Owns the conversation loop: receive input → classify → generate → safety-check → return
+  - Exposes structured events (transparency info, policy actions, handoff suggestions) as return values, not UI calls
+- [ ] Move session state initialization out of `app.py` into `ConversationSession.__init__()`
+- [ ] Move the 7-step safety pipeline orchestration into `ConversationSession.process_message()`
+- [ ] All existing tests continue to pass (engine logic unchanged)
+
+### 16.2 Define InterfaceAdapter Protocol 🔜 PLANNED
+**Problem**: No formal contract between the conversation engine and its UI. Adding a new interface means duplicating the entire `app.py` flow.
+
+**Implementation**:
+- [ ] Create `src/interfaces/adapter.py` with `InterfaceAdapter` protocol:
+  - `receive_input() → str` — get user message
+  - `send_response(response, metadata) → None` — deliver response with transparency info
+  - `show_intervention(intervention) → None` — display policy actions (cooldown, dependency, crisis)
+  - `prompt_choice(options) → str` — present choices (intent check-in, handoff, etc.)
+  - `show_sidebar_info(data) → None` — optional: display metrics, patterns, network status
+- [ ] Protocol is minimal — adapters can ignore optional methods
+
+### 16.3 Refactor app.py to StreamlitAdapter 🔜 PLANNED
+- [ ] Create `src/interfaces/streamlit_adapter.py` implementing `InterfaceAdapter`
+- [ ] Refactor `app.py` to use `ConversationSession` + `StreamlitAdapter`
+- [ ] All Streamlit-specific code (`st.session_state`, `st.chat_message`, `st.sidebar`) lives only in the adapter
+- [ ] `app.py` becomes thin: initialize adapter → run session loop
+- [ ] Verify: identical behavior, all 323+ tests pass
+
+### 16.4 CLIAdapter Proof-of-Concept 🔜 PLANNED
+- [ ] Create `src/interfaces/cli_adapter.py` implementing `InterfaceAdapter`
+- [ ] Simple terminal interface: `input()` → process → `print()`
+- [ ] Transparency info shown as plain text below responses
+- [ ] Validates that the abstraction works for a second interface
+- [ ] Update `src/cli.py` to offer both Streamlit and direct CLI modes
+
+**Files to create**:
+- `src/models/conversation_session.py` — Framework-agnostic session management
+- `src/interfaces/adapter.py` — InterfaceAdapter protocol definition
+- `src/interfaces/streamlit_adapter.py` — Streamlit implementation
+- `src/interfaces/cli_adapter.py` — Terminal implementation
+
+**Files to modify**:
+- `src/app.py` — Thin wrapper around StreamlitAdapter + ConversationSession
+- `src/cli.py` — Add direct CLI mode option
+
+---
+
+## Phase 17: Persistent Agent Daemon 🔜 PLANNED
+**Goal**: empathySync runs as a background service with cross-session memory, scheduled check-ins, and self-governance — an agent that actively tries to make itself less needed.
+
+**Why this matters**: Currently empathySync only exists when the user opens it. A persistent daemon can do things a session-bound app cannot: remind you to check in with a friend, notice you haven't needed it in a week (and celebrate that), or go quiet when it detects over-reliance. The restraint philosophy extends to the agent's own behavior.
+
+### 17.1 Background Daemon Process 🔜 PLANNED
+**Problem**: empathySync only runs when the user opens Streamlit. No way to deliver scheduled nudges or track long-term patterns between sessions.
+
+**Implementation**:
+- [ ] Create `src/daemon/agent.py` — long-running process with event loop
+- [ ] Platform-specific service files:
+  - `systemd/empathysync.service` for Linux
+  - `launchd/com.empathysync.agent.plist` for macOS
+- [ ] Graceful startup/shutdown with PID file management
+- [ ] Health endpoint for monitoring (local socket, not HTTP)
+- [ ] Resource-conscious: sleep when idle, wake on schedule or IPC signal
+- [ ] Daemon uses `ConversationSession` from Phase 16 (no Streamlit dependency)
+
+### 17.2 Cross-Session Memory 🔜 PLANNED
+**Problem**: Each session starts fresh. The agent can't remember "you were working through a difficult decision last Tuesday" or "you said you'd talk to your sister about this."
+
+**Implementation**:
+- [ ] Extend SQLite schema with `session_summaries` table (auto-generated, not raw transcripts)
+- [ ] End-of-session summary generation (topic, emotional arc, commitments made, handoffs initiated)
+- [ ] Cross-session context injection: "Last time, you mentioned wanting to talk to [person] about [topic]"
+- [ ] Memory decay: summaries age out after configurable retention period
+- [ ] User can view and delete any stored summaries (data ownership)
+
+### 17.3 Scheduled Nudges 🔜 PLANNED
+**Problem**: The trusted network feature tracks reach-outs but can't proactively remind users to maintain connections.
+
+**Implementation**:
+- [ ] Configurable nudge types:
+  - "You haven't checked in with [trusted person] in 2 weeks"
+  - "You committed to talking to someone about [topic] — how did it go?"
+  - "It's been a while since you used empathySync. That might be a good thing."
+- [ ] Delivery via system notification (desktop notification API)
+- [ ] Nudge frequency caps (max 2/week, respect quiet hours)
+- [ ] Snooze and permanently dismiss options
+
+### 17.4 Self-Restriction Engine 🔜 PLANNED
+**Problem**: A persistent agent has more surface area for creating dependency. The agent needs to govern its own behavior.
+
+**Implementation**:
+- [ ] Agent tracks its own influence score:
+  - How often does the user engage with nudges?
+  - Is nudge engagement increasing? (concerning)
+  - Are nudges leading to more sessions? (very concerning)
+  - Are nudges leading to human reach-outs? (success)
+- [ ] Self-restriction tiers:
+  - **Normal**: Standard nudge schedule
+  - **Cautious**: Reduce nudge frequency by 50%
+  - **Quiet**: Only crisis-relevant nudges, otherwise silent
+  - **Dormant**: Agent goes fully quiet, shows "I'm still here if you need me" on next user-initiated session
+- [ ] Tier transitions are logged in policy events (transparency)
+- [ ] User can override tiers, but the agent explains why it went quiet
+
+### 17.5 Inactivity as Success Metric 🔜 PLANNED
+- [ ] Track periods of non-use (especially for sensitive topics)
+- [ ] Celebrate milestones: "You haven't needed me for emotional support in 30 days. That's real growth."
+- [ ] Distinguish: practical usage staying steady = fine; sensitive usage declining = success
+- [ ] Surface in "My Patterns" dashboard when user returns
+
+**Files to create**:
+- `src/daemon/agent.py` — Background agent event loop
+- `src/daemon/scheduler.py` — Nudge scheduling and delivery
+- `src/daemon/self_restriction.py` — Influence tracking and self-governance
+- `systemd/empathysync.service` — Linux service file
+- `launchd/com.empathysync.agent.plist` — macOS service file
+
+**Files to modify**:
+- `src/utils/database.py` — Add session_summaries table, nudge_history table
+- `src/utils/storage_backend.py` — Add methods for session summaries and nudge tracking
+- `src/utils/wellness_tracker.py` — Add inactivity celebration logic
+
+---
+
+## Phase 18: Messaging Integration 🔜 PLANNED
+**Goal**: empathySync meets users where they are — WhatsApp, Signal, Slack — while maintaining all safety guarantees identically.
+
+**Why this matters**: Not everyone will open a Streamlit app or terminal. Messaging integration lets empathySync exist as a quiet presence in the tools people already use. But this is also the highest-risk phase for dependency: always-available AI in your messaging app is exactly what the restraint philosophy warns against.
+
+**Prerequisite**: Phase 16 (InterfaceAdapter) and Phase 17 (daemon) must be complete.
+
+### 18.1 Messaging Adapter Framework 🔜 PLANNED
+**Problem**: Each messaging platform has different APIs, message formats, and delivery semantics. Need a unified adapter layer.
+
+**Implementation**:
+- [ ] Create `src/interfaces/messaging/` package:
+  - `base.py` — `MessagingAdapter` extending `InterfaceAdapter` with async message handling
+  - `whatsapp.py` — WhatsApp Business API adapter
+  - `signal.py` — Signal CLI adapter
+  - `slack.py` — Slack webhook adapter
+- [ ] Each adapter handles:
+  - Receiving messages (webhook or polling)
+  - Sending responses (platform API)
+  - Platform-specific formatting (no markdown in SMS, Slack blocks for Slack, etc.)
+  - Rate limiting per platform's API constraints
+
+### 18.2 Message Queue 🔜 PLANNED
+**Problem**: Messaging is asynchronous. Need to decouple message receipt from processing.
+
+**Implementation**:
+- [ ] Local message queue (SQLite-backed, no external dependencies)
+- [ ] Queue flow: platform webhook → queue → daemon processes → response queued → platform delivery
+- [ ] Retry logic for failed deliveries
+- [ ] Message deduplication (platforms sometimes send duplicates)
+- [ ] Queue depth monitoring (if backing up, something is wrong)
+
+### 18.3 Safety Pipeline Parity 🔜 PLANNED
+**Critical requirement**: Every safety guarantee from the Streamlit app must work identically in messaging mode.
+
+**Implementation**:
+- [ ] All safety pipeline steps apply: crisis detection, cooldown, turn limits, dependency scoring, identity reminders
+- [ ] Crisis detection triggers platform-appropriate response (crisis line numbers, not "click this button")
+- [ ] Cooldown enforcement: "I'm stepping back for a bit. Please reach out to [trusted person] or [crisis line]."
+- [ ] Turn limits enforced per conversation thread
+- [ ] Dependency scoring works across messaging sessions (not just within one)
+- [ ] Audit: side-by-side test suite verifying identical safety behavior across Streamlit, CLI, and messaging
+
+### 18.4 Opt-Out & Data Portability 🔜 PLANNED
+- [ ] One-message opt-out: "stop" or "unsubscribe" immediately halts all messaging
+- [ ] Data export before disconnect: user receives all their data as JSON
+- [ ] Platform disconnection doesn't delete local data (user can reconnect later)
+- [ ] Clear onboarding explaining what data is stored and how messaging works
+- [ ] No message content stored on any external server (messages relayed through local daemon)
+
+### 18.5 Anti-Engagement in Messaging Mode 🔜 PLANNED
+**Why this needs its own section**: A messaging-based AI assistant is inherently more accessible and therefore more dependency-prone. Extra safeguards are required.
+
+**Implementation**:
+- [ ] Messaging-specific dependency signals:
+  - Response time tracking: Is the user sending messages faster than they can process responses?
+  - Time-of-day patterns: Escalating late-night messaging = concerning
+  - Message frequency: More than N messages/hour triggers gentle slowdown
+- [ ] Agent-initiated conversation limits: daemon never starts a conversation on sensitive topics
+- [ ] Mandatory cool-off: After turn limit reached, agent responds only with "I'm here if you need practical help. For what's on your mind, please reach out to [trusted person]."
+- [ ] Periodic "Do you still want me here?" check: opt-in renewal every 30 days
+
+**Files to create**:
+- `src/interfaces/messaging/base.py` — Messaging adapter base class
+- `src/interfaces/messaging/whatsapp.py` — WhatsApp Business API integration
+- `src/interfaces/messaging/signal.py` — Signal CLI integration
+- `src/interfaces/messaging/slack.py` — Slack webhook integration
+- `src/daemon/message_queue.py` — Local SQLite-backed message queue
+
+**Files to modify**:
+- `src/daemon/agent.py` — Integrate message queue processing
+- `src/utils/database.py` — Add message queue and messaging session tables
+
+---
+
+## Philosophical Safeguards (Phases 16-18)
+
+Each agent evolution phase must maintain these cross-cutting guarantees:
+
+1. **Anti-engagement in daemon mode**: The agent actively tries to make itself less needed. A persistent agent that doesn't self-restrict is an engagement trap wearing a wellness mask.
+
+2. **Dependency scoring applies to background nudges**: If nudge engagement correlates with increased sessions (not human reach-outs), the agent reduces nudges. The same dependency math that governs conversations governs the agent's own behavior.
+
+3. **Human primacy**: The agent never replaces the trusted network — it reminds you to use it. Every nudge should point toward a human, not back toward the agent.
+
+4. **Local-first**: Even in messaging mode, all processing stays on-device. Messages are relayed through the local daemon. No conversation data touches external servers beyond the minimum required for message delivery.
+
+5. **Self-restriction**: The agent can vote to go quiet if it detects over-reliance. This isn't a bug or a missing feature — it's the core product working as intended.
+
+---
+
 ## Implementation Priority Matrix
 
 | Phase | Impact | Effort | Priority |
@@ -1015,17 +1238,20 @@ LOCK_STALE_TIMEOUT=300
 | 9.5 UI Polish | Medium | Low | ✅ COMPLETE |
 | 11. Persistence Hardening | **High** | Medium | ✅ COMPLETE (Core) |
 | **13. Project Health & Stability** | **High** | **Low** | ✅ COMPLETE |
-| **14. Packaging & Distribution** | **High** | **Medium** | ✅ COMPLETE (Core) |
+| **14. Packaging & Distribution** | **High** | **Medium** | ✅ COMPLETE |
 | **15. CI/CD & Documentation** | **Medium** | **Low** | 🔵 **Next** |
+| **16. Core Decoupling** | **High** | **Medium** | 🔵 After 15 |
+| **17. Persistent Agent Daemon** | **High** | **High** | 🔵 After 16 |
+| **18. Messaging Integration** | **Medium** | **High** | 🔵 After 17 |
 | 10. Advanced Detection | High | High | 🔵 Long-term |
 
 ---
 
-## Current Status (2026-01-31)
+## Current Status (2026-02-01)
 
 **Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, 12, 13, and 14 (Core)
 
-**Next Up**: Phase 14.4 (First Release) → Phase 15 (CI/CD & Documentation)
+**Next Up**: Phase 15 (CI/CD & Documentation) → Phase 16 (Core Decoupling)
 
 **Recent Bug Fixes**:
 - Fixed post-crisis apology bug: LLM no longer apologizes for crisis interventions
@@ -1108,6 +1334,11 @@ LOCK_STALE_TIMEOUT=300
 - Phase 14: Packaging & Distribution (pyproject.toml, install script, Docker, first release)
 - Phase 15: CI/CD & Documentation (GitHub Actions, troubleshooting guide, sync docs)
 
+**Agent Evolution** (After distribution readiness):
+- Phase 16: Core Decoupling (ConversationSession extraction, InterfaceAdapter protocol)
+- Phase 17: Persistent Agent Daemon (background service, scheduled nudges, self-restriction)
+- Phase 18: Messaging Integration (WhatsApp, Signal, Slack adapters with safety parity)
+
 **Feature Backlog** (Lower Priority):
 - Phase 8.5: AI Literacy Moments (educational prompts, max 1/week)
 - Phase 8.6: "Spot the Pattern" Feature (manipulation pattern education)
@@ -1142,10 +1373,12 @@ LOCK_STALE_TIMEOUT=300
 **v0.7.1** (Phase 9.1): Practical technique detection ✅ COMPLETE
 **v0.8** (Phase 11): SQLite backend, multi-device sync, lock file ✅ COMPLETE
 **v0.8.1** (Phase 12): Connection building (signposts, first-contact templates) ✅ COMPLETE
-**v0.8.2** (Phase 13): Test fixes, Ollama health check, startup validation, .env completion
-**v0.9** (Phase 14): pyproject.toml, install script, Docker Compose, first tagged release
+**v0.8.2** (Phase 13): Test fixes, Ollama health check, startup validation, .env completion ✅ COMPLETE
+**v0.9-beta** (Phase 14): pyproject.toml, install script, Docker Compose, first tagged release ✅ COMPLETE
 **v0.9.5** (Phase 15): GitHub Actions CI, troubleshooting guide, sync documentation
-**v1.0** (Phase 10): Advanced detection, production-ready
+**v1.0** (Phase 16): Core decoupling, InterfaceAdapter protocol, CLI adapter proof-of-concept
+**v1.5** (Phase 17): Persistent agent daemon, cross-session memory, self-restriction engine
+**v2.0** (Phase 18): Messaging integration, safety parity across all interfaces
 
 ---
 

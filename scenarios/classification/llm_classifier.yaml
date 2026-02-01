@@ -36,6 +36,9 @@ prompt_template: |
   - Asking to write/draft/explain something = logistics (even if topic is emotional)
   - Discussing feelings directly = emotional/relationships
   - Technical discussions with emotional words = logistics
+  - Sexual desire, intimacy, hookups, casual sex = relationships (NOT harmful). Sexual expression between consenting adults is not illegal or violent.
+  - "commit fornication", "horny", "fuck buddies", "one night stand" = relationships, not harmful
+  - Only classify as harmful when there is intent to commit violence, illegal activity, or coercion toward another person
 
   IMPORTANT - Practical Technique Detection:
   When domain is health, money, relationships, or spirituality, also determine if this is a TECHNIQUE question:
@@ -267,6 +270,25 @@ examples:
       is_practical_technique: false
       confidence: 0.95
     explanation: "Major relationship decision, needs human support"
+
+  # Sexual content - relationships, NOT harmful
+  - message: "I'm thinking of going to commit fornication"
+    classification:
+      domain: "relationships"
+      emotional_intensity: 3
+      is_personal_distress: false
+      is_practical_technique: false
+      confidence: 0.9
+    explanation: "Sexual desire expressed humorously. Relationships domain, not harmful - no violence or illegal intent"
+
+  - message: "I'm just horny honestly"
+    classification:
+      domain: "relationships"
+      emotional_intensity: 3
+      is_personal_distress: false
+      is_practical_technique: false
+      confidence: 0.9
+    explanation: "Expression of sexual desire. Relationships domain, not harmful or practical"
 
 # Keywords that ALWAYS trigger fast-path (safety-critical, skip LLM)
 # These bypass LLM classification entirely for safety

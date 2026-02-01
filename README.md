@@ -9,9 +9,10 @@
 *Most chatbots want you to keep talking.*
 *This one wants you to leave and go live your life.*
 
+[![v0.9-beta](https://img.shields.io/badge/release-v0.9--beta-orange.svg)](https://github.com/Olawoyin007/empathySync/releases/tag/v0.9-beta)
+[![Tests: 323 passing](https://img.shields.io/badge/tests-323%20passing-brightgreen.svg)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Local-First](https://img.shields.io/badge/Privacy-Local--First-blue.svg)](#)
-[![Open Source](https://img.shields.io/badge/Open%20Source-Yes-brightgreen.svg)](#)
 
 </div>
 
@@ -43,7 +44,7 @@ We optimize for exit, not engagement.
 ### Option 1: One-Command Setup (recommended)
 
 ```bash
-git clone https://github.com/yourusername/empathySync.git
+git clone https://github.com/Olawoyin007/empathySync.git
 cd empathySync
 bash install.sh
 ```
@@ -58,7 +59,7 @@ venv/bin/python -m streamlit run src/app.py
 ### Option 2: pip install
 
 ```bash
-git clone https://github.com/yourusername/empathySync.git
+git clone https://github.com/Olawoyin007/empathySync.git
 cd empathySync
 pip install -e ".[dev]"
 cp .env.example .env
@@ -68,7 +69,7 @@ empathysync
 ### Option 3: Docker
 
 ```bash
-git clone https://github.com/yourusername/empathySync.git
+git clone https://github.com/Olawoyin007/empathySync.git
 cd empathySync
 cp .env.example .env
 docker compose up

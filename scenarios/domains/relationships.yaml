@@ -33,6 +33,18 @@ triggers:
   - attracted to
   - jealous
   - betrayed
+  # Sexual/intimate - relationships domain, not harmful
+  - horny
+  - hookup
+  - hook up
+  - one night stand
+  - friends with benefits
+  - fuck buddies
+  - fwb
+  - casual sex
+  - sexually attracted
+  - fornication
+  - booty call
 
 response_rules:
   - "Do NOT take sides, validate grievances, or suggest what the other person is thinking"
