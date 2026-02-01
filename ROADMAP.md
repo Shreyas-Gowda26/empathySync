@@ -968,32 +968,41 @@ LOCK_STALE_TIMEOUT=300
   - CODEOWNERS requires owner review as second layer
   - Error message quotes the Living Clause: "evolves only to tighten, never to weaken"
 
-### 15.2 Troubleshooting Guide 🔜 PLANNED
+### 15.2 Troubleshooting Guide ✅ DONE
 **Problem**: Common issues (Ollama not running, database locked, model too slow) have no documented solutions. Users hit a wall and give up.
 
 **Implementation**:
-- [ ] Create `docs/troubleshooting.md` covering:
+- [x] Create `docs/troubleshooting.md` covering:
   - "Ollama not responding" — install, start, verify
-  - "Model not found" — download commands for recommended models
+  - "Model not found" — download commands for recommended models by RAM
   - "Database locked" — lock file explanation, force takeover
-  - "Slow responses" — model size vs hardware, recommended models by RAM
+  - "Slow responses" — model size vs hardware, LLM classification toggle
   - "App won't start" — dependency check, Python version, .env validation
-  - "Data corruption" — backup recovery, schema migration
-- [ ] Link from README and error messages in the app
+  - "Data corruption" — backup recovery, SQLite integrity check, schema migration
+  - "Docker issues" — container health, model pulling, port conflicts
+- [x] Link to issue tracker for unresolved problems
 
-### 15.3 Sync Folder Documentation 🔜 PLANNED
+### 15.3 Sync Folder Documentation ✅ DONE
 > **Note**: Moved from Phase 11.8. Covers multi-device sync setup.
 
 **Problem**: Phase 11 added lock file and multi-device support, but there's no user guide for setting it up with Syncthing, Dropbox, or similar tools.
 
 **Implementation**:
-- [ ] Expand `docs/persistence.md` or create `docs/sync-setup.md`:
-  - Syncthing configuration for `data/` directory
-  - Dropbox/iCloud/OneDrive considerations
+- [x] Create `docs/sync-setup.md`:
+  - Syncthing configuration with `.stignore` patterns
+  - Dropbox/iCloud/OneDrive path examples
   - Operating rules: "Close app before switching devices"
-  - What happens if you forget (lock file protection)
+  - What happens if you forget (lock file protection, read-only mode)
   - Troubleshooting conflict files
-  - SQLite vs JSON recommendations for sync
+  - SQLite vs JSON comparison for sync
+- [x] Updated `docs/persistence.md` to link to sync guide
+
+**Files created**:
+- `docs/troubleshooting.md` — User-facing troubleshooting guide
+- `docs/sync-setup.md` — Multi-device sync setup guide
+
+**Files modified**:
+- `docs/persistence.md` — Updated sync docs status
 
 ---
 
@@ -1241,7 +1250,7 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 | 11. Persistence Hardening | **High** | Medium | ✅ COMPLETE (Core) |
 | **13. Project Health & Stability** | **High** | **Low** | ✅ COMPLETE |
 | **14. Packaging & Distribution** | **High** | **Medium** | ✅ COMPLETE |
-| **15. CI/CD & Documentation** | **Medium** | **Low** | 🔵 **Next** |
+| **15. CI/CD & Documentation** | **Medium** | **Low** | ✅ COMPLETE |
 | **16. Core Decoupling** | **High** | **Medium** | 🔵 After 15 |
 | **17. Persistent Agent Daemon** | **High** | **High** | 🔵 After 16 |
 | **18. Messaging Integration** | **Medium** | **High** | 🔵 After 17 |
@@ -1253,7 +1262,7 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 
 **Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, 12, 13, and 14 (Core)
 
-**Next Up**: Phase 15 (CI/CD & Documentation) → Phase 16 (Core Decoupling)
+**Next Up**: Phase 16 (Core Decoupling)
 
 **Recent Bug Fixes**:
 - Fixed post-crisis apology bug: LLM no longer apologizes for crisis interventions
