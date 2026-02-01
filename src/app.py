@@ -27,6 +27,7 @@ from utils.helpers import setup_logging, validate_environment
 from utils.wellness_tracker import WellnessTracker
 from utils.trusted_network import TrustedNetwork
 from utils.scenario_loader import get_scenario_loader
+from utils.health_check import run_health_checks, has_critical_failures
 
 # Configure page
 st.set_page_config(
@@ -1642,6 +1643,27 @@ def main():
             st.code(f"{config}=your_value_here")
         st.markdown("See `.env.example` for guidance.")
         return
+
+    # Phase 13: Startup health checks (run once per session)
+    if "health_checks_passed" not in st.session_state:
+        checks = run_health_checks()
+        if has_critical_failures(checks):
+            st.error("**Startup Check Failed**")
+            for check in checks:
+                if check.ok:
+                    st.success(f"**{check.name}**: {check.message}")
+                elif check.critical:
+                    st.error(f"**{check.name}**: {check.message}")
+                    if check.details:
+                        st.markdown(check.details)
+                else:
+                    st.warning(f"**{check.name}**: {check.message}")
+                    if check.details:
+                        st.markdown(check.details)
+            st.markdown("---")
+            st.markdown("Fix the issues above and refresh the page.")
+            return
+        st.session_state.health_checks_passed = True
 
     # Phase 11: Check device lock status (enables read-only mode if locked by other)
     display_lock_warning()

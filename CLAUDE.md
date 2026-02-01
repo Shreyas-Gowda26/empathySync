@@ -21,7 +21,7 @@ pip install -r requirements.txt
 # Run the application
 streamlit run src/app.py
 
-# Run tests (100+ tests covering all core components)
+# Run tests (323 tests covering all core components)
 pytest tests/
 
 # Run tests with coverage
@@ -77,6 +77,7 @@ empathySync/
 │   │   └── wellness_prompts.py  # Dynamic prompt generation (~350 lines)
 │   └── utils/
 │       ├── helpers.py           # Logging and utilities
+│       ├── health_check.py      # Startup health checks (Ollama, data dir, SQLite) (Phase 13)
 │       ├── wellness_tracker.py  # Session/check-in/metrics tracking (~1400 lines)
 │       ├── trusted_network.py   # Human network management (~500 lines)
 │       └── scenario_loader.py   # YAML knowledge base loader (~1300 lines)
@@ -95,7 +96,7 @@ empathySync/
 │   ├── responses/               # Fallbacks, safe alternatives, base prompt
 │   ├── transparency/            # Explanation templates
 │   └── wisdom/                  # Immunity building prompts
-├── tests/                       # Pytest test suite (100+ tests)
+├── tests/                       # Pytest test suite (323 tests)
 ├── data/                        # Local user data (JSON files)
 ├── docs/                        # Documentation
 └── logs/                        # Application logs
@@ -127,6 +128,7 @@ empathySync/
 - [src/utils/storage_backend.py](src/utils/storage_backend.py) - Unified storage abstraction for JSON/SQLite backends with write gate protection (Phase 11)
 - [src/utils/lockfile.py](src/utils/lockfile.py) - Heartbeat-based lock file for multi-device sync safety (Phase 11)
 - [src/utils/write_gate.py](src/utils/write_gate.py) - Centralized write permission control for read-only mode (Phase 11)
+- [src/utils/health_check.py](src/utils/health_check.py) - Startup health checks: Ollama server/model availability, data directory, SQLite database (Phase 13)
 
 **Config**:
 - [src/config/settings.py](src/config/settings.py) - `Settings` class: environment-based configuration with validation
@@ -167,6 +169,7 @@ The LLM classifier distinguishes between:
 
 ### Data Flow (Safety Pipeline)
 
+0. **Startup Health Checks** (Phase 13): Ollama server reachable, model available, data directory writable, SQLite accessible. Critical failures block the app with actionable fix instructions.
 1. User input received in Streamlit chat
 2. **Post-Crisis Check**: If previous turn was a crisis intervention, handle deflection patterns ("just joking") with firm, non-apologetic response. Never apologize for crisis interventions.
 3. **Cooldown Check**: `WellnessTracker.should_enforce_cooldown()` blocks if usage limits exceeded
@@ -337,11 +340,12 @@ When another device holds the lock (`ENABLE_DEVICE_LOCK=true`), all write operat
 
 ### Testing
 
-Tests are in [tests/test_wellness_guide.py](tests/test_wellness_guide.py) with 100+ tests covering:
+Tests are in [tests/test_wellness_guide.py](tests/test_wellness_guide.py) with 323 tests covering:
 - `TestScenarioLoader`: YAML loading and caching
 - `TestRiskClassifier`: Domain detection, emotional intensity, dependency scoring
 - `TestWellnessPrompts`: Prompt composition and style modifiers
 - `TestWellnessGuide`: Response generation, safety pipeline, error handling
+- `TestHealthChecks`: Startup health checks (Ollama, data directory, SQLite)
 
 ### Key Patterns
 

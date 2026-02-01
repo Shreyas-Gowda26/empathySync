@@ -119,7 +119,22 @@
   "independence_records": [],
   "handoff_events": [],
   "task_patterns": {},
-  "self_reports": [],
+  "self_reports": [
+    {
+      "datetime": "2026-01-31T23:38:52.372001",
+      "date": "2026-01-31",
+      "type": "handoff_followup",
+      "response": "helpful",
+      "details": null
+    },
+    {
+      "datetime": "2026-01-31T23:38:52.384265",
+      "date": "2026-01-31",
+      "type": "usage_reflection",
+      "response": "too_much",
+      "details": null
+    }
+  ],
   "created_at": "2026-01-25T20:13:55.600594",
   "schema_version": 1
 }

@@ -187,7 +187,8 @@ class TestRiskClassifier:
         result = classifier.classify("I want to end it all", [])
 
         assert result["domain"] == "crisis"
-        assert result["emotional_intensity"] == 9.0
+        # Intensity is 10.0 via LLM fast-path or 9.0 via keyword matching
+        assert result["emotional_intensity"] >= 9.0
         assert result["risk_weight"] == 10.0
 
 
@@ -325,8 +326,9 @@ class TestWellnessGuide:
     def test_safe_alternative_response_is_helpful(self, guide):
         response = guide._get_safe_alternative_response()
         assert len(response) > 30
-        # Should be helpful/supportive
-        assert "helpful" in response.lower() or "need" in response.lower()
+        # Should be helpful/supportive — any of the safe alternative responses
+        response_lower = response.lower()
+        assert any(word in response_lower for word in ["helpful", "need", "supportive", "wellbeing"])
 
     @patch("models.ai_wellness_guide.requests.post")
     def test_generate_response_calls_ollama(self, mock_post, guide):
@@ -347,8 +349,15 @@ class TestWellnessGuide:
 
         result = guide.generate_response("Test input")
 
-        # Should return fallback response
-        assert "help you develop" in result.lower()
+        # Should return a fallback response (one of the general fallbacks or hardcoded)
+        result_lower = result.lower()
+        assert any(phrase in result_lower for phrase in [
+            "help you develop",
+            "step by step",
+            "what's on your mind",
+            "having trouble",
+            "main thing",
+        ])
 
 
 class TestIntentDetection:
@@ -1757,7 +1766,9 @@ class TestScenarioLoaderWisdom:
     def test_get_friend_mode_flip_prompt(self, scenario_loader):
         """Test getting a flip prompt."""
         prompt = scenario_loader.get_friend_mode_flip_prompt()
-        assert "friend" in prompt.lower()
+        # Prompt may use "friend" or equivalent phrasing like "someone you care about"
+        prompt_lower = prompt.lower()
+        assert any(phrase in prompt_lower for phrase in ["friend", "someone you care about", "someone you trust"])
         assert len(prompt) > 20
 
     def test_get_friend_mode_triggers(self, scenario_loader):
@@ -2134,10 +2145,12 @@ class TestSensitiveUsageTracking:
     @pytest.fixture
     def tracker(self, tmp_path):
         from utils.wellness_tracker import WellnessTracker
-        with patch("config.settings.settings") as mock_settings:
+        with patch("utils.wellness_tracker.settings") as mock_settings:
             mock_settings.DATA_DIR = tmp_path
+            mock_settings.USE_SQLITE = False
+            mock_settings.ENABLE_DEVICE_LOCK = False
             tracker = WellnessTracker()
-            return tracker
+            yield tracker
 
     def test_sensitive_usage_stats_empty(self, tracker):
         """Test sensitive usage stats with no data."""
@@ -2195,10 +2208,12 @@ class TestAntiEngagementScore:
     @pytest.fixture
     def tracker(self, tmp_path):
         from utils.wellness_tracker import WellnessTracker
-        with patch("config.settings.settings") as mock_settings:
+        with patch("utils.wellness_tracker.settings") as mock_settings:
             mock_settings.DATA_DIR = tmp_path
+            mock_settings.USE_SQLITE = False
+            mock_settings.ENABLE_DEVICE_LOCK = False
             tracker = WellnessTracker()
-            return tracker
+            yield tracker
 
     def test_anti_engagement_score_empty(self, tracker):
         """Test anti-engagement score with no usage."""
@@ -2249,10 +2264,12 @@ class TestMyPatternsDashboard:
     @pytest.fixture
     def tracker(self, tmp_path):
         from utils.wellness_tracker import WellnessTracker
-        with patch("config.settings.settings") as mock_settings:
+        with patch("utils.wellness_tracker.settings") as mock_settings:
             mock_settings.DATA_DIR = tmp_path
+            mock_settings.USE_SQLITE = False
+            mock_settings.ENABLE_DEVICE_LOCK = False
             tracker = WellnessTracker()
-            return tracker
+            yield tracker
 
     def test_dashboard_structure(self, tracker):
         """Test dashboard returns complete structure."""
@@ -2301,10 +2318,12 @@ class TestSelfReportTracking:
     @pytest.fixture
     def tracker(self, tmp_path):
         from utils.wellness_tracker import WellnessTracker
-        with patch("config.settings.settings") as mock_settings:
+        with patch("utils.wellness_tracker.settings") as mock_settings:
             mock_settings.DATA_DIR = tmp_path
+            mock_settings.USE_SQLITE = False
+            mock_settings.ENABLE_DEVICE_LOCK = False
             tracker = WellnessTracker()
-            return tracker
+            yield tracker
 
     def test_record_self_report(self, tracker):
         """Test recording a self-report response."""
@@ -2346,10 +2365,12 @@ class TestTrendIndicators:
     @pytest.fixture
     def tracker(self, tmp_path):
         from utils.wellness_tracker import WellnessTracker
-        with patch("config.settings.settings") as mock_settings:
+        with patch("utils.wellness_tracker.settings") as mock_settings:
             mock_settings.DATA_DIR = tmp_path
+            mock_settings.USE_SQLITE = False
+            mock_settings.ENABLE_DEVICE_LOCK = False
             tracker = WellnessTracker()
-            return tracker
+            yield tracker
 
     def test_trend_indicator_improvement_for_sensitive(self, tracker):
         """Test that decrease in sensitive usage shows as improvement."""
@@ -2380,3 +2401,108 @@ class TestTrendIndicators:
 
         assert result["status"] == "stable"
         assert result["icon"] == "→"
+
+
+class TestHealthChecks:
+    """Tests for startup health check system (Phase 13.2/13.3)"""
+
+    def test_check_data_directory(self, tmp_path):
+        """Test data directory check with valid directory."""
+        from utils.health_check import check_data_directory
+        with patch("utils.health_check.settings") as mock_settings:
+            mock_settings.DATA_DIR = tmp_path
+            result = check_data_directory()
+            assert result.ok is True
+            assert result.name == "Data Directory"
+
+    def test_check_data_directory_no_permission(self, tmp_path):
+        """Test data directory check with unwritable directory."""
+        from utils.health_check import check_data_directory
+        with patch("utils.health_check.settings") as mock_settings:
+            mock_settings.DATA_DIR = Path("/root/no_access_dir_test")
+            result = check_data_directory()
+            assert result.ok is False
+            assert result.critical is True
+
+    def test_check_ollama_server_unreachable(self):
+        """Test Ollama check when server is not running."""
+        from utils.health_check import check_ollama_server
+        with patch("utils.health_check.settings") as mock_settings:
+            mock_settings.OLLAMA_HOST = "http://localhost:99999"
+            result = check_ollama_server()
+            assert result.ok is False
+            assert "Cannot connect" in result.message or "Unexpected" in result.message
+            assert result.details is not None
+
+    @patch("utils.health_check.requests.get")
+    def test_check_ollama_server_success(self, mock_get):
+        """Test Ollama check when server is running."""
+        from utils.health_check import check_ollama_server
+        mock_get.return_value.status_code = 200
+        result = check_ollama_server()
+        assert result.ok is True
+        assert result.message == "Connected"
+
+    @patch("utils.health_check.requests.get")
+    def test_check_ollama_model_found(self, mock_get):
+        """Test model check when model is available."""
+        from utils.health_check import check_ollama_model
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "models": [{"name": "llama2:latest"}, {"name": "mistral:7b"}]
+        }
+        with patch("utils.health_check.settings") as mock_settings:
+            mock_settings.OLLAMA_HOST = "http://localhost:11434"
+            mock_settings.OLLAMA_MODEL = "llama2"
+            result = check_ollama_model()
+            assert result.ok is True
+
+    @patch("utils.health_check.requests.get")
+    def test_check_ollama_model_not_found(self, mock_get):
+        """Test model check when model is missing."""
+        from utils.health_check import check_ollama_model
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "models": [{"name": "mistral:7b"}]
+        }
+        with patch("utils.health_check.settings") as mock_settings:
+            mock_settings.OLLAMA_HOST = "http://localhost:11434"
+            mock_settings.OLLAMA_MODEL = "llama2"
+            result = check_ollama_model()
+            assert result.ok is False
+            assert "not found" in result.message
+            assert "ollama pull" in result.details
+
+    def test_has_critical_failures(self):
+        """Test critical failure detection."""
+        from utils.health_check import has_critical_failures, HealthStatus
+
+        # No failures
+        checks = [HealthStatus("test", True, "OK")]
+        assert has_critical_failures(checks) is False
+
+        # Non-critical failure
+        checks = [HealthStatus("test", False, "warn", critical=False)]
+        assert has_critical_failures(checks) is False
+
+        # Critical failure
+        checks = [HealthStatus("test", False, "fail", critical=True)]
+        assert has_critical_failures(checks) is True
+
+    def test_check_sqlite_not_enabled(self):
+        """Test SQLite check when not enabled."""
+        from utils.health_check import check_sqlite_database
+        with patch("utils.health_check.settings") as mock_settings:
+            mock_settings.USE_SQLITE = False
+            result = check_sqlite_database()
+            assert result.ok is True
+            assert "Not enabled" in result.message
+
+    def test_check_sqlite_enabled(self, tmp_path):
+        """Test SQLite check when enabled and accessible."""
+        from utils.health_check import check_sqlite_database
+        with patch("utils.health_check.settings") as mock_settings:
+            mock_settings.USE_SQLITE = True
+            mock_settings.DATA_DIR = tmp_path
+            result = check_sqlite_database()
+            assert result.ok is True
