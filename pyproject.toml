@@ -42,10 +42,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/empathySync/empathySync"
-Documentation = "https://github.com/empathySync/empathySync#readme"
-Repository = "https://github.com/empathySync/empathySync"
-Issues = "https://github.com/empathySync/empathySync/issues"
+Homepage = "https://github.com/Olawoyin007/empathySync"
+Documentation = "https://github.com/Olawoyin007/empathySync#readme"
+Repository = "https://github.com/Olawoyin007/empathySync"
+Issues = "https://github.com/Olawoyin007/empathySync/issues"
 
 [project.scripts]
 empathysync = "src.cli:main"
