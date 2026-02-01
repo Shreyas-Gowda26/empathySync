@@ -40,26 +40,49 @@ We optimize for exit, not engagement.
 
 ## Quick Start
 
+### Option 1: One-Command Setup (recommended)
+
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/empathySync.git
 cd empathySync
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your Ollama settings
-
-# Launch
-streamlit run src/app.py
+bash install.sh
 ```
+
+The install script checks Python, creates a virtual environment, installs dependencies, configures `.env`, and verifies Ollama is ready.
+
+Then launch:
+```bash
+venv/bin/python -m streamlit run src/app.py
+```
+
+### Option 2: pip install
+
+```bash
+git clone https://github.com/yourusername/empathySync.git
+cd empathySync
+pip install -e ".[dev]"
+cp .env.example .env
+empathysync
+```
+
+### Option 3: Docker
+
+```bash
+git clone https://github.com/yourusername/empathySync.git
+cd empathySync
+cp .env.example .env
+docker compose up
+```
+
+This starts both empathySync and Ollama together. Open `http://localhost:8501`.
+
+> **Note:** You'll still need to pull a model into the Ollama container:
+> `docker exec empathysync-ollama ollama pull llama2`
 
 ### Requirements
 
-- Python 3.8+
-- [Ollama](https://ollama.ai/) running locally
+- Python 3.9+
+- [Ollama](https://ollama.com/) running locally (or via Docker)
 - 8GB RAM recommended (4GB minimum)
 - GPU optional but improves response time
 
@@ -111,15 +134,19 @@ OLLAMA_MODEL=llama2
 OLLAMA_TEMPERATURE=0.7
 
 # Optional
-LLM_CLASSIFICATION_ENABLED=true  # Enable intelligent classification
-STORE_CONVERSATIONS=false        # Local storage only
+LLM_CLASSIFICATION_ENABLED=true  # Intelligent context-aware classification
+STORE_CONVERSATIONS=true         # Local storage only
+USE_SQLITE=false                 # SQLite backend (better concurrency)
+ENABLE_DEVICE_LOCK=false         # Multi-device sync safety
 ```
 
 ## Project Status
 
-**Core Complete.** All safety systems, dual-mode operation, dependency tracking, human handoff, and transparency features are working.
+**Core Complete.** 14 phases shipped — safety systems, dual-mode operation, dependency tracking, human handoff, transparency, LLM classification, persistence hardening, connection building, and startup health checks.
 
-**Distribution In Progress.** Currently requires technical setup. Working toward easier installation for non-technical users.
+**Distribution Ready.** Three installation methods available: install script, pip, and Docker Compose.
+
+**323 tests passing.**
 
 See [ROADMAP.md](ROADMAP.md) for detailed implementation status.
 

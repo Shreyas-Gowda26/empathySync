@@ -873,58 +873,73 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
-## Phase 14: Packaging & Distribution 🔜 PLANNED
+## Phase 14: Packaging & Distribution ✅ COMPLETE (Core)
 **Goal**: Make empathySync installable by developers without reading the source code.
 
-**Why now**: The product is ready but nobody can use it. There's no path from "interested person" to "running the app" without significant technical knowledge. A developer landing on the repo should be able to run it in under 5 minutes.
+**Why now**: The product was ready but nobody could use it. There was no path from "interested person" to "running the app" without significant technical knowledge. A developer landing on the repo should be able to run it in under 5 minutes.
 
-### 14.1 Create pyproject.toml 🔜 PLANNED
+### 14.1 Create pyproject.toml ✅ DONE
 **Problem**: No standard Python packaging. Can't `pip install .` or `pip install empathysync`.
 
 **Implementation**:
-- [ ] Create `pyproject.toml` with project metadata, dependencies, and entry points
-- [ ] Define `[project.scripts]` entry point (e.g., `empathysync = "src.app:main"`)
-- [ ] Pin dependency versions from current `requirements.txt`
-- [ ] Add `[project.optional-dependencies]` for dev tools (pytest, black, flake8, mypy)
-- [ ] Verify `pip install -e .` works for development
-- [ ] Verify `pip install .` works for end users
+- [x] Created `pyproject.toml` with project metadata, dependencies, and entry points
+- [x] Defined `[project.scripts]` entry point: `empathysync = "src.cli:main"`
+- [x] Created `src/cli.py` — launches Streamlit via subprocess
+- [x] Core dependencies trimmed from 15 to 4 (removed unused aspirational deps)
+- [x] Added `[project.optional-dependencies]` dev extras (pytest, black, flake8, mypy)
+- [x] Added `[tool.pytest.ini_options]` with pythonpath for cleaner test runs
+- [x] Verified `pip install -e ".[dev]"` works
+- [x] Cleaned `requirements.txt` to match actual imports (streamlit, requests, python-dotenv, pyyaml)
 
-### 14.2 Installation Script 🔜 PLANNED
-**Problem**: Setup requires multiple manual steps (clone, create venv, install deps, copy .env, check Ollama).
+**Files created**:
+- `pyproject.toml` — Package metadata, dependencies, entry points, tool config
+- `src/cli.py` — CLI entry point for `empathysync` command
 
-**Implementation**:
-- [ ] Create `install.sh` for Linux/Mac one-command setup:
-  - Check Python version (>=3.9)
-  - Create virtual environment
-  - Install dependencies
-  - Copy `.env.example` to `.env` if not present
-  - Check if Ollama is installed and running
-  - Suggest model download if needed
-  - Print "Ready to run" message with launch command
-- [ ] Add Windows equivalent guidance in README
-
-### 14.3 Docker Compose 🔜 PLANNED
-**Problem**: Running empathySync requires Ollama installed separately. Docker Compose can bundle both.
+### 14.2 Installation Script ✅ DONE
+**Problem**: Setup required multiple manual steps (clone, create venv, install deps, copy .env, check Ollama).
 
 **Implementation**:
-- [ ] Write working `Dockerfile` (current one is empty)
-- [ ] Create `docker-compose.yml` with two services:
-  - `app`: empathySync Streamlit app
-  - `ollama`: Ollama server with model auto-pull
-- [ ] Volume mounts for `data/` directory (persistence)
-- [ ] Environment variable passthrough from `.env`
-- [ ] Health checks for both services
-- [ ] Document in README: `docker compose up` one-command start
+- [x] Created `install.sh` for Linux/Mac one-command setup:
+  - Checks Python version (>=3.9)
+  - Creates virtual environment
+  - Installs dependencies
+  - Copies `.env.example` to `.env` if not present
+  - Checks if Ollama is installed and running
+  - Lists available models with sizes
+  - Prints "Ready to run" message with launch command
+- [x] Color-coded output ([OK], [WARN], [FAIL])
 
-### 14.4 Tag v0.8.1 Release 🔜 PLANNED
+**Files created**:
+- `install.sh` — One-command setup script
+
+### 14.3 Docker Compose ✅ DONE
+**Problem**: Running empathySync required Ollama installed separately. Docker Compose bundles both.
+
+**Implementation**:
+- [x] Written working `Dockerfile` (Python 3.12 slim, 4 deps only)
+- [x] Created `docker-compose.yml` with two services:
+  - `ollama`: Ollama server with health check and persistent volume
+  - `app`: empathySync Streamlit app, waits for healthy Ollama
+- [x] Volume mount for `data/` directory (user data persists)
+- [x] `.env` file mounted read-only
+- [x] `OLLAMA_HOST` automatically set to container network address
+- [x] Health checks for both services
+- [x] `.dockerignore` to keep image small
+
+**Files created**:
+- `Dockerfile` — App container image
+- `docker-compose.yml` — Two-service orchestration
+- `.dockerignore` — Excludes venv, tests, git, data from image
+
+### 14.4 Tag v0.8.2 Release 🔜 PLANNED
 **Problem**: No releases, no changelog. Contributors and users have no sense of project maturity.
 
 **Implementation**:
 - [ ] Create CHANGELOG.md summarizing all phases
-- [ ] Tag `v0.8.1-beta` as first official release
+- [ ] Tag `v0.8.2-beta` as first official release
 - [ ] Create GitHub Release with:
-  - Summary of what's included (12 completed phases)
-  - Installation instructions
+  - Summary of what's included (13 completed phases)
+  - Installation instructions (3 methods: install.sh, pip, Docker)
   - Known limitations
   - Link to MANIFESTO.md
 - [ ] Update README badges (version, license, tests passing)
@@ -1000,17 +1015,17 @@ LOCK_STALE_TIMEOUT=300
 | 9.5 UI Polish | Medium | Low | ✅ COMPLETE |
 | 11. Persistence Hardening | **High** | Medium | ✅ COMPLETE (Core) |
 | **13. Project Health & Stability** | **High** | **Low** | ✅ COMPLETE |
-| **14. Packaging & Distribution** | **High** | **Medium** | 🔵 **Next** |
-| **15. CI/CD & Documentation** | **Medium** | **Low** | 🔜 After Phase 14 |
+| **14. Packaging & Distribution** | **High** | **Medium** | ✅ COMPLETE (Core) |
+| **15. CI/CD & Documentation** | **Medium** | **Low** | 🔵 **Next** |
 | 10. Advanced Detection | High | High | 🔵 Long-term |
 
 ---
 
 ## Current Status (2026-01-31)
 
-**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, 12 (Connection Building), and 13 (Project Health & Stability)
+**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, 12, 13, and 14 (Core)
 
-**Next Up**: Phase 14 (Packaging & Distribution) → Phase 15 (CI/CD & Documentation)
+**Next Up**: Phase 14.4 (First Release) → Phase 15 (CI/CD & Documentation)
 
 **Recent Bug Fixes**:
 - Fixed post-crisis apology bug: LLM no longer apologizes for crisis interventions

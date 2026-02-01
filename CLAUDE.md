@@ -15,11 +15,19 @@ The system actively works to reduce user dependency on AI for emotional support 
 ## Development Commands
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Quick setup (one command)
+bash install.sh
+
+# Or manual setup
+pip install -e ".[dev]"     # Editable install with dev tools
+pip install -r requirements.txt  # Alternative: just core deps
 
 # Run the application
-streamlit run src/app.py
+streamlit run src/app.py    # Direct
+empathysync                 # Via CLI entry point (after pip install -e .)
+
+# Docker (app + Ollama together)
+docker compose up           # Starts both services
 
 # Run tests (323 tests covering all core components)
 pytest tests/
@@ -68,6 +76,7 @@ Configure in `.env` file (see `.env.example`):
 empathySync/
 ├── src/                          # Application source code
 │   ├── app.py                   # Streamlit entry point (~1500 lines)
+│   ├── cli.py                   # CLI entry point for `empathysync` command (Phase 14)
 │   ├── config/settings.py       # Environment configuration
 │   ├── models/
 │   │   ├── ai_wellness_guide.py # Core conversation engine (~800 lines)
@@ -99,7 +108,11 @@ empathySync/
 ├── tests/                       # Pytest test suite (323 tests)
 ├── data/                        # Local user data (JSON files)
 ├── docs/                        # Documentation
-└── logs/                        # Application logs
+├── logs/                        # Application logs
+├── pyproject.toml               # Package metadata, dependencies, entry points (Phase 14)
+├── install.sh                   # One-command setup script for Linux/Mac (Phase 14)
+├── Dockerfile                   # Container image for empathySync (Phase 14)
+└── docker-compose.yml           # App + Ollama orchestration (Phase 14)
 ```
 
 ### Core Components
