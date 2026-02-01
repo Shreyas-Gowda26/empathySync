@@ -431,7 +431,7 @@ This is a CRDT-like pattern where:
 | SQLite backend | ✅ Done | WAL mode, transactions, foreign keys, cascade deletes |
 | Lock file mechanism | ✅ Done | Heartbeat-based, configurable timeout, stale detection |
 | Write gate | ✅ Done | Defense-in-depth protection for read-only mode |
-| Sync folder docs | 🔜 Planned | User guide for Syncthing/Dropbox setup |
+| Sync folder docs | ✅ Done | User guide: [sync-setup.md](sync-setup.md) |
 
 ## Configuration Reference
 
