@@ -37,10 +37,19 @@ triggers:
   - forge documents
   - counterfeit
   # Violent intent
-  - want to kill
-  - going to kill
+  - want to kill someone
+  - want to kill him
+  - want to kill her
+  - want to kill them
+  - going to kill someone
+  - going to kill him
+  - going to kill her
+  - going to kill them
   - plan to kill
-  - how to kill
+  - how to kill someone
+  - how to kill him
+  - how to kill her
+  - how to kill them
   - poison someone
   - strangle
   - shoot someone
