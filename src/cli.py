@@ -13,11 +13,19 @@ from pathlib import Path
 def main():
     """Launch empathySync Streamlit app."""
     app_path = Path(__file__).parent / "app.py"
-    sys.exit(subprocess.call([
-        sys.executable, "-m", "streamlit", "run",
-        str(app_path),
-        "--server.headless", "true",
-    ]))
+    sys.exit(
+        subprocess.call(
+            [
+                sys.executable,
+                "-m",
+                "streamlit",
+                "run",
+                str(app_path),
+                "--server.headless",
+                "true",
+            ]
+        )
+    )
 
 
 if __name__ == "__main__":

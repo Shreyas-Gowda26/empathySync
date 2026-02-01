@@ -10,7 +10,7 @@
 *This one wants you to leave and go live your life.*
 
 [![v0.9-beta](https://img.shields.io/badge/release-v0.9--beta-orange.svg)](https://github.com/Olawoyin007/empathySync/releases/tag/v0.9-beta)
-[![Tests: 323 passing](https://img.shields.io/badge/tests-323%20passing-brightgreen.svg)](#)
+[![CI](https://github.com/Olawoyin007/empathySync/actions/workflows/ci.yml/badge.svg)](https://github.com/Olawoyin007/empathySync/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Local-First](https://img.shields.io/badge/Privacy-Local--First-blue.svg)](#)
 

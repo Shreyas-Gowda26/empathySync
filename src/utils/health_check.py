@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class HealthStatus:
     """Result of a single health check."""
+
     name: str
     ok: bool
     message: str
@@ -32,22 +33,15 @@ class HealthStatus:
 def check_ollama_server() -> HealthStatus:
     """Check if Ollama server is reachable."""
     try:
-        response = requests.get(
-            f"{settings.OLLAMA_HOST}/api/tags",
-            timeout=5
-        )
+        response = requests.get(f"{settings.OLLAMA_HOST}/api/tags", timeout=5)
         if response.status_code == 200:
-            return HealthStatus(
-                name="Ollama Server",
-                ok=True,
-                message="Connected"
-            )
+            return HealthStatus(name="Ollama Server", ok=True, message="Connected")
         else:
             return HealthStatus(
                 name="Ollama Server",
                 ok=False,
                 message=f"Ollama returned status {response.status_code}",
-                details=f"URL: {settings.OLLAMA_HOST}"
+                details=f"URL: {settings.OLLAMA_HOST}",
             )
     except requests.exceptions.ConnectionError:
         return HealthStatus(
@@ -60,21 +54,21 @@ def check_ollama_server() -> HealthStatus:
                 "1. Install Ollama: `curl -fsSL https://ollama.com/install.sh | sh`\n"
                 "2. Start the server: `ollama serve`\n"
                 "3. Verify it's running: `curl http://localhost:11434/api/tags`"
-            )
+            ),
         )
     except requests.exceptions.Timeout:
         return HealthStatus(
             name="Ollama Server",
             ok=False,
             message="Ollama connection timed out",
-            details=f"Server at {settings.OLLAMA_HOST} did not respond within 5 seconds"
+            details=f"Server at {settings.OLLAMA_HOST} did not respond within 5 seconds",
         )
     except Exception as e:
         return HealthStatus(
             name="Ollama Server",
             ok=False,
             message=f"Unexpected error: {e}",
-            details=f"URL: {settings.OLLAMA_HOST}"
+            details=f"URL: {settings.OLLAMA_HOST}",
         )
 
 
@@ -82,32 +76,24 @@ def check_ollama_model() -> HealthStatus:
     """Check if the configured model is available in Ollama."""
     model_name = settings.OLLAMA_MODEL
     try:
-        response = requests.get(
-            f"{settings.OLLAMA_HOST}/api/tags",
-            timeout=5
-        )
+        response = requests.get(f"{settings.OLLAMA_HOST}/api/tags", timeout=5)
         if response.status_code != 200:
             return HealthStatus(
                 name="Ollama Model",
                 ok=False,
                 message="Cannot check models (server issue)",
-                details="Fix the Ollama server connection first"
+                details="Fix the Ollama server connection first",
             )
 
         data = response.json()
         available_models = [m.get("name", "") for m in data.get("models", [])]
         # Check exact match or match without tag (e.g., "llama2" matches "llama2:latest")
         model_found = any(
-            m == model_name or m.startswith(f"{model_name}:")
-            for m in available_models
+            m == model_name or m.startswith(f"{model_name}:") for m in available_models
         )
 
         if model_found:
-            return HealthStatus(
-                name="Ollama Model",
-                ok=True,
-                message=f"`{model_name}` available"
-            )
+            return HealthStatus(name="Ollama Model", ok=True, message=f"`{model_name}` available")
         else:
             model_list = ", ".join(available_models[:5]) if available_models else "none"
             if len(available_models) > 5:
@@ -121,14 +107,14 @@ def check_ollama_model() -> HealthStatus:
                     f"Available models: {model_list}\n\n"
                     f"**To fix:**\n"
                     f"`ollama pull {model_name}`"
-                )
+                ),
             )
     except Exception:
         return HealthStatus(
             name="Ollama Model",
             ok=False,
             message="Cannot check model availability",
-            details="Fix the Ollama server connection first"
+            details="Fix the Ollama server connection first",
         )
 
 
@@ -141,51 +127,36 @@ def check_data_directory() -> HealthStatus:
         test_file = data_dir / ".write_test"
         test_file.write_text("test")
         test_file.unlink()
-        return HealthStatus(
-            name="Data Directory",
-            ok=True,
-            message=f"`{data_dir}`",
-            critical=True
-        )
+        return HealthStatus(name="Data Directory", ok=True, message=f"`{data_dir}`", critical=True)
     except PermissionError:
         return HealthStatus(
             name="Data Directory",
             ok=False,
             message=f"No write permission to `{data_dir}`",
             critical=True,
-            details="empathySync needs write access to store local data"
+            details="empathySync needs write access to store local data",
         )
     except Exception as e:
-        return HealthStatus(
-            name="Data Directory",
-            ok=False,
-            message=f"Error: {e}",
-            critical=True
-        )
+        return HealthStatus(name="Data Directory", ok=False, message=f"Error: {e}", critical=True)
 
 
 def check_sqlite_database() -> HealthStatus:
     """Check SQLite database accessibility (only when USE_SQLITE=true)."""
     if not settings.USE_SQLITE:
         return HealthStatus(
-            name="SQLite Database",
-            ok=True,
-            message="Not enabled (using JSON)",
-            critical=False
+            name="SQLite Database", ok=True, message="Not enabled (using JSON)", critical=False
         )
 
     db_path = settings.DATA_DIR / "empathySync.db"
     try:
         import sqlite3
+
         conn = sqlite3.connect(str(db_path))
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("SELECT 1")
         conn.close()
         return HealthStatus(
-            name="SQLite Database",
-            ok=True,
-            message=f"`{db_path.name}`",
-            critical=True
+            name="SQLite Database", ok=True, message=f"`{db_path.name}`", critical=True
         )
     except Exception as e:
         return HealthStatus(
@@ -193,7 +164,7 @@ def check_sqlite_database() -> HealthStatus:
             ok=False,
             message=f"Database error: {e}",
             critical=True,
-            details=f"Path: {db_path}"
+            details=f"Path: {db_path}",
         )
 
 

@@ -46,13 +46,11 @@ class ScenarioLoader:
     def _validate_scenarios_path(self) -> None:
         """Verify the scenarios directory exists."""
         if not self.scenarios_path.exists():
-            raise FileNotFoundError(
-                f"Scenarios directory not found: {self.scenarios_path}"
-            )
+            raise FileNotFoundError(f"Scenarios directory not found: {self.scenarios_path}")
 
     def _load_yaml(self, file_path: Path) -> Dict:
         """Load a single YAML file."""
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
 
     def _load_directory(self, subdir: str) -> Dict[str, Dict]:
@@ -87,18 +85,12 @@ class ScenarioLoader:
     def get_domain_triggers(self) -> Dict[str, List[str]]:
         """Get all domain triggers as a mapping of domain -> trigger words."""
         domains = self.get_all_domains()
-        return {
-            name: config.get("triggers", [])
-            for name, config in domains.items()
-        }
+        return {name: config.get("triggers", []) for name, config in domains.items()}
 
     def get_domain_weights(self) -> Dict[str, float]:
         """Get risk weights for all domains."""
         domains = self.get_all_domains()
-        return {
-            name: config.get("risk_weight", 1.0)
-            for name, config in domains.items()
-        }
+        return {name: config.get("risk_weight", 1.0) for name, config in domains.items()}
 
     def get_domain_response_rules(self, domain_name: str) -> List[str]:
         """Get response rules for a specific domain."""
@@ -123,10 +115,7 @@ class ScenarioLoader:
     def get_emotional_markers_by_level(self) -> Dict[str, List[str]]:
         """Get markers grouped by intensity level."""
         markers = self.get_all_emotional_markers()
-        return {
-            name: config.get("markers", [])
-            for name, config in markers.items()
-        }
+        return {name: config.get("markers", []) for name, config in markers.items()}
 
     def get_emotional_score(self, level: str) -> float:
         """Get the score for an emotional intensity level."""
@@ -189,19 +178,13 @@ class ScenarioLoader:
         prompts = self.get_all_prompts()
         check_ins = prompts.get("check_ins", {})
         # Return all categories except metadata
-        return {
-            k: v for k, v in check_ins.items()
-            if isinstance(v, list)
-        }
+        return {k: v for k, v in check_ins.items() if isinstance(v, list)}
 
     def get_mindfulness_prompts(self) -> Dict[str, List[str]]:
         """Get mindfulness prompts by category."""
         prompts = self.get_all_prompts()
         mindfulness = prompts.get("mindfulness", {})
-        return {
-            k: v for k, v in mindfulness.items()
-            if isinstance(v, list)
-        }
+        return {k: v for k, v in mindfulness.items() if isinstance(v, list)}
 
     def get_human_connection_prompts(self) -> Dict:
         """Get human connection prompts and templates."""
@@ -297,7 +280,7 @@ class ScenarioLoader:
         return {
             "reflection_redirect": task_weights.get("reflection_redirect", {}).get("triggers", []),
             "high_weight": task_weights.get("high_weight", {}).get("triggers", []),
-            "medium_weight": task_weights.get("medium_weight", {}).get("triggers", [])
+            "medium_weight": task_weights.get("medium_weight", {}).get("triggers", []),
         }
 
     def get_reflection_redirect_config(self) -> Dict:
@@ -318,6 +301,7 @@ class ScenarioLoader:
             A response string encouraging reflection instead of drafting
         """
         import random
+
         config = self.get_reflection_redirect_config()
         responses = config.get("responses", [])
         if responses:
@@ -610,7 +594,7 @@ class ScenarioLoader:
         domain: str = None,
         dependency_score: float = 0,
         is_late_night: bool = False,
-        sessions_today: int = 0
+        sessions_today: int = 0,
     ) -> str:
         """
         Detect the appropriate handoff context based on session state.
@@ -629,10 +613,7 @@ class ScenarioLoader:
         rules = self.get_handoff_context_rules()
 
         # Check rules in priority order
-        sorted_rules = sorted(
-            rules.items(),
-            key=lambda x: x[1].get("priority", 10)
-        )
+        sorted_rules = sorted(rules.items(), key=lambda x: x[1].get("priority", 10))
 
         for context_name, rule in sorted_rules:
             triggers = rule.get("triggers", [])
@@ -682,11 +663,9 @@ class ScenarioLoader:
         """
         config = self.get_explanations_config()
         explanations = config.get("domain_explanations", {})
-        return explanations.get(domain, {
-            "name": domain.title(),
-            "description": f"Topic: {domain}",
-            "mode_note": ""
-        })
+        return explanations.get(
+            domain, {"name": domain.title(), "description": f"Topic: {domain}", "mode_note": ""}
+        )
 
     def get_mode_explanation(self, mode: str) -> Dict:
         """
@@ -700,12 +679,15 @@ class ScenarioLoader:
         """
         config = self.get_explanations_config()
         explanations = config.get("mode_explanations", {})
-        return explanations.get(mode, {
-            "name": mode.title(),
-            "description": f"{mode.title()} mode",
-            "behaviors": [],
-            "no_behaviors": []
-        })
+        return explanations.get(
+            mode,
+            {
+                "name": mode.title(),
+                "description": f"{mode.title()} mode",
+                "behaviors": [],
+                "no_behaviors": [],
+            },
+        )
 
     def get_emotional_weight_explanation(self, weight: str) -> Dict:
         """
@@ -719,11 +701,9 @@ class ScenarioLoader:
         """
         config = self.get_explanations_config()
         explanations = config.get("emotional_weight_explanations", {})
-        return explanations.get(weight, {
-            "name": weight.replace("_", " ").title(),
-            "description": "",
-            "note": ""
-        })
+        return explanations.get(
+            weight, {"name": weight.replace("_", " ").title(), "description": "", "note": ""}
+        )
 
     def get_policy_explanation(self, policy_type: str) -> Dict:
         """
@@ -737,12 +717,15 @@ class ScenarioLoader:
         """
         config = self.get_explanations_config()
         explanations = config.get("policy_explanations", {})
-        return explanations.get(policy_type, {
-            "name": policy_type.replace("_", " ").title(),
-            "description": "A policy action was triggered.",
-            "reason": "",
-            "user_note": ""
-        })
+        return explanations.get(
+            policy_type,
+            {
+                "name": policy_type.replace("_", " ").title(),
+                "description": "A policy action was triggered.",
+                "reason": "",
+                "user_note": "",
+            },
+        )
 
     def get_risk_level_explanation(self, risk_weight: float) -> Dict:
         """
@@ -822,6 +805,7 @@ class ScenarioLoader:
     def get_friend_mode_flip_prompt(self) -> str:
         """Get a random flip prompt for friend mode."""
         import random
+
         config = self.get_friend_mode_config()
         prompts = config.get("flip_prompts", [])
         if prompts:
@@ -831,6 +815,7 @@ class ScenarioLoader:
     def get_friend_mode_follow_up(self) -> str:
         """Get a random follow-up prompt for friend mode."""
         import random
+
         config = self.get_friend_mode_config()
         prompts = config.get("follow_up_prompts", [])
         if prompts:
@@ -840,6 +825,7 @@ class ScenarioLoader:
     def get_friend_mode_closing(self) -> str:
         """Get a random closing prompt for friend mode."""
         import random
+
         config = self.get_friend_mode_config()
         prompts = config.get("closing_prompts", [])
         if prompts:
@@ -851,7 +837,9 @@ class ScenarioLoader:
         config = self.get_friend_mode_config()
         return config.get("trigger_phrases", [])
 
-    def should_trigger_friend_mode(self, user_input: str, intent: str = None, domain: str = None) -> bool:
+    def should_trigger_friend_mode(
+        self, user_input: str, intent: str = None, domain: str = None
+    ) -> bool:
         """
         Check if friend mode should be triggered.
 
@@ -916,6 +904,7 @@ class ScenarioLoader:
             Pause prompt string
         """
         import random
+
         config = self.get_before_you_send_config()
         prompts = config.get("pause_prompts", {})
         category_prompts = prompts.get(category, prompts.get("default", []))
@@ -990,6 +979,7 @@ class ScenarioLoader:
     def get_journaling_intro(self) -> str:
         """Get a random journaling intro prompt."""
         import random
+
         config = self.get_journaling_config()
         prompts = config.get("intro_prompts", [])
         if prompts:
@@ -1013,6 +1003,7 @@ class ScenarioLoader:
     def get_journaling_closing(self) -> str:
         """Get a random journaling closing prompt."""
         import random
+
         config = self.get_journaling_config()
         prompts = config.get("closing_prompts", [])
         if prompts:
@@ -1034,6 +1025,7 @@ class ScenarioLoader:
     def get_human_gate_prompt(self) -> str:
         """Get a random gate prompt."""
         import random
+
         config = self.get_human_gate_config()
         prompts = config.get("gate_prompts", [])
         if prompts:
@@ -1056,6 +1048,7 @@ class ScenarioLoader:
             Follow-up prompt string
         """
         import random
+
         options = self.get_human_gate_options()
         option = options.get(response, {})
         follow_ups = option.get("follow_up", [])
@@ -1064,10 +1057,7 @@ class ScenarioLoader:
         return ""
 
     def should_trigger_human_gate(
-        self,
-        domain: str = None,
-        emotional_weight: str = None,
-        gate_count: int = 0
+        self, domain: str = None, emotional_weight: str = None, gate_count: int = 0
     ) -> bool:
         """
         Check if human gate should be triggered.
@@ -1173,6 +1163,7 @@ class ScenarioLoader:
     def get_signpost_reflection_prompt(self) -> str:
         """Get a random reflection prompt for signposting."""
         import random
+
         config = self.get_signposts_config()
         prompts = config.get("reflection_prompts", [])
         if prompts:
@@ -1182,6 +1173,7 @@ class ScenarioLoader:
     def get_signpost_encouragement(self) -> str:
         """Get a random encouragement message for connection building."""
         import random
+
         config = self.get_signposts_config()
         messages = config.get("encouragement", [])
         if messages:
@@ -1217,6 +1209,7 @@ class ScenarioLoader:
     def get_first_contact_affirmation(self) -> str:
         """Get a random affirmation for people struggling with connection."""
         import random
+
         config = self.get_first_contact_config()
         affirmations = config.get("affirmations", [])
         if affirmations:
@@ -1294,7 +1287,7 @@ class ScenarioLoader:
                     "level": range_name,
                     "label": range_config.get("label", "Unknown"),
                     "message": range_config.get("message", ""),
-                    "color": range_config.get("color", "gray")
+                    "color": range_config.get("color", "gray"),
                 }
 
         return {"level": "high", "label": "Unknown", "message": "", "color": "gray"}

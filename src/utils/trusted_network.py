@@ -28,8 +28,10 @@ def _get_storage_backend():
     """Lazy import to avoid circular dependency."""
     if settings.USE_SQLITE:
         from utils.storage_backend import get_storage_backend
+
         return get_storage_backend()
     return None
+
 
 # Schema version for data migration support
 SCHEMA_VERSION = 1
@@ -64,13 +66,13 @@ class TrustedNetwork:
             "schema_version": SCHEMA_VERSION,
             "people": [],
             "reach_outs": [],
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
         }
 
     def _load_data(self) -> Dict:
         """Load network data from file with schema migration support."""
         try:
-            with open(self.data_file, 'r') as f:
+            with open(self.data_file, "r") as f:
                 data = json.load(f)
             return self._migrate_schema(data)
         except FileNotFoundError:
@@ -130,12 +132,10 @@ class TrustedNetwork:
 
         # Write to temp file, then atomic rename
         fd, temp_path = tempfile.mkstemp(
-            dir=self.data_file.parent,
-            prefix=".trusted_network_",
-            suffix=".tmp"
+            dir=self.data_file.parent, prefix=".trusted_network_", suffix=".tmp"
         )
         try:
-            with os.fdopen(fd, 'w') as f:
+            with os.fdopen(fd, "w") as f:
                 json.dump(data, f, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
@@ -154,9 +154,14 @@ class TrustedNetwork:
 
     # ==================== MANAGING TRUSTED PEOPLE ====================
 
-    def add_person(self, name: str, relationship: str = "",
-                   contact: str = "", notes: str = "",
-                   domains: List[str] = None) -> Dict:
+    def add_person(
+        self,
+        name: str,
+        relationship: str = "",
+        contact: str = "",
+        notes: str = "",
+        domains: List[str] = None,
+    ) -> Dict:
         """
         Add a trusted person to the network.
 
@@ -169,9 +174,7 @@ class TrustedNetwork:
         """
         # Use storage backend if SQLite is enabled
         if self._backend is not None and settings.USE_SQLITE:
-            return self._backend.add_trusted_person(
-                name, relationship, contact, notes, domains
-            )
+            return self._backend.add_trusted_person(name, relationship, contact, notes, domains)
 
         # JSON backend
         data = self._load_data()
@@ -184,7 +187,7 @@ class TrustedNetwork:
             "notes": notes,
             "domains": domains or [],
             "added_at": datetime.now().isoformat(),
-            "last_contact": None
+            "last_contact": None,
         }
 
         data["people"].append(person)
@@ -256,8 +259,9 @@ class TrustedNetwork:
 
     # ==================== TRACKING REACH OUTS ====================
 
-    def log_reach_out(self, person_name: str, method: str = "unknown",
-                      topic: str = "", notes: str = ""):
+    def log_reach_out(
+        self, person_name: str, method: str = "unknown", topic: str = "", notes: str = ""
+    ):
         """
         Log when user reaches out to someone.
 
@@ -272,9 +276,7 @@ class TrustedNetwork:
                 if person["name"].lower() == person_name.lower():
                     person_id = person["id"]
                     break
-            return self._backend.add_reach_out(
-                person_id, person_name, method, notes
-            )
+            return self._backend.add_reach_out(person_id, person_name, method, notes)
 
         # JSON backend
         data = self._load_data()
@@ -285,7 +287,7 @@ class TrustedNetwork:
             "person_name": person_name,
             "method": method,  # call, text, in-person, etc.
             "topic": topic,
-            "notes": notes
+            "notes": notes,
         }
 
         data["reach_outs"].append(reach_out)
@@ -303,15 +305,15 @@ class TrustedNetwork:
         # Use storage backend if SQLite is enabled
         if self._backend is not None and settings.USE_SQLITE:
             from datetime import timedelta
+
             start_date = date.today() - timedelta(days=days)
             return self._backend.get_reach_outs_for_period(start_date)
 
         # JSON backend
         data = self._load_data()
-        cutoff = (datetime.now().date() - __import__('datetime').timedelta(days=days)).isoformat()
+        cutoff = (datetime.now().date() - __import__("datetime").timedelta(days=days)).isoformat()
 
-        return [r for r in data.get("reach_outs", [])
-                if r.get("date", "") >= cutoff]
+        return [r for r in data.get("reach_outs", []) if r.get("date", "") >= cutoff]
 
     def count_reach_outs_this_week(self) -> int:
         """Count reach outs in the past 7 days."""
@@ -320,7 +322,7 @@ class TrustedNetwork:
     def get_neglected_contacts(self, days: int = 30) -> List[Dict]:
         """Get people you haven't contacted in a while."""
         people = self.get_all_people()
-        cutoff = (datetime.now().date() - __import__('datetime').timedelta(days=days)).isoformat()
+        cutoff = (datetime.now().date() - __import__("datetime").timedelta(days=days)).isoformat()
 
         neglected = []
         for person in people:
@@ -376,13 +378,13 @@ class TrustedNetwork:
             template_group = templates[situation]
             return {
                 "name": template_group.get("name", situation),
-                "template": random.choice(template_group.get("templates", []))
+                "template": random.choice(template_group.get("templates", [])),
             }
 
         # Default
         return {
             "name": "Reaching out",
-            "template": "Hey, I've been thinking about you. Could we talk sometime?"
+            "template": "Hey, I've been thinking about you. Could we talk sometime?",
         }
 
     def get_exit_celebration(self, chose_human: bool = True) -> str:
@@ -427,7 +429,7 @@ class TrustedNetwork:
         result = {
             "general_signposts": general,
             "reflection_prompt": self.loader.get_signpost_reflection_prompt(),
-            "encouragement": self.loader.get_signpost_encouragement()
+            "encouragement": self.loader.get_signpost_encouragement(),
         }
 
         if domain and domain not in ["logistics", "crisis", "harmful"]:
@@ -455,7 +457,7 @@ class TrustedNetwork:
         return {
             "situations": self.loader.get_all_first_contact_situations(),
             "principles": self.loader.get_first_contact_principles(),
-            "affirmation": self.loader.get_first_contact_affirmation()
+            "affirmation": self.loader.get_first_contact_affirmation(),
         }
 
     def get_building_network_content(self, domain: str = None) -> Dict:
@@ -476,7 +478,7 @@ class TrustedNetwork:
             "signposts": self.get_signposts(domain),
             "first_contact": self.get_first_contact_templates(),
             "setup_prompt": self.get_setup_prompt(),
-            "is_empty": self.is_network_empty()
+            "is_empty": self.is_network_empty(),
         }
 
     # ==================== HEALTH METRICS ====================
@@ -498,7 +500,7 @@ class TrustedNetwork:
             "reach_outs_this_month": reach_outs_month,
             "neglected_contacts": len(neglected),
             "network_configured": len(people) > 0,
-            "is_reaching_out": reach_outs_week > 0
+            "is_reaching_out": reach_outs_week > 0,
         }
 
     def clear_data(self):
@@ -509,11 +511,7 @@ class TrustedNetwork:
             return
 
         # JSON backend
-        self._save_data({
-            "people": [],
-            "reach_outs": [],
-            "created_at": datetime.now().isoformat()
-        })
+        self._save_data({"people": [], "reach_outs": [], "created_at": datetime.now().isoformat()})
 
     # ==================== CONTEXT-AWARE HANDOFF (PHASE 5) ====================
 
@@ -524,7 +522,7 @@ class TrustedNetwork:
         domain: str = None,
         dependency_score: float = 0,
         is_late_night: bool = False,
-        sessions_today: int = 0
+        sessions_today: int = 0,
     ) -> Dict:
         """
         Get context-aware handoff template based on session state.
@@ -547,7 +545,7 @@ class TrustedNetwork:
             domain=domain,
             dependency_score=dependency_score,
             is_late_night=is_late_night,
-            sessions_today=sessions_today
+            sessions_today=sessions_today,
         )
 
         # Get intro prompt
@@ -567,15 +565,11 @@ class TrustedNetwork:
             "intro_prompt": intro_prompt,
             "message_template": message,
             "follow_up_prompt": follow_up,
-            "domain": domain
+            "domain": domain,
         }
 
     def log_handoff_initiated(
-        self,
-        context: str,
-        domain: str = None,
-        person_name: str = None,
-        message_sent: str = None
+        self, context: str, domain: str = None, person_name: str = None, message_sent: str = None
     ) -> Dict:
         """
         Log when user initiates a handoff.
@@ -604,7 +598,7 @@ class TrustedNetwork:
             "message_preview": message_sent[:100] if message_sent else None,
             "status": "initiated",  # initiated, reached_out, follow_up_pending, completed
             "outcome": None,  # very_helpful, somewhat_helpful, not_helpful
-            "follow_up_shown": False
+            "follow_up_shown": False,
         }
 
         data["handoffs"].append(handoff)
@@ -613,10 +607,7 @@ class TrustedNetwork:
         return handoff
 
     def record_handoff_outcome(
-        self,
-        handoff_id: int,
-        reached_out: bool,
-        outcome: str = None
+        self, handoff_id: int, reached_out: bool, outcome: str = None
     ) -> Optional[Dict]:
         """
         Record the outcome of a handoff.
@@ -645,7 +636,7 @@ class TrustedNetwork:
                         handoff.get("person_name", "someone"),
                         method="message",
                         topic=handoff.get("domain", "general"),
-                        notes=f"Context: {handoff.get('context')}"
+                        notes=f"Context: {handoff.get('context')}",
                     )
                 else:
                     handoff["status"] = "completed"
@@ -672,10 +663,9 @@ class TrustedNetwork:
         max_per_week = settings.get("max_follow_ups_per_week", 2)
 
         # Count follow-ups shown this week
-        week_ago = (datetime.now() - __import__('datetime').timedelta(days=7)).isoformat()
+        week_ago = (datetime.now() - __import__("datetime").timedelta(days=7)).isoformat()
         follow_ups_this_week = sum(
-            1 for h in handoffs
-            if h.get("follow_up_shown") and h.get("datetime", "") >= week_ago
+            1 for h in handoffs if h.get("follow_up_shown") and h.get("datetime", "") >= week_ago
         )
 
         if follow_ups_this_week >= max_per_week:
@@ -683,12 +673,14 @@ class TrustedNetwork:
 
         # Find handoffs needing follow-up
         pending = []
-        cutoff = (datetime.now() - __import__('datetime').timedelta(hours=delay_hours)).isoformat()
+        cutoff = (datetime.now() - __import__("datetime").timedelta(hours=delay_hours)).isoformat()
 
         for handoff in handoffs:
-            if (handoff.get("status") == "initiated"
-                    and not handoff.get("follow_up_shown")
-                    and handoff.get("datetime", "") < cutoff):
+            if (
+                handoff.get("status") == "initiated"
+                and not handoff.get("follow_up_shown")
+                and handoff.get("datetime", "") < cutoff
+            ):
                 pending.append(handoff)
 
         return pending
@@ -715,7 +707,7 @@ class TrustedNetwork:
         data = self._load_data()
         handoffs = data.get("handoffs", [])
 
-        cutoff = (datetime.now() - __import__('datetime').timedelta(days=days)).isoformat()
+        cutoff = (datetime.now() - __import__("datetime").timedelta(days=days)).isoformat()
         recent = [h for h in handoffs if h.get("datetime", "") >= cutoff]
 
         # Count outcomes
@@ -738,10 +730,10 @@ class TrustedNetwork:
             "outcomes": {
                 "very_helpful": very_helpful,
                 "somewhat_helpful": somewhat_helpful,
-                "not_helpful": not_helpful
+                "not_helpful": not_helpful,
             },
             "by_context": by_context,
-            "days_analyzed": days
+            "days_analyzed": days,
         }
 
     def get_handoff_celebration(self, outcome: str = "reached_out") -> str:

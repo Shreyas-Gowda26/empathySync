@@ -24,8 +24,10 @@ def _get_storage_backend():
     """Lazy import to avoid circular dependency."""
     if settings.USE_SQLITE:
         from utils.storage_backend import get_storage_backend
+
         return get_storage_backend()
     return None
+
 
 # Schema version for data migration support
 SCHEMA_VERSION = 1
@@ -71,7 +73,7 @@ class WellnessTracker:
             "independence_records": [],
             "handoff_events": [],
             "self_reports": [],
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
         }
 
     # ==================== CHECK-INS ====================
@@ -89,7 +91,7 @@ class WellnessTracker:
             "date": date.today().isoformat(),
             "datetime": datetime.now().isoformat(),
             "feeling_score": feeling_score,
-            "notes": notes
+            "notes": notes,
         }
 
         data["check_ins"].append(check_in)
@@ -116,8 +118,13 @@ class WellnessTracker:
 
     # ==================== SESSION TRACKING ====================
 
-    def add_session(self, duration_minutes: int, turn_count: int = 0,
-                    domains_touched: List[str] = None, max_risk_weight: float = 0):
+    def add_session(
+        self,
+        duration_minutes: int,
+        turn_count: int = 0,
+        domains_touched: List[str] = None,
+        max_risk_weight: float = 0,
+    ):
         """
         Track a usage session with rich metadata.
 
@@ -143,7 +150,7 @@ class WellnessTracker:
             "duration_minutes": duration_minutes,
             "turn_count": turn_count,
             "domains_touched": domains_touched or [],
-            "max_risk_weight": max_risk_weight
+            "max_risk_weight": max_risk_weight,
         }
 
         data["usage_sessions"].append(session)
@@ -213,8 +220,11 @@ class WellnessTracker:
         week_ago = (date.today() - timedelta(days=7)).isoformat()
         data = self._load_data()
 
-        prior_week = [s for s in data.get("usage_sessions", [])
-                      if two_weeks_ago <= s.get("date", "") < week_ago]
+        prior_week = [
+            s
+            for s in data.get("usage_sessions", [])
+            if two_weeks_ago <= s.get("date", "") < week_ago
+        ]
         is_escalating = sessions_week > len(prior_week) * 1.5 if prior_week else False
 
         # Calculate composite dependency score (0-10)
@@ -261,7 +271,7 @@ class WellnessTracker:
             "minutes_today": minutes_today,
             "is_escalating": is_escalating,
             "dependency_score": min(score, 10.0),
-            "warnings": warnings
+            "warnings": warnings,
         }
 
     def should_enforce_cooldown(self) -> tuple[bool, str]:
@@ -273,20 +283,27 @@ class WellnessTracker:
         signals = self.calculate_dependency_signals()
 
         if signals["sessions_today"] >= 7:
-            return True, "You've had many sessions today. Please take a break and talk to someone you trust."
+            return (
+                True,
+                "You've had many sessions today. Please take a break and talk to someone you trust.",
+            )
 
         if signals["minutes_today"] >= 120:
             return True, "You've spent a lot of time here today. Step away for a while."
 
         if signals["dependency_score"] >= 8:
-            return True, "Your usage pattern suggests you might be relying on me too much. Take a break."
+            return (
+                True,
+                "Your usage pattern suggests you might be relying on me too much. Take a break.",
+            )
 
         return False, ""
 
     # ==================== POLICY EVENT LOGGING ====================
 
-    def log_policy_event(self, policy_type: str, domain: str,
-                         risk_weight: float, action_taken: str):
+    def log_policy_event(
+        self, policy_type: str, domain: str, risk_weight: float, action_taken: str
+    ):
         """
         Log when a safety policy fires (for transparency/audit).
 
@@ -298,9 +315,7 @@ class WellnessTracker:
         """
         # Use storage backend if SQLite is enabled
         if self._backend is not None and settings.USE_SQLITE:
-            return self._backend.add_policy_event(
-                policy_type, domain, action_taken, risk_weight
-            )
+            return self._backend.add_policy_event(policy_type, domain, action_taken, risk_weight)
 
         # JSON backend
         data = self._load_data()
@@ -314,7 +329,7 @@ class WellnessTracker:
             "policy_type": policy_type,
             "domain": domain,
             "risk_weight": risk_weight,
-            "action_taken": action_taken
+            "action_taken": action_taken,
         }
 
         data["policy_events"].append(event)
@@ -363,7 +378,7 @@ class WellnessTracker:
             "latest_checkin": latest_checkin,
             "dependency_score": dependency["dependency_score"],
             "dependency_warnings": dependency["warnings"],
-            "should_take_break": dependency["dependency_score"] >= 5
+            "should_take_break": dependency["dependency_score"] >= 5,
         }
 
     # ==================== DATA MANAGEMENT ====================
@@ -381,7 +396,7 @@ class WellnessTracker:
 
         # JSON backend (default)
         try:
-            with open(self.data_file, 'r') as f:
+            with open(self.data_file, "r") as f:
                 data = json.load(f)
             return self._migrate_schema(data)
         except FileNotFoundError:
@@ -424,13 +439,13 @@ class WellnessTracker:
                 "handoff_events": handoffs,
                 "self_reports": self_reports,
                 "task_patterns": task_patterns,
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
         except Exception as e:
             logger.error(f"Error loading from SQLite, falling back to JSON: {e}")
             # Fall back to JSON on error
             try:
-                with open(self.data_file, 'r') as f:
+                with open(self.data_file, "r") as f:
                     return json.load(f)
             except Exception:
                 return self._get_default_data()
@@ -489,12 +504,10 @@ class WellnessTracker:
 
         # Write to temp file, then atomic rename
         fd, temp_path = tempfile.mkstemp(
-            dir=self.data_file.parent,
-            prefix=".wellness_data_",
-            suffix=".tmp"
+            dir=self.data_file.parent, prefix=".wellness_data_", suffix=".tmp"
         )
         try:
-            with os.fdopen(fd, 'w') as f:
+            with os.fdopen(fd, "w") as f:
                 json.dump(data, f, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
@@ -552,9 +565,20 @@ class WellnessTracker:
         # Skip if first message is clearly practical
         if first_message:
             practical_starters = [
-                "write me", "write a", "help me write", "draft a", "draft me",
-                "create a", "make me", "code for", "write code", "explain how",
-                "show me how", "give me a", "template for", "list of"
+                "write me",
+                "write a",
+                "help me write",
+                "draft a",
+                "draft me",
+                "create a",
+                "make me",
+                "code for",
+                "write code",
+                "explain how",
+                "show me how",
+                "give me a",
+                "template for",
+                "list of",
             ]
             msg_lower = first_message.lower()
             if any(msg_lower.startswith(starter) for starter in practical_starters):
@@ -591,10 +615,7 @@ class WellnessTracker:
         return False
 
     def record_session_intent(
-        self,
-        intent: str,
-        was_check_in: bool = False,
-        auto_detected: bool = False
+        self, intent: str, was_check_in: bool = False, auto_detected: bool = False
     ) -> Dict:
         """
         Record the intent for this session.
@@ -619,7 +640,7 @@ class WellnessTracker:
             "datetime": datetime.now().isoformat(),
             "intent": intent,
             "was_check_in": was_check_in,
-            "auto_detected": auto_detected
+            "auto_detected": auto_detected,
         }
 
         data["session_intents"].append(record)
@@ -657,7 +678,7 @@ class WellnessTracker:
             "processing": processing_count,
             "connection_ratio": round(connection_ratio, 2),
             "is_concerning": is_concerning,
-            "days_analyzed": days
+            "days_analyzed": days,
         }
 
     def get_recent_intent(self) -> Optional[str]:
@@ -693,7 +714,7 @@ class WellnessTracker:
                 "first_use": result.get("first_use") or result.get("created_at"),
                 "last_use": result.get("last_use") or result.get("last_seen"),
                 "graduation_shown_count": result.get("graduation_shown_count", 0),
-                "dismissal_count": result.get("dismissal_count", 0)
+                "dismissal_count": result.get("dismissal_count", 0),
             }
 
         # JSON backend
@@ -708,16 +729,15 @@ class WellnessTracker:
                 "first_use": datetime.now().isoformat(),
                 "uses": [],
                 "graduation_shown_count": 0,
-                "dismissal_count": 0
+                "dismissal_count": 0,
             }
 
         pattern = data["task_patterns"][category]
         pattern["count"] += 1
         pattern["last_use"] = datetime.now().isoformat()
-        pattern["uses"].append({
-            "datetime": datetime.now().isoformat(),
-            "date": date.today().isoformat()
-        })
+        pattern["uses"].append(
+            {"datetime": datetime.now().isoformat(), "date": date.today().isoformat()}
+        )
 
         # Keep only last 100 uses to prevent file bloat
         if len(pattern["uses"]) > 100:
@@ -748,7 +768,7 @@ class WellnessTracker:
             "first_use": pattern.get("first_use"),
             "last_use": pattern.get("last_use"),
             "graduation_shown_count": pattern.get("graduation_shown_count", 0),
-            "dismissal_count": pattern.get("dismissal_count", 0)
+            "dismissal_count": pattern.get("dismissal_count", 0),
         }
 
     def get_task_patterns(self) -> Dict[str, Dict]:
@@ -780,7 +800,7 @@ class WellnessTracker:
         category: str,
         threshold: int,
         max_dismissals: int = 3,
-        max_prompts_per_session: int = 1
+        max_prompts_per_session: int = 1,
     ) -> Tuple[bool, str]:
         """
         Check if we should show a graduation prompt for this category.
@@ -861,9 +881,7 @@ class WellnessTracker:
         if "accepted_tips" not in pattern:
             pattern["accepted_tips"] = []
 
-        pattern["accepted_tips"].append({
-            "datetime": datetime.now().isoformat()
-        })
+        pattern["accepted_tips"].append({"datetime": datetime.now().isoformat()})
 
         self._save_data(data)
 
@@ -894,7 +912,7 @@ class WellnessTracker:
             "datetime": datetime.now().isoformat(),
             "date": date.today().isoformat(),
             "category": category,
-            "notes": notes
+            "notes": notes,
         }
 
         data["independence_records"].append(record)
@@ -930,7 +948,7 @@ class WellnessTracker:
             "total_all_time": len(records),
             "by_category": by_category,
             "days_analyzed": days,
-            "is_milestone": is_milestone
+            "is_milestone": is_milestone,
         }
 
     def get_recent_independence(self, limit: int = 5) -> List[Dict]:
@@ -947,7 +965,7 @@ class WellnessTracker:
         context: str = None,
         domain: str = None,
         outcome: str = None,
-        details: Dict = None
+        details: Dict = None,
     ) -> Dict:
         """
         Log a handoff event for transparency and metrics.
@@ -967,7 +985,7 @@ class WellnessTracker:
             policy_type=f"handoff_{event_type}",
             domain=domain or "general",
             risk_weight=0,
-            action_taken=f"Handoff {event_type}: {context or 'general'}"
+            action_taken=f"Handoff {event_type}: {context or 'general'}",
         )
 
         # Use storage backend if SQLite is enabled
@@ -990,7 +1008,7 @@ class WellnessTracker:
             "context": context,
             "domain": domain,
             "outcome": outcome,
-            "details": details
+            "details": details,
         }
 
         data["handoff_events"].append(event)
@@ -1030,7 +1048,9 @@ class WellnessTracker:
 
         # Calculate success rate
         total_outcomes = very_helpful + somewhat_helpful + not_helpful
-        helpful_rate = (very_helpful + somewhat_helpful) / total_outcomes if total_outcomes > 0 else 0
+        helpful_rate = (
+            (very_helpful + somewhat_helpful) / total_outcomes if total_outcomes > 0 else 0
+        )
 
         # Calculate reach out rate
         reach_out_rate = reached_out / initiated if initiated > 0 else 0
@@ -1043,10 +1063,10 @@ class WellnessTracker:
             "outcomes": {
                 "very_helpful": very_helpful,
                 "somewhat_helpful": somewhat_helpful,
-                "not_helpful": not_helpful
+                "not_helpful": not_helpful,
             },
             "helpful_rate": round(helpful_rate, 2),
-            "is_healthy": reach_out_rate >= 0.3 and helpful_rate >= 0.5
+            "is_healthy": reach_out_rate >= 0.3 and helpful_rate >= 0.5,
         }
 
     def should_show_handoff_follow_up(self) -> Tuple[bool, Optional[Dict]]:
@@ -1061,8 +1081,7 @@ class WellnessTracker:
 
         # Find initiated handoffs without follow-up
         for event in reversed(events):  # Check most recent first
-            if (event.get("event_type") == "initiated"
-                    and not event.get("follow_up_shown")):
+            if event.get("event_type") == "initiated" and not event.get("follow_up_shown"):
                 # Check if enough time has passed (24 hours)
                 event_time = datetime.fromisoformat(event["datetime"])
                 if datetime.now() - event_time >= timedelta(hours=24):
@@ -1085,7 +1104,15 @@ class WellnessTracker:
     # ==================== PHASE 7: SUCCESS METRICS ====================
 
     # Sensitive domains that count toward anti-engagement score
-    SENSITIVE_DOMAINS = {"relationships", "health", "money", "spirituality", "crisis", "harmful", "emotional"}
+    SENSITIVE_DOMAINS = {
+        "relationships",
+        "health",
+        "money",
+        "spirituality",
+        "crisis",
+        "harmful",
+        "emotional",
+    }
 
     def get_sensitive_usage_stats(self, days: int = 7) -> Dict:
         """
@@ -1119,7 +1146,8 @@ class WellnessTracker:
 
         # Get late-night sensitive sessions
         late_night_sensitive = sum(
-            1 for e in recent
+            1
+            for e in recent
             if e.get("domain", "") in self.SENSITIVE_DOMAINS
             and self._is_late_night_hour(e.get("datetime", ""))
         )
@@ -1136,7 +1164,7 @@ class WellnessTracker:
             "late_night_sensitive": late_night_sensitive,
             "total_sessions": total_sessions,
             "sensitive_ratio": sensitive_count / total_sessions if total_sessions > 0 else 0,
-            "domain_breakdown": domain_breakdown
+            "domain_breakdown": domain_breakdown,
         }
 
     def _is_late_night_hour(self, datetime_str: str) -> bool:
@@ -1154,18 +1182,14 @@ class WellnessTracker:
         Returns trend direction and percentage change.
         """
         this_week = self.get_sensitive_usage_stats(days=7)
-        last_week = self._get_sensitive_stats_for_period(
-            start_days_ago=14, end_days_ago=7
-        )
+        last_week = self._get_sensitive_stats_for_period(start_days_ago=14, end_days_ago=7)
 
         # Calculate changes
         sensitive_change = self._calculate_change(
-            this_week["sensitive_sessions"],
-            last_week["sensitive_sessions"]
+            this_week["sensitive_sessions"], last_week["sensitive_sessions"]
         )
         connection_change = self._calculate_change(
-            this_week["connection_seeking"],
-            last_week["connection_seeking"]
+            this_week["connection_seeking"], last_week["connection_seeking"]
         )
 
         # Get human reach-outs comparison
@@ -1177,12 +1201,10 @@ class WellnessTracker:
 
         # Get independence comparison
         this_week_independence = len(self._get_independence_for_period(days=7))
-        last_week_independence = len(self._get_independence_for_period_range(
-            start_days_ago=14, end_days_ago=7
-        ))
-        independence_change = self._calculate_change(
-            this_week_independence, last_week_independence
+        last_week_independence = len(
+            self._get_independence_for_period_range(start_days_ago=14, end_days_ago=7)
         )
+        independence_change = self._calculate_change(this_week_independence, last_week_independence)
 
         # Determine overall trend for sensitive usage (down is good)
         if sensitive_change < -0.15:
@@ -1198,22 +1220,22 @@ class WellnessTracker:
                 "connection_seeking": this_week["connection_seeking"],
                 "human_reach_outs": this_week_handoffs,
                 "independence": this_week_independence,
-                "total_sessions": this_week["total_sessions"]
+                "total_sessions": this_week["total_sessions"],
             },
             "last_week": {
                 "sensitive_sessions": last_week["sensitive_sessions"],
                 "connection_seeking": last_week["connection_seeking"],
                 "human_reach_outs": last_week_handoffs,
                 "independence": last_week_independence,
-                "total_sessions": last_week["total_sessions"]
+                "total_sessions": last_week["total_sessions"],
             },
             "changes": {
                 "sensitive_sessions": round(sensitive_change, 2),
                 "connection_seeking": round(connection_change, 2),
                 "human_reach_outs": round(handoff_change, 2),
-                "independence": round(independence_change, 2)
+                "independence": round(independence_change, 2),
             },
-            "sensitive_trend": sensitive_trend
+            "sensitive_trend": sensitive_trend,
         }
 
     def _get_sensitive_stats_for_period(self, start_days_ago: int, end_days_ago: int) -> Dict:
@@ -1223,35 +1245,23 @@ class WellnessTracker:
 
         data = self._load_data()
         events = data.get("policy_events", [])
-        period_events = [
-            e for e in events
-            if start_date <= e.get("date", "") < end_date
-        ]
+        period_events = [e for e in events if start_date <= e.get("date", "") < end_date]
 
         sensitive_count = sum(
-            1 for e in period_events
-            if e.get("domain", "") in self.SENSITIVE_DOMAINS
+            1 for e in period_events if e.get("domain", "") in self.SENSITIVE_DOMAINS
         )
 
         intents = data.get("session_intents", [])
-        period_intents = [
-            i for i in intents
-            if start_date <= i.get("date", "") < end_date
-        ]
-        connection_count = sum(
-            1 for i in period_intents if i.get("intent") == INTENT_CONNECTION
-        )
+        period_intents = [i for i in intents if start_date <= i.get("date", "") < end_date]
+        connection_count = sum(1 for i in period_intents if i.get("intent") == INTENT_CONNECTION)
 
         sessions = data.get("usage_sessions", [])
-        period_sessions = [
-            s for s in sessions
-            if start_date <= s.get("date", "") < end_date
-        ]
+        period_sessions = [s for s in sessions if start_date <= s.get("date", "") < end_date]
 
         return {
             "sensitive_sessions": sensitive_count,
             "connection_seeking": connection_count,
-            "total_sessions": len(period_sessions)
+            "total_sessions": len(period_sessions),
         }
 
     def _calculate_change(self, current: int, previous: int) -> float:
@@ -1266,7 +1276,8 @@ class WellnessTracker:
         data = self._load_data()
         events = data.get("handoff_events", [])
         return sum(
-            1 for e in events
+            1
+            for e in events
             if e.get("date", "") >= cutoff and e.get("event_type") == "reached_out"
         )
 
@@ -1277,9 +1288,9 @@ class WellnessTracker:
         data = self._load_data()
         events = data.get("handoff_events", [])
         return sum(
-            1 for e in events
-            if start_date <= e.get("date", "") < end_date
-            and e.get("event_type") == "reached_out"
+            1
+            for e in events
+            if start_date <= e.get("date", "") < end_date and e.get("event_type") == "reached_out"
         )
 
     def _get_independence_for_period(self, days: int) -> List[Dict]:
@@ -1289,16 +1300,15 @@ class WellnessTracker:
         records = data.get("independence_records", [])
         return [r for r in records if r.get("date", "") >= cutoff]
 
-    def _get_independence_for_period_range(self, start_days_ago: int, end_days_ago: int) -> List[Dict]:
+    def _get_independence_for_period_range(
+        self, start_days_ago: int, end_days_ago: int
+    ) -> List[Dict]:
         """Get independence records for a specific period range."""
         start_date = (date.today() - timedelta(days=start_days_ago)).isoformat()
         end_date = (date.today() - timedelta(days=end_days_ago)).isoformat()
         data = self._load_data()
         records = data.get("independence_records", [])
-        return [
-            r for r in records
-            if start_date <= r.get("date", "") < end_date
-        ]
+        return [r for r in records if start_date <= r.get("date", "") < end_date]
 
     def calculate_anti_engagement_score(self) -> Dict:
         """
@@ -1333,7 +1343,9 @@ class WellnessTracker:
             factor_sensitive = 0.0
 
         # Factor 2: Connection-seeking ratio (weight 0.25)
-        connection_ratio = sensitive_7d["connection_seeking"] / max(sensitive_7d["total_sessions"], 1)
+        connection_ratio = sensitive_7d["connection_seeking"] / max(
+            sensitive_7d["total_sessions"], 1
+        )
         if connection_ratio >= 0.3:
             factor_connection = 10.0
         elif connection_ratio >= 0.2:
@@ -1344,7 +1356,9 @@ class WellnessTracker:
             factor_connection = 0.0
 
         # Factor 3: Late-night sensitive ratio (weight 0.20)
-        late_night_ratio = sensitive_7d["late_night_sensitive"] / max(sensitive_7d["sensitive_sessions"], 1)
+        late_night_ratio = sensitive_7d["late_night_sensitive"] / max(
+            sensitive_7d["sensitive_sessions"], 1
+        )
         if late_night_ratio >= 0.3:
             factor_late_night = 10.0
         elif late_night_ratio >= 0.2:
@@ -1375,10 +1389,10 @@ class WellnessTracker:
 
         # Calculate weighted score
         score = (
-            factor_sensitive * 0.35 +
-            factor_connection * 0.25 +
-            factor_late_night * 0.20 +
-            factor_escalation * 0.20
+            factor_sensitive * 0.35
+            + factor_connection * 0.25
+            + factor_late_night * 0.20
+            + factor_escalation * 0.20
         )
         score = min(score, 10.0)
 
@@ -1386,7 +1400,9 @@ class WellnessTracker:
         if score <= 2:
             level = "excellent"
             label = "Healthy Balance"
-            message = "You're using this tool appropriately and keeping personal matters with humans."
+            message = (
+                "You're using this tool appropriately and keeping personal matters with humans."
+            )
         elif score <= 4:
             level = "good"
             label = "On Track"
@@ -1411,7 +1427,9 @@ class WellnessTracker:
             trend_message = "You're bringing fewer sensitive topics to AI. That's healthy growth."
         elif sensitive_7d["sensitive_sessions"] > sensitive_30d_weekly * 1.15:
             trend = "increasing"
-            trend_message = "You're bringing more personal topics here. Consider human conversations instead."
+            trend_message = (
+                "You're bringing more personal topics here. Consider human conversations instead."
+            )
         else:
             trend = "stable"
             trend_message = "Your sensitive topic usage is stable."
@@ -1425,26 +1443,26 @@ class WellnessTracker:
                 "sensitive_sessions": {
                     "value": sensitive_sessions,
                     "score": round(factor_sensitive, 1),
-                    "weight": 0.35
+                    "weight": 0.35,
                 },
                 "connection_seeking": {
                     "value": round(connection_ratio, 2),
                     "score": round(factor_connection, 1),
-                    "weight": 0.25
+                    "weight": 0.25,
                 },
                 "late_night": {
                     "value": round(late_night_ratio, 2),
                     "score": round(factor_late_night, 1),
-                    "weight": 0.20
+                    "weight": 0.20,
                 },
                 "escalation": {
                     "value": round(escalation, 2),
                     "score": round(factor_escalation, 1),
-                    "weight": 0.20
-                }
+                    "weight": 0.20,
+                },
             },
             "trend": trend,
-            "trend_message": trend_message
+            "trend_message": trend_message,
         }
 
     def get_my_patterns_dashboard(self) -> Dict:
@@ -1459,9 +1477,7 @@ class WellnessTracker:
 
         # Get practical task stats (for context, not judged)
         task_patterns = self.get_task_patterns()
-        practical_tasks_week = sum(
-            p.get("last_7_days", 0) for p in task_patterns.values()
-        )
+        practical_tasks_week = sum(p.get("last_7_days", 0) for p in task_patterns.values())
 
         # Determine overall health message
         if anti_engagement["score"] <= 4 and comparison["this_week"]["human_reach_outs"] >= 1:
@@ -1481,24 +1497,30 @@ class WellnessTracker:
                 "human_reach_outs": comparison["this_week"]["human_reach_outs"],
                 "did_it_myself": comparison["this_week"]["independence"],
                 "practical_tasks": practical_tasks_week,
-                "total_sessions": comparison["this_week"]["total_sessions"]
+                "total_sessions": comparison["this_week"]["total_sessions"],
             },
             "last_week": {
                 "sensitive_topics": comparison["last_week"]["sensitive_sessions"],
                 "connection_seeking": comparison["last_week"]["connection_seeking"],
                 "human_reach_outs": comparison["last_week"]["human_reach_outs"],
-                "did_it_myself": comparison["last_week"]["independence"]
+                "did_it_myself": comparison["last_week"]["independence"],
             },
             "trends": {
-                "sensitive_topics": self._trend_indicator(comparison["changes"]["sensitive_sessions"], invert=True),
-                "connection_seeking": self._trend_indicator(comparison["changes"]["connection_seeking"], invert=True),
-                "human_reach_outs": self._trend_indicator(comparison["changes"]["human_reach_outs"]),
-                "did_it_myself": self._trend_indicator(comparison["changes"]["independence"])
+                "sensitive_topics": self._trend_indicator(
+                    comparison["changes"]["sensitive_sessions"], invert=True
+                ),
+                "connection_seeking": self._trend_indicator(
+                    comparison["changes"]["connection_seeking"], invert=True
+                ),
+                "human_reach_outs": self._trend_indicator(
+                    comparison["changes"]["human_reach_outs"]
+                ),
+                "did_it_myself": self._trend_indicator(comparison["changes"]["independence"]),
             },
             "anti_engagement": anti_engagement,
             "health_status": health_status,
             "summary": summary,
-            "practical_note": "Practical task usage is fine - that's just using a tool."
+            "practical_note": "Practical task usage is fine - that's just using a tool.",
         }
 
     def _trend_indicator(self, change: float, invert: bool = False) -> Dict:
@@ -1559,9 +1581,9 @@ class WellnessTracker:
                 "options": [
                     {"label": "Yes, it helped", "value": "helpful"},
                     {"label": "Not really", "value": "not_helpful"},
-                    {"label": "Skip", "value": "skip"}
+                    {"label": "Skip", "value": "skip"},
                 ],
-                "handoff_context": handoff
+                "handoff_context": handoff,
             }
 
         # 2. High usage week check
@@ -1574,8 +1596,8 @@ class WellnessTracker:
                     {"label": "It's been helpful", "value": "helpful"},
                     {"label": "Maybe too much", "value": "too_much"},
                     {"label": "Not sure", "value": "unsure"},
-                    {"label": "Skip", "value": "skip"}
-                ]
+                    {"label": "Skip", "value": "skip"},
+                ],
             }
 
         return False, None
@@ -1605,7 +1627,7 @@ class WellnessTracker:
             "date": date.today().isoformat(),
             "type": report_type,
             "response": response,
-            "details": details
+            "details": details,
         }
 
         data["self_reports"].append(report)

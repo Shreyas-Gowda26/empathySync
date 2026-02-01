@@ -946,25 +946,27 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
-## Phase 15: CI/CD & Documentation 🔜 PLANNED
+## Phase 15: CI/CD & Documentation ✅ COMPLETE (Core)
 **Goal**: Make the project contributor-friendly and self-maintaining.
 
 **Why now**: Any contributor landing on the repo should see: tests pass automatically, code style is enforced, and common issues are documented. This is what separates "personal project" from "open source project."
 
-### 15.1 GitHub Actions CI 🔜 PLANNED
+### 15.1 GitHub Actions CI ✅ DONE
 **Problem**: No automated testing. Changes can break things silently. Contributors can't verify their changes pass without manual test runs.
 
 **Implementation**:
-- [ ] Create `.github/workflows/ci.yml`:
+- [x] Create `.github/workflows/ci.yml`:
   - Trigger on push and pull request to main
-  - Python 3.9, 3.10, 3.11 matrix
+  - Python 3.9, 3.10, 3.11, 3.12 matrix
   - Install dependencies
   - Run `black --check src/` (formatting)
   - Run `flake8 src/` (linting)
   - Run `pytest tests/` (tests)
-  - Run `mypy src/` (type checking, if feasible)
-- [ ] Add "Tests Passing" badge to README
-- [ ] Consider coverage reporting (optional)
+- [x] Add "Tests Passing" badge to README
+- [x] MANIFESTO.md protection:
+  - CI job (`manifesto-guard`) blocks any PR that modifies MANIFESTO.md
+  - CODEOWNERS requires owner review as second layer
+  - Error message quotes the Living Clause: "evolves only to tighten, never to weaken"
 
 ### 15.2 Troubleshooting Guide 🔜 PLANNED
 **Problem**: Common issues (Ollama not running, database locked, model too slow) have no documented solutions. Users hit a wall and give up.

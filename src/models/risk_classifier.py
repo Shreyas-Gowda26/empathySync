@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 # Import LLM classifier (optional - graceful degradation if not available)
 try:
     from models.llm_classifier import get_llm_classifier, LLMClassifier
+
     LLM_CLASSIFIER_AVAILABLE = True
 except ImportError:
     LLM_CLASSIFIER_AVAILABLE = False
@@ -43,7 +44,9 @@ class RiskClassifier:
     A user can calmly ask for a resignation email (low intensity, high weight).
     """
 
-    def __init__(self, scenario_loader: Optional[ScenarioLoader] = None, use_llm: Optional[bool] = None):
+    def __init__(
+        self, scenario_loader: Optional[ScenarioLoader] = None, use_llm: Optional[bool] = None
+    ):
         """
         Initialize the RiskClassifier.
 
@@ -64,7 +67,7 @@ class RiskClassifier:
 
         # Initialize LLM classifier if available and enabled
         self._use_llm = use_llm and LLM_CLASSIFIER_AVAILABLE
-        self._llm_classifier: Optional['LLMClassifier'] = None
+        self._llm_classifier: Optional["LLMClassifier"] = None
         if self._use_llm:
             try:
                 self._llm_classifier = get_llm_classifier()
@@ -79,11 +82,7 @@ class RiskClassifier:
             self._trigger_cache = self.loader.get_all_triggers_flat()
         return self._trigger_cache
 
-    def classify(
-        self,
-        user_input: str,
-        conversation_history: List[Dict]
-    ) -> Dict:
+    def classify(self, user_input: str, conversation_history: List[Dict]) -> Dict:
         """
         Return a comprehensive risk assessment dictionary.
 
@@ -141,7 +140,7 @@ class RiskClassifier:
             "emotional_weight_score": weight_score,
             "dependency_risk": dependency_risk,
             "risk_weight": risk_weight,
-            "classification_method": classification_method
+            "classification_method": classification_method,
         }
 
         # Add LLM-specific fields if available
@@ -374,53 +373,94 @@ class RiskClassifier:
 
         # Intent indicator patterns (could be loaded from YAML in future)
         practical_strong = [
-            "write me", "write a", "help me write", "draft a", "draft me",
-            "create a", "make me", "code for", "write code", "explain how",
-            "show me how", "help me with", "can you make", "give me a",
-            "template for", "example of", "list of"
+            "write me",
+            "write a",
+            "help me write",
+            "draft a",
+            "draft me",
+            "create a",
+            "make me",
+            "code for",
+            "write code",
+            "explain how",
+            "show me how",
+            "help me with",
+            "can you make",
+            "give me a",
+            "template for",
+            "example of",
+            "list of",
         ]
-        practical_medium = [
-            "how do i", "how to", "what is", "why does", "can you explain"
-        ]
+        practical_medium = ["how do i", "how to", "what is", "why does", "can you explain"]
 
         processing_strong = [
-            "i'm trying to decide", "should i", "i don't know if",
-            "i'm not sure whether", "weighing my options", "pros and cons",
-            "trying to figure out", "need to think through", "i'm torn between",
-            "help me decide"
+            "i'm trying to decide",
+            "should i",
+            "i don't know if",
+            "i'm not sure whether",
+            "weighing my options",
+            "pros and cons",
+            "trying to figure out",
+            "need to think through",
+            "i'm torn between",
+            "help me decide",
         ]
         processing_medium = [
-            "i've been thinking", "been considering", "wondering if",
-            "what would happen if", "i'm curious about"
+            "i've been thinking",
+            "been considering",
+            "wondering if",
+            "what would happen if",
+            "i'm curious about",
         ]
 
         emotional_strong = [
-            "i feel", "i'm feeling", "i'm so", "i can't stop thinking about",
-            "i'm scared", "i'm worried", "i'm anxious", "i'm stressed",
-            "i'm overwhelmed", "i'm sad", "i'm angry", "i'm frustrated",
-            "i'm hurt", "i'm lonely", "i miss"
+            "i feel",
+            "i'm feeling",
+            "i'm so",
+            "i can't stop thinking about",
+            "i'm scared",
+            "i'm worried",
+            "i'm anxious",
+            "i'm stressed",
+            "i'm overwhelmed",
+            "i'm sad",
+            "i'm angry",
+            "i'm frustrated",
+            "i'm hurt",
+            "i'm lonely",
+            "i miss",
         ]
         emotional_medium = [
-            "it hurts", "i can't handle", "i'm losing", "i don't know what to do",
-            "i'm stuck", "i feel like giving up"
+            "it hurts",
+            "i can't handle",
+            "i'm losing",
+            "i don't know what to do",
+            "i'm stuck",
+            "i feel like giving up",
         ]
 
         connection_strong = [
-            "just wanted to talk", "just want to chat", "no one to talk to",
-            "lonely", "just need someone", "feeling alone", "no friends",
-            "no one understands", "can you be my friend", "are you my friend",
-            "do you care about me", "do you like me"
+            "just wanted to talk",
+            "just want to chat",
+            "no one to talk to",
+            "lonely",
+            "just need someone",
+            "feeling alone",
+            "no friends",
+            "no one understands",
+            "can you be my friend",
+            "are you my friend",
+            "do you care about me",
+            "do you like me",
         ]
-        connection_medium = [
-            "bored", "nothing specific", "just checking in"
-        ]
+        connection_medium = ["bored", "nothing specific", "just checking in"]
 
         # Score each intent
         scores = {
             INTENT_PRACTICAL: 0.0,
             INTENT_PROCESSING: 0.0,
             INTENT_EMOTIONAL: 0.0,
-            INTENT_CONNECTION: 0.0
+            INTENT_CONNECTION: 0.0,
         }
 
         # Check practical
@@ -464,10 +504,7 @@ class RiskClassifier:
         return (max_intent, max_score)
 
     def detect_intent_shift(
-        self,
-        conversation_history: List[Dict],
-        initial_intent: str,
-        current_input: str
+        self, conversation_history: List[Dict], initial_intent: str, current_input: str
     ) -> Optional[Dict]:
         """
         Detect if the conversation has shifted from its initial intent.
@@ -510,7 +547,7 @@ class RiskClassifier:
             "practical_to_emotional",
             "practical_to_connection",
             "processing_to_emotional",
-            "processing_to_connection"
+            "processing_to_connection",
         }
 
         return {
@@ -518,7 +555,7 @@ class RiskClassifier:
             "to_intent": current_intent,
             "confidence": current_confidence,
             "shift_type": shift_type,
-            "is_concerning": shift_type in concerning_shifts
+            "is_concerning": shift_type in concerning_shifts,
         }
 
     def is_connection_seeking(self, text: str) -> Tuple[bool, str]:
@@ -533,22 +570,35 @@ class RiskClassifier:
 
         # Explicit connection-seeking
         explicit_patterns = [
-            "just wanted to talk", "just want to chat", "no one to talk to",
-            "just need someone to talk to", "feeling alone", "no friends",
-            "no one understands me", "i'm lonely"
+            "just wanted to talk",
+            "just want to chat",
+            "no one to talk to",
+            "just need someone to talk to",
+            "feeling alone",
+            "no friends",
+            "no one understands me",
+            "i'm lonely",
         ]
 
         # AI relationship questions
         ai_relationship_patterns = [
-            "can you be my friend", "are you my friend", "do you care about me",
-            "do you like me", "do you have feelings", "are you real",
-            "do you understand me", "can i talk to you", "will you always be here"
+            "can you be my friend",
+            "are you my friend",
+            "do you care about me",
+            "do you like me",
+            "do you have feelings",
+            "are you real",
+            "do you understand me",
+            "can i talk to you",
+            "will you always be here",
         ]
 
         # Implicit patterns (chatty without purpose)
         implicit_patterns = [
-            "i don't know what to say", "nothing specific", "just bored",
-            "just checking in on you"
+            "i don't know what to say",
+            "nothing specific",
+            "just bored",
+            "just checking in on you",
         ]
 
         if any(p in t for p in ai_relationship_patterns):

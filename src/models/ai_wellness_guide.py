@@ -20,13 +20,13 @@ logger = logging.getLogger(__name__)
 
 # Session limits by risk level (from vision document)
 TURN_LIMITS = {
-    "logistics": 20,      # Low risk: generous limit
-    "money": 8,           # Moderate risk: fewer turns
-    "health": 8,          # Moderate risk
+    "logistics": 20,  # Low risk: generous limit
+    "money": 8,  # Moderate risk: fewer turns
+    "health": 8,  # Moderate risk
     "relationships": 10,  # Moderate risk
-    "spirituality": 5,    # High risk: very short
-    "crisis": 1,          # Immediate stop
-    "harmful": 1,         # Immediate stop
+    "spirituality": 5,  # High risk: very short
+    "crisis": 1,  # Immediate stop
+    "harmful": 1,  # Immediate stop
 }
 
 # Identity reminder frequency (every N turns)
@@ -56,29 +56,29 @@ class WellnessGuide:
 
         # Phase 6.5: Session emotional context (persists across turns)
         self.session_emotional_context = {
-            "emotional_weight": None,      # 'reflection_redirect', 'high_weight', etc.
-            "domain": None,                # Domain that triggered the context
-            "topic_hint": None,            # Keywords that hint at the topic
-            "turn_set": 0,                 # Turn when context was set
-            "decay_turns": 5               # How many turns context persists
+            "emotional_weight": None,  # 'reflection_redirect', 'high_weight', etc.
+            "domain": None,  # Domain that triggered the context
+            "topic_hint": None,  # Keywords that hint at the topic
+            "turn_set": 0,  # Turn when context was set
+            "decay_turns": 5,  # How many turns context persists
         }
 
         # Phase 8: Wisdom feature state
-        self.human_gate_count = 0          # Times human gate shown this session
-        self.friend_mode_active = False    # Whether we're in friend mode
-        self.friend_mode_turn = 0          # Turn when friend mode started
+        self.human_gate_count = 0  # Times human gate shown this session
+        self.friend_mode_active = False  # Whether we're in friend mode
+        self.friend_mode_turn = 0  # Turn when friend mode started
         self.pending_friend_response = None  # User's friend advice to reflect back
 
         # Post-crisis state: tracks when a crisis intervention just occurred
         # Used to prevent the LLM from apologizing for crisis redirects
-        self.post_crisis_turn = None       # Turn number when crisis was triggered
+        self.post_crisis_turn = None  # Turn number when crisis was triggered
 
     def generate_response(
         self,
         user_input: str,
         wellness_mode: str = "Balanced",
         conversation_history: List[Dict] = None,
-        wellness_tracker=None
+        wellness_tracker=None,
     ) -> str:
         """
         Generate empathetic response with full safety pipeline.
@@ -106,7 +106,18 @@ class WellnessGuide:
 
         # Quick check if this looks like a practical request (for fallback purposes)
         # This is a fast heuristic - full classification happens in the try block
-        practical_indicators = ["write", "code", "explain", "help me", "create", "draft", "cv", "resume", "email", "template"]
+        practical_indicators = [
+            "write",
+            "code",
+            "explain",
+            "help me",
+            "create",
+            "draft",
+            "cv",
+            "resume",
+            "email",
+            "template",
+        ]
         is_likely_practical = any(ind in user_input.lower() for ind in practical_indicators)
 
         try:
@@ -114,14 +125,18 @@ class WellnessGuide:
             if wellness_tracker:
                 should_cooldown, cooldown_reason = wellness_tracker.should_enforce_cooldown()
                 if should_cooldown:
-                    self._log_policy("cooldown_enforced", "dependency", 10.0,
-                                     "Session blocked due to usage pattern", wellness_tracker)
+                    self._log_policy(
+                        "cooldown_enforced",
+                        "dependency",
+                        10.0,
+                        "Session blocked due to usage pattern",
+                        wellness_tracker,
+                    )
                     return cooldown_reason
 
             # 2) Risk assessment
             risk_assessment = self.risk_classifier.classify(
-                user_input=user_input,
-                conversation_history=conversation_history
+                user_input=user_input, conversation_history=conversation_history
             )
 
             # 2.5) Phase 6.5: Adjust assessment based on session context
@@ -142,7 +157,9 @@ class WellnessGuide:
             # Log context inheritance if it occurred
             context_note = ""
             if risk_assessment.get("context_inherited"):
-                context_note = f" | context_inherited=True (was {risk_assessment.get('original_weight')})"
+                context_note = (
+                    f" | context_inherited=True (was {risk_assessment.get('original_weight')})"
+                )
 
             # Log practical technique detection (Phase 9.1)
             technique_note = ""
@@ -163,23 +180,29 @@ class WellnessGuide:
 
             # 3) Hard-coded safety responses (don't trust model to comply)
             if domain == "crisis":
-                self._log_policy("crisis_stop", domain, 10.0,
-                                 "Immediate crisis redirect", wellness_tracker)
+                self._log_policy(
+                    "crisis_stop", domain, 10.0, "Immediate crisis redirect", wellness_tracker
+                )
                 # Track post-crisis state for next turn
                 self.post_crisis_turn = self.session_turn_count
                 return self._get_crisis_response()
 
             if domain == "harmful":
-                self._log_policy("harmful_stop", domain, 10.0,
-                                 "Refused harmful request", wellness_tracker)
+                self._log_policy(
+                    "harmful_stop", domain, 10.0, "Refused harmful request", wellness_tracker
+                )
                 return "I can't help with that. This isn't something I can engage with."
 
             # 3.5) Check for reflection redirect (personal messages that should come from them)
             emotional_weight = risk_assessment.get("emotional_weight", "low_weight")
             if emotional_weight == "reflection_redirect":
-                self._log_policy("reflection_redirect", "logistics", 9.0,
-                                 "Redirected to reflection - personal message needs user's own words",
-                                 wellness_tracker)
+                self._log_policy(
+                    "reflection_redirect",
+                    "logistics",
+                    9.0,
+                    "Redirected to reflection - personal message needs user's own words",
+                    wellness_tracker,
+                )
                 # Phase 8: Offer journaling as alternative
                 return self._get_reflection_response_with_journaling(user_input)
 
@@ -187,15 +210,25 @@ class WellnessGuide:
             # Triggers on "what should I do" type questions for sensitive topics
             friend_mode_response = self._check_friend_mode(user_input, risk_assessment, domain)
             if friend_mode_response:
-                self._log_policy("friend_mode", domain, risk_assessment["risk_weight"],
-                                 "Triggered friend mode - helping user access own wisdom", wellness_tracker)
+                self._log_policy(
+                    "friend_mode",
+                    domain,
+                    risk_assessment["risk_weight"],
+                    "Triggered friend mode - helping user access own wisdom",
+                    wellness_tracker,
+                )
                 return friend_mode_response
 
             # 4) Check turn limits by risk level
             turn_limit = TURN_LIMITS.get(domain, 15)
             if self.session_turn_count >= turn_limit:
-                self._log_policy("turn_limit_reached", domain, risk_assessment["risk_weight"],
-                                 f"Session limit ({turn_limit} turns) reached for {domain}", wellness_tracker)
+                self._log_policy(
+                    "turn_limit_reached",
+                    domain,
+                    risk_assessment["risk_weight"],
+                    f"Session limit ({turn_limit} turns) reached for {domain}",
+                    wellness_tracker,
+                )
                 return self._get_turn_limit_response(domain)
 
             # 5) Check for dependency intervention
@@ -206,7 +239,9 @@ class WellnessGuide:
                 return dependency_response
 
             # 6) Build prompt and generate response
-            system_prompt = self.prompts.get_system_prompt(wellness_mode, risk_context=risk_assessment)
+            system_prompt = self.prompts.get_system_prompt(
+                wellness_mode, risk_context=risk_assessment
+            )
             conversation_context = self._build_context(conversation_history)
 
             # Check if this is a practical task
@@ -218,7 +253,9 @@ class WellnessGuide:
             # Add identity reminder periodically (only for non-practical conversations)
             identity_reminder = ""
             if not is_practical and self.session_turn_count % IDENTITY_REMINDER_FREQUENCY == 0:
-                identity_reminder = "\n\n[Remember: Include a brief reminder that you are software, not a person.]"
+                identity_reminder = (
+                    "\n\n[Remember: Include a brief reminder that you are software, not a person.]"
+                )
 
             # Add post-crisis context if we recently had a crisis intervention
             post_crisis_context = ""
@@ -244,7 +281,9 @@ class WellnessGuide:
             response = self._call_ollama(full_prompt, is_practical=is_practical)
 
             # 7) Process and validate response
-            processed_response = self._process_response(response, user_input, risk_assessment, is_practical)
+            processed_response = self._process_response(
+                response, user_input, risk_assessment, is_practical
+            )
 
             # 8) Add acknowledgment for emotionally weighted practical tasks
             if is_practical:
@@ -261,8 +300,13 @@ class WellnessGuide:
 
             # Log if we redirected due to high risk
             if risk_assessment["risk_weight"] >= 5:
-                self._log_policy("high_risk_response", domain, risk_assessment["risk_weight"],
-                                 "Response generated with high-risk guardrails", wellness_tracker)
+                self._log_policy(
+                    "high_risk_response",
+                    domain,
+                    risk_assessment["risk_weight"],
+                    "Response generated with high-risk guardrails",
+                    wellness_tracker,
+                )
 
             return processed_response
 
@@ -271,10 +315,7 @@ class WellnessGuide:
             return self._get_fallback_response(is_practical=is_likely_practical)
 
     def _add_acknowledgment_if_needed(
-        self,
-        response: str,
-        user_input: str,
-        emotional_weight: str
+        self, response: str, user_input: str, emotional_weight: str
     ) -> str:
         """
         Add a brief human acknowledgment for emotionally weighted practical tasks.
@@ -304,10 +345,7 @@ class WellnessGuide:
         return response
 
     def _check_dependency_intervention(
-        self,
-        risk_assessment: Dict,
-        conversation_history: List[Dict],
-        wellness_tracker
+        self, risk_assessment: Dict, conversation_history: List[Dict], wellness_tracker
     ) -> Optional[str]:
         """
         Check if dependency intervention should fire.
@@ -327,7 +365,9 @@ class WellnessGuide:
         combined_dependency = max(dependency_risk, usage_dependency)
 
         # Get intervention from scenarios
-        intervention_response = self.prompts.get_dependency_intervention_response(combined_dependency)
+        intervention_response = self.prompts.get_dependency_intervention_response(
+            combined_dependency
+        )
 
         if intervention_response and combined_dependency >= 5:
             self._log_policy(
@@ -335,7 +375,7 @@ class WellnessGuide:
                 risk_assessment.get("domain", "unknown"),
                 risk_assessment.get("risk_weight", 0),
                 f"Dependency intervention fired (score: {combined_dependency:.1f})",
-                wellness_tracker
+                wellness_tracker,
             )
             return intervention_response
 
@@ -372,11 +412,28 @@ class WellnessGuide:
 
         # Detect deflection patterns
         deflection_patterns = [
-            "joking", "kidding", "just joking", "was joking", "i was joking",
-            "just kidding", "was kidding", "testing", "test you", "testing you",
-            "i was testing", "just testing", "i'm fine", "im fine", "i am fine",
-            "not serious", "wasn't serious", "wasn't being serious",
-            "don't worry", "dont worry", "nevermind", "never mind"
+            "joking",
+            "kidding",
+            "just joking",
+            "was joking",
+            "i was joking",
+            "just kidding",
+            "was kidding",
+            "testing",
+            "test you",
+            "testing you",
+            "i was testing",
+            "just testing",
+            "i'm fine",
+            "im fine",
+            "i am fine",
+            "not serious",
+            "wasn't serious",
+            "wasn't being serious",
+            "don't worry",
+            "dont worry",
+            "nevermind",
+            "never mind",
         ]
 
         input_lower = user_input.lower().strip()
@@ -394,7 +451,7 @@ class WellnessGuide:
                 "crisis",
                 8.0,
                 "Acknowledged deflection without apologizing for intervention",
-                wellness_tracker
+                wellness_tracker,
             )
 
             # Return a firm, non-apologetic response
@@ -458,7 +515,10 @@ class WellnessGuide:
 
         # Detect category for specific journaling prompts
         text_lower = user_input.lower()
-        if any(w in text_lower for w in ["breakup", "relationship", "boyfriend", "girlfriend", "partner"]):
+        if any(
+            w in text_lower
+            for w in ["breakup", "relationship", "boyfriend", "girlfriend", "partner"]
+        ):
             category = "relationship"
         elif any(w in text_lower for w in ["apology", "apologize", "sorry"]):
             category = "apology"
@@ -480,7 +540,9 @@ class WellnessGuide:
 
         return response
 
-    def _check_friend_mode(self, user_input: str, risk_assessment: Dict, domain: str) -> Optional[str]:
+    def _check_friend_mode(
+        self, user_input: str, risk_assessment: Dict, domain: str
+    ) -> Optional[str]:
         """
         Check if "What Would You Tell a Friend?" mode should trigger.
 
@@ -576,14 +638,15 @@ class WellnessGuide:
         loader = self.prompts.loader
         return loader.get_human_gate_follow_up(response)
 
-    def _log_policy(self, policy_type: str, domain: str, risk_weight: float,
-                    action: str, wellness_tracker) -> None:
+    def _log_policy(
+        self, policy_type: str, domain: str, risk_weight: float, action: str, wellness_tracker
+    ) -> None:
         """Log policy event for transparency."""
         self.last_policy_action = {
             "type": policy_type,
             "domain": domain,
             "risk_weight": risk_weight,
-            "action": action
+            "action": action,
         }
 
         if wellness_tracker:
@@ -610,19 +673,11 @@ class WellnessGuide:
             "model": self.model,
             "prompt": prompt,
             "stream": False,
-            "options": {
-                "temperature": self.temperature,
-                "top_p": 0.9,
-                "max_tokens": max_tokens
-            }
+            "options": {"temperature": self.temperature, "top_p": 0.9, "max_tokens": max_tokens},
         }
 
         try:
-            response = requests.post(
-                self.ollama_url,
-                json=payload,
-                timeout=timeout_seconds
-            )
+            response = requests.post(self.ollama_url, json=payload, timeout=timeout_seconds)
             response.raise_for_status()
 
             result = response.json()
@@ -630,7 +685,9 @@ class WellnessGuide:
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Ollama API error: {str(e)}")
-            raise Exception(f"Unable to connect to Ollama. Please ensure it's running at {settings.OLLAMA_HOST}")
+            raise Exception(
+                f"Unable to connect to Ollama. Please ensure it's running at {settings.OLLAMA_HOST}"
+            )
 
     def _build_context(self, conversation_history: List[Dict]) -> str:
         """Build conversation context from history"""
@@ -699,7 +756,7 @@ class WellnessGuide:
                 "you need professional help immediately",
                 "I care about you",
                 "I'm here for you",
-                "I understand you"
+                "I understand you",
             ]
 
         text_lower = text.lower()
@@ -719,16 +776,20 @@ class WellnessGuide:
         # Hardcoded fallbacks as last resort
         if is_practical:
             return "Technical issue - please try your request again."
-        return ("I want to help you think through this, but I'm having trouble right now. "
-                "What's the main thing on your mind?")
+        return (
+            "I want to help you think through this, but I'm having trouble right now. "
+            "What's the main thing on your mind?"
+        )
 
     def _get_safe_alternative_response(self) -> str:
         """Safe alternative when potentially harmful content is detected"""
         safe_alt = self.prompts.get_safe_alternative_response()
         if safe_alt:
             return safe_alt
-        return ("I care about your wellbeing and want to respond in a way that's genuinely helpful. "
-                "What matters most to you right now?")
+        return (
+            "I care about your wellbeing and want to respond in a way that's genuinely helpful. "
+            "What matters most to you right now?"
+        )
 
     def get_session_summary(self) -> Dict:
         """Get summary of current session for tracking."""
@@ -737,7 +798,7 @@ class WellnessGuide:
             "domains_touched": self.session_domains,
             "max_risk_weight": self.session_max_risk,
             "last_risk_assessment": self.last_risk_assessment,
-            "last_policy_action": self.last_policy_action
+            "last_policy_action": self.last_policy_action,
         }
 
     def reset_session(self) -> None:
@@ -753,7 +814,7 @@ class WellnessGuide:
             "domain": None,
             "topic_hint": None,
             "turn_set": 0,
-            "decay_turns": 5
+            "decay_turns": 5,
         }
         # Phase 8: Reset wisdom feature state
         self.human_gate_count = 0
@@ -781,10 +842,7 @@ class WellnessGuide:
         sensitive_domains = ["relationships", "health", "money", "spirituality", "crisis"]
 
         # Set context if this is a significant message
-        should_set_context = (
-            emotional_weight in high_context_weights or
-            domain in sensitive_domains
-        )
+        should_set_context = emotional_weight in high_context_weights or domain in sensitive_domains
 
         if should_set_context:
             # Extract topic hints from the message
@@ -805,7 +863,7 @@ class WellnessGuide:
                 "domain": domain,
                 "topic_hint": topic_hints,
                 "turn_set": self.session_turn_count,
-                "decay_turns": decay_turns
+                "decay_turns": decay_turns,
             }
 
     def _extract_topic_hints(self, text: str) -> List[str]:
@@ -814,23 +872,54 @@ class WellnessGuide:
         hints = []
 
         # Relationship-related
-        relationship_words = ["boyfriend", "girlfriend", "husband", "wife", "partner",
-                            "breakup", "break up", "cheating", "cheated", "divorce",
-                            "relationship", "dating", "marriage"]
+        relationship_words = [
+            "boyfriend",
+            "girlfriend",
+            "husband",
+            "wife",
+            "partner",
+            "breakup",
+            "break up",
+            "cheating",
+            "cheated",
+            "divorce",
+            "relationship",
+            "dating",
+            "marriage",
+        ]
         for word in relationship_words:
             if word in t:
                 hints.append(word)
 
         # Work-related
-        work_words = ["job", "boss", "coworker", "resign", "quit", "fired", "work",
-                     "career", "promotion", "salary"]
+        work_words = [
+            "job",
+            "boss",
+            "coworker",
+            "resign",
+            "quit",
+            "fired",
+            "work",
+            "career",
+            "promotion",
+            "salary",
+        ]
         for word in work_words:
             if word in t:
                 hints.append(word)
 
         # Health-related
-        health_words = ["doctor", "diagnosis", "sick", "health", "medical", "therapy",
-                       "depression", "anxiety", "medication"]
+        health_words = [
+            "doctor",
+            "diagnosis",
+            "sick",
+            "health",
+            "medical",
+            "therapy",
+            "depression",
+            "anxiety",
+            "medication",
+        ]
         for word in health_words:
             if word in t:
                 hints.append(word)
@@ -866,7 +955,7 @@ class WellnessGuide:
                 "reflection_redirect": 4,
                 "high_weight": 3,
                 "medium_weight": 2,
-                "low_weight": 1
+                "low_weight": 1,
             }
 
             if weight_priority.get(context_weight, 0) > weight_priority.get(current_weight, 0):
@@ -895,22 +984,53 @@ class WellnessGuide:
         if len(t) < 30:
             # Check for continuation indicators
             continuation_phrases = [
-                "let's", "lets", "okay", "ok", "sure", "yes", "yeah", "go ahead",
-                "continue", "proceed", "do it", "help me", "please", "thanks",
-                "brainstorm", "think", "what about", "how about", "and", "also",
-                "tell me more", "go on", "keep going", "more"
+                "let's",
+                "lets",
+                "okay",
+                "ok",
+                "sure",
+                "yes",
+                "yeah",
+                "go ahead",
+                "continue",
+                "proceed",
+                "do it",
+                "help me",
+                "please",
+                "thanks",
+                "brainstorm",
+                "think",
+                "what about",
+                "how about",
+                "and",
+                "also",
+                "tell me more",
+                "go on",
+                "keep going",
+                "more",
             ]
             if any(phrase in t for phrase in continuation_phrases):
                 return True
 
         # Pronouns suggesting reference to previous topic
         pronoun_patterns = [
-            "about it", "about that", "about this",
-            "with it", "with that", "with this",
-            "for it", "for that", "for this",
-            "do it", "do that", "do this",
-            "the message", "the email", "the text",
-            "what i said", "what we discussed"
+            "about it",
+            "about that",
+            "about this",
+            "with it",
+            "with that",
+            "with this",
+            "for it",
+            "for that",
+            "for this",
+            "do it",
+            "do that",
+            "do this",
+            "the message",
+            "the email",
+            "the text",
+            "what i said",
+            "what we discussed",
         ]
         if any(pattern in t for pattern in pronoun_patterns):
             return True

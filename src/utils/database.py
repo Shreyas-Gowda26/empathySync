@@ -80,7 +80,7 @@ def get_db() -> sqlite3.Connection:
         db_path,
         timeout=30.0,  # Wait up to 30s for locks
         isolation_level=None,  # Autocommit mode, we'll manage transactions explicitly
-        check_same_thread=False  # Allow multi-threaded access (Streamlit)
+        check_same_thread=False,  # Allow multi-threaded access (Streamlit)
     )
 
     # Enable WAL mode for crash safety
@@ -145,6 +145,7 @@ def checkpoint_for_sync() -> bool:
     # Don't checkpoint in read-only mode - another device owns the lock
     try:
         from utils.write_gate import is_read_only
+
         if is_read_only():
             logger.info("Skipping checkpoint: read-only mode active")
             return False
@@ -218,7 +219,8 @@ def _ensure_schema(conn: sqlite3.Connection):
 def _create_schema(conn: sqlite3.Connection):
     """Create the initial database schema (v1)."""
 
-    conn.executescript("""
+    conn.executescript(
+        """
         -- Schema version tracking
         CREATE TABLE IF NOT EXISTS schema_info (
             version INTEGER PRIMARY KEY,
@@ -338,7 +340,8 @@ def _create_schema(conn: sqlite3.Connection):
         -- Record initial schema version
         INSERT INTO schema_info (version, migrated_at, description)
         VALUES (1, datetime('now'), 'Initial schema');
-    """)
+    """
+    )
 
     conn.commit()
     logger.info("Database schema v1 created")
@@ -373,7 +376,8 @@ def _migrate_v1_to_v2(conn: sqlite3.Connection):
     """
     logger.info("Running migration v1 -> v2: Adding cascade delete to reach_outs")
 
-    conn.executescript("""
+    conn.executescript(
+        """
         -- Create new table with CASCADE constraint
         CREATE TABLE reach_outs_new (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -397,7 +401,8 @@ def _migrate_v1_to_v2(conn: sqlite3.Connection):
         -- Record migration
         INSERT INTO schema_info (version, migrated_at, description)
         VALUES (2, datetime('now'), 'Added ON DELETE CASCADE to reach_outs.person_id');
-    """)
+    """
+    )
 
     # Verify no FK violations after rebuild
     violations = conn.execute("PRAGMA foreign_key_check(reach_outs)").fetchall()
@@ -491,9 +496,13 @@ def migrate_from_json(wellness_json_path: Path, network_json_path: Path) -> bool
                 for checkin in wellness.get("check_ins", []):
                     db.execute(
                         "INSERT INTO check_ins (feeling_score, notes, created_at) VALUES (?, ?, ?)",
-                        (checkin.get("score", checkin.get("feeling_score", 3)),
-                         checkin.get("notes", ""),
-                         checkin.get("timestamp", checkin.get("created_at", datetime.now().isoformat())))
+                        (
+                            checkin.get("score", checkin.get("feeling_score", 3)),
+                            checkin.get("notes", ""),
+                            checkin.get(
+                                "timestamp", checkin.get("created_at", datetime.now().isoformat())
+                            ),
+                        ),
                     )
 
                 # Usage sessions
@@ -502,12 +511,14 @@ def migrate_from_json(wellness_json_path: Path, network_json_path: Path) -> bool
                         """INSERT INTO usage_sessions
                            (started_at, ended_at, duration_minutes, turn_count, max_risk_weight, domains_touched)
                            VALUES (?, ?, ?, ?, ?, ?)""",
-                        (session.get("started_at", session.get("start_time")),
-                         session.get("ended_at", session.get("end_time")),
-                         session.get("duration_minutes", session.get("duration")),
-                         session.get("turn_count", session.get("turns", 0)),
-                         session.get("max_risk_weight", session.get("max_risk", 0)),
-                         json.dumps(session.get("domains_touched", session.get("domains", []))))
+                        (
+                            session.get("started_at", session.get("start_time")),
+                            session.get("ended_at", session.get("end_time")),
+                            session.get("duration_minutes", session.get("duration")),
+                            session.get("turn_count", session.get("turns", 0)),
+                            session.get("max_risk_weight", session.get("max_risk", 0)),
+                            json.dumps(session.get("domains_touched", session.get("domains", []))),
+                        ),
                     )
 
                 # Policy events
@@ -516,30 +527,42 @@ def migrate_from_json(wellness_json_path: Path, network_json_path: Path) -> bool
                         """INSERT INTO policy_events
                            (event_type, domain, action_taken, explanation, created_at)
                            VALUES (?, ?, ?, ?, ?)""",
-                        (event.get("type", event.get("event_type", "unknown")),
-                         event.get("domain"),
-                         event.get("action", event.get("action_taken", "")),
-                         event.get("explanation", event.get("reason", "")),
-                         event.get("timestamp", event.get("created_at", datetime.now().isoformat())))
+                        (
+                            event.get("type", event.get("event_type", "unknown")),
+                            event.get("domain"),
+                            event.get("action", event.get("action_taken", "")),
+                            event.get("explanation", event.get("reason", "")),
+                            event.get(
+                                "timestamp", event.get("created_at", datetime.now().isoformat())
+                            ),
+                        ),
                     )
 
                 # Session intents
                 for intent in wellness.get("session_intents", []):
                     db.execute(
                         "INSERT INTO session_intents (intent, user_input, created_at) VALUES (?, ?, ?)",
-                        (intent.get("intent", "unknown"),
-                         intent.get("user_input", ""),
-                         intent.get("timestamp", intent.get("created_at", datetime.now().isoformat())))
+                        (
+                            intent.get("intent", "unknown"),
+                            intent.get("user_input", ""),
+                            intent.get(
+                                "timestamp", intent.get("created_at", datetime.now().isoformat())
+                            ),
+                        ),
                     )
 
                 # Independence records
                 for record in wellness.get("independence_records", []):
                     db.execute(
                         "INSERT INTO independence_records (task_category, milestone, notes, created_at) VALUES (?, ?, ?, ?)",
-                        (record.get("task_category", record.get("category", "")),
-                         record.get("milestone", ""),
-                         record.get("notes", ""),
-                         record.get("timestamp", record.get("created_at", datetime.now().isoformat())))
+                        (
+                            record.get("task_category", record.get("category", "")),
+                            record.get("milestone", ""),
+                            record.get("notes", ""),
+                            record.get(
+                                "timestamp", record.get("created_at", datetime.now().isoformat())
+                            ),
+                        ),
                     )
 
                 # Handoff events
@@ -548,26 +571,36 @@ def migrate_from_json(wellness_json_path: Path, network_json_path: Path) -> bool
                         """INSERT INTO handoff_events
                            (handoff_type, domain, person_name, completed, notes, created_at)
                            VALUES (?, ?, ?, ?, ?, ?)""",
-                        (handoff.get("type", handoff.get("handoff_type", "")),
-                         handoff.get("domain"),
-                         handoff.get("person_name", handoff.get("person", "")),
-                         1 if handoff.get("completed") else 0,
-                         handoff.get("notes", ""),
-                         handoff.get("timestamp", handoff.get("created_at", datetime.now().isoformat())))
+                        (
+                            handoff.get("type", handoff.get("handoff_type", "")),
+                            handoff.get("domain"),
+                            handoff.get("person_name", handoff.get("person", "")),
+                            1 if handoff.get("completed") else 0,
+                            handoff.get("notes", ""),
+                            handoff.get(
+                                "timestamp", handoff.get("created_at", datetime.now().isoformat())
+                            ),
+                        ),
                     )
 
                 # Self-reports
                 for report in wellness.get("self_reports", []):
                     db.execute(
                         "INSERT INTO self_reports (report_type, content, score, created_at) VALUES (?, ?, ?, ?)",
-                        (report.get("type", report.get("report_type", "")),
-                         report.get("content", ""),
-                         report.get("score"),
-                         report.get("timestamp", report.get("created_at", datetime.now().isoformat())))
+                        (
+                            report.get("type", report.get("report_type", "")),
+                            report.get("content", ""),
+                            report.get("score"),
+                            report.get(
+                                "timestamp", report.get("created_at", datetime.now().isoformat())
+                            ),
+                        ),
                     )
 
-            logger.info(f"Migrated wellness data: {len(wellness.get('check_ins', []))} check-ins, "
-                       f"{len(wellness.get('usage_sessions', []))} sessions")
+            logger.info(
+                f"Migrated wellness data: {len(wellness.get('check_ins', []))} check-ins, "
+                f"{len(wellness.get('usage_sessions', []))} sessions"
+            )
 
         # Migrate trusted network
         if network_json_path.exists():
@@ -583,13 +616,15 @@ def migrate_from_json(wellness_json_path: Path, network_json_path: Path) -> bool
                         """INSERT INTO trusted_people
                            (name, relationship, contact, notes, domains, added_at, last_contact)
                            VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                        (person.get("name", ""),
-                         person.get("relationship", ""),
-                         person.get("contact", ""),
-                         person.get("notes", ""),
-                         json.dumps(person.get("domains", [])),
-                         person.get("added_at", datetime.now().isoformat()),
-                         person.get("last_contact"))
+                        (
+                            person.get("name", ""),
+                            person.get("relationship", ""),
+                            person.get("contact", ""),
+                            person.get("notes", ""),
+                            json.dumps(person.get("domains", [])),
+                            person.get("added_at", datetime.now().isoformat()),
+                            person.get("last_contact"),
+                        ),
                     )
                     if person.get("id"):
                         id_map[person["id"]] = cursor.lastrowid
@@ -603,21 +638,27 @@ def migrate_from_json(wellness_json_path: Path, network_json_path: Path) -> bool
                     elif reach_out.get("person_name"):
                         row = db.execute(
                             "SELECT id FROM trusted_people WHERE name = ?",
-                            (reach_out["person_name"],)
+                            (reach_out["person_name"],),
                         ).fetchone()
                         if row:
                             person_id = row[0]
 
                     db.execute(
                         "INSERT INTO reach_outs (person_id, method, notes, created_at) VALUES (?, ?, ?, ?)",
-                        (person_id,
-                         reach_out.get("method", ""),
-                         reach_out.get("notes", ""),
-                         reach_out.get("timestamp", reach_out.get("created_at", datetime.now().isoformat())))
+                        (
+                            person_id,
+                            reach_out.get("method", ""),
+                            reach_out.get("notes", ""),
+                            reach_out.get(
+                                "timestamp", reach_out.get("created_at", datetime.now().isoformat())
+                            ),
+                        ),
                     )
 
-            logger.info(f"Migrated trusted network: {len(network.get('people', []))} people, "
-                       f"{len(network.get('reach_outs', []))} reach-outs")
+            logger.info(
+                f"Migrated trusted network: {len(network.get('people', []))} people, "
+                f"{len(network.get('reach_outs', []))} reach-outs"
+            )
 
         return True
 

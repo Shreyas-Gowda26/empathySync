@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov black flake8
+
+      - name: Check formatting (black)
+        run: black --check src/
+
+      - name: Lint (flake8)
+        run: flake8 src/ --max-line-length=120 --ignore=E501,W503,E203,E402,F401,F841,F541,F824,E722
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+  manifesto-guard:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check MANIFESTO.md is unchanged
+        run: |
+          if git diff origin/main...HEAD --name-only | grep -q '^MANIFESTO.md$'; then
+            echo "::error::MANIFESTO.md cannot be modified. This file is protected."
+            echo ""
+            echo "From MANIFESTO.md:"
+            echo "  'This document evolves only to tighten, never to weaken.'"
+            echo "  'Expansion is permitted. Erosion is not.'"
+            echo ""
+            echo "If you believe a tightening change is needed, open an issue for discussion first."
+            exit 1
+          fi
+          echo "MANIFESTO.md unchanged. ✓"

@@ -175,17 +175,25 @@ If the user asks for advice on: {forbidden_text}—respond ONLY with:
 
         # Risk weight modifiers
         if risk_weight >= 8:
-            instructions.append("HIGH RISK: Keep response under 30 words. Redirect to human support immediately.")
+            instructions.append(
+                "HIGH RISK: Keep response under 30 words. Redirect to human support immediately."
+            )
         elif risk_weight >= 5:
-            instructions.append("MODERATE RISK: Keep response under 50 words. Include redirect suggestion.")
+            instructions.append(
+                "MODERATE RISK: Keep response under 50 words. Include redirect suggestion."
+            )
 
         # Emotional intensity modifiers
         if emotional_intensity >= 7:
-            instructions.append("High emotional intensity detected. Do not mirror the intensity. Stay calm and brief.")
+            instructions.append(
+                "High emotional intensity detected. Do not mirror the intensity. Stay calm and brief."
+            )
 
         # Dependency modifiers
         if dependency_risk >= 5:
-            instructions.append("Dependency pattern detected. Shorten response. Do not encourage continued conversation.")
+            instructions.append(
+                "Dependency pattern detected. Shorten response. Do not encourage continued conversation."
+            )
 
         # Include intervention message if present
         intervention = risk_context.get("intervention")

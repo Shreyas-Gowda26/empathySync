@@ -46,7 +46,8 @@ HEARTBEAT_INTERVAL = 60
 
 def get_stale_timeout() -> int:
     """Get lock stale timeout from settings (with fallback)."""
-    return getattr(settings, 'LOCK_STALE_TIMEOUT', 300)
+    return getattr(settings, "LOCK_STALE_TIMEOUT", 300)
+
 
 # Unique device identifier (persists across app restarts on same device)
 _device_id: Optional[str] = None
@@ -103,7 +104,7 @@ def _read_lock() -> Optional[Dict]:
         return None
 
     try:
-        with open(lock_path, 'r') as f:
+        with open(lock_path, "r") as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError) as e:
         logger.warning(f"Could not read lock file: {e}")
@@ -118,7 +119,7 @@ def _write_lock(lock_data: Dict):
     try:
         lock_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(temp_path, 'w') as f:
+        with open(temp_path, "w") as f:
             json.dump(lock_data, f, indent=2)
             f.flush()
             os.fsync(f.fileno())

@@ -95,15 +95,13 @@ class StorageBackend(ABC):
         turn_count: int = 0,
         domains_touched: List[str] = None,
         max_risk_weight: float = 0,
-        intent: str = None
+        intent: str = None,
     ) -> Dict:
         """Add a usage session."""
         pass
 
     @abstractmethod
-    def get_sessions_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_sessions_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         """Get sessions within a date range."""
         pass
 
@@ -116,7 +114,7 @@ class StorageBackend(ABC):
         domain: str,
         action_taken: str,
         risk_weight: float = 0,
-        explanation: str = ""
+        explanation: str = "",
     ) -> Dict:
         """Log a policy event."""
         pass
@@ -134,15 +132,13 @@ class StorageBackend(ABC):
         intent: str,
         was_check_in: bool = False,
         auto_detected: bool = False,
-        user_input: str = ""
+        user_input: str = "",
     ) -> Dict:
         """Record session intent."""
         pass
 
     @abstractmethod
-    def get_session_intents_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_session_intents_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         """Get session intents within a date range."""
         pass
 
@@ -193,15 +189,13 @@ class StorageBackend(ABC):
         domain: str = None,
         person_name: str = None,
         completed: bool = False,
-        notes: str = ""
+        notes: str = "",
     ) -> Dict:
         """Log a handoff event."""
         pass
 
     @abstractmethod
-    def get_handoff_events_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_handoff_events_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         """Get handoff events within a date range."""
         pass
 
@@ -213,9 +207,7 @@ class StorageBackend(ABC):
     # ==================== SELF-REPORTS ====================
 
     @abstractmethod
-    def add_self_report(
-        self, report_type: str, content: str = "", score: int = None
-    ) -> Dict:
+    def add_self_report(self, report_type: str, content: str = "", score: int = None) -> Dict:
         """Add a self-report entry."""
         pass
 
@@ -233,7 +225,7 @@ class StorageBackend(ABC):
         relationship: str = "",
         contact: str = "",
         notes: str = "",
-        domains: List[str] = None
+        domains: List[str] = None,
     ) -> Dict:
         """Add a trusted person."""
         pass
@@ -262,15 +254,13 @@ class StorageBackend(ABC):
         person_name: str = "",
         method: str = "",
         notes: str = "",
-        outcome: str = ""
+        outcome: str = "",
     ) -> Dict:
         """Log a reach-out to a trusted person."""
         pass
 
     @abstractmethod
-    def get_reach_outs_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_reach_outs_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         """Get reach-outs within a date range."""
         pass
 
@@ -321,7 +311,7 @@ class JSONBackend(StorageBackend):
             "handoff_events": [],
             "self_reports": [],
             "task_patterns": {},
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
         }
 
     def _get_default_network(self) -> Dict:
@@ -330,12 +320,12 @@ class JSONBackend(StorageBackend):
             "people": [],
             "reach_outs": [],
             "handoffs": [],
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
         }
 
     def _load_wellness(self) -> Dict:
         try:
-            with open(self.wellness_file, 'r') as f:
+            with open(self.wellness_file, "r") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return self._get_default_wellness()
@@ -345,12 +335,10 @@ class JSONBackend(StorageBackend):
         import os
 
         fd, temp_path = tempfile.mkstemp(
-            dir=self.wellness_file.parent,
-            prefix=".wellness_",
-            suffix=".tmp"
+            dir=self.wellness_file.parent, prefix=".wellness_", suffix=".tmp"
         )
         try:
-            with os.fdopen(fd, 'w') as f:
+            with os.fdopen(fd, "w") as f:
                 json.dump(data, f, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
@@ -364,7 +352,7 @@ class JSONBackend(StorageBackend):
 
     def _load_network(self) -> Dict:
         try:
-            with open(self.network_file, 'r') as f:
+            with open(self.network_file, "r") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return self._get_default_network()
@@ -374,12 +362,10 @@ class JSONBackend(StorageBackend):
         import os
 
         fd, temp_path = tempfile.mkstemp(
-            dir=self.network_file.parent,
-            prefix=".network_",
-            suffix=".tmp"
+            dir=self.network_file.parent, prefix=".network_", suffix=".tmp"
         )
         try:
-            with os.fdopen(fd, 'w') as f:
+            with os.fdopen(fd, "w") as f:
                 json.dump(data, f, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
@@ -401,7 +387,7 @@ class JSONBackend(StorageBackend):
             "date": date.today().isoformat(),
             "datetime": datetime.now().isoformat(),
             "feeling_score": feeling_score,
-            "notes": notes
+            "notes": notes,
         }
         data["check_ins"].append(check_in)
         self._save_wellness(data)
@@ -428,7 +414,7 @@ class JSONBackend(StorageBackend):
         turn_count: int = 0,
         domains_touched: List[str] = None,
         max_risk_weight: float = 0,
-        intent: str = None
+        intent: str = None,
     ) -> Dict:
         self._ensure_write_allowed()
         data = self._load_wellness()
@@ -441,21 +427,18 @@ class JSONBackend(StorageBackend):
             "turn_count": turn_count,
             "domains_touched": domains_touched or [],
             "max_risk_weight": max_risk_weight,
-            "intent": intent
+            "intent": intent,
         }
         data["usage_sessions"].append(session)
         self._save_wellness(data)
         return session
 
-    def get_sessions_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_sessions_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         data = self._load_wellness()
         start_str = start_date.isoformat()
         end_str = (end_date or date.today()).isoformat()
         return [
-            s for s in data.get("usage_sessions", [])
-            if start_str <= s.get("date", "") <= end_str
+            s for s in data.get("usage_sessions", []) if start_str <= s.get("date", "") <= end_str
         ]
 
     # ==================== POLICY EVENTS ====================
@@ -466,7 +449,7 @@ class JSONBackend(StorageBackend):
         domain: str,
         action_taken: str,
         risk_weight: float = 0,
-        explanation: str = ""
+        explanation: str = "",
     ) -> Dict:
         self._ensure_write_allowed()
         data = self._load_wellness()
@@ -478,7 +461,7 @@ class JSONBackend(StorageBackend):
             "domain": domain,
             "action_taken": action_taken,
             "risk_weight": risk_weight,
-            "explanation": explanation
+            "explanation": explanation,
         }
         if "policy_events" not in data:
             data["policy_events"] = []
@@ -498,7 +481,7 @@ class JSONBackend(StorageBackend):
         intent: str,
         was_check_in: bool = False,
         auto_detected: bool = False,
-        user_input: str = ""
+        user_input: str = "",
     ) -> Dict:
         self._ensure_write_allowed()
         data = self._load_wellness()
@@ -509,7 +492,7 @@ class JSONBackend(StorageBackend):
             "intent": intent,
             "was_check_in": was_check_in,
             "auto_detected": auto_detected,
-            "user_input": user_input
+            "user_input": user_input,
         }
         if "session_intents" not in data:
             data["session_intents"] = []
@@ -517,15 +500,12 @@ class JSONBackend(StorageBackend):
         self._save_wellness(data)
         return record
 
-    def get_session_intents_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_session_intents_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         data = self._load_wellness()
         start_str = start_date.isoformat()
         end_str = (end_date or date.today()).isoformat()
         return [
-            i for i in data.get("session_intents", [])
-            if start_str <= i.get("date", "") <= end_str
+            i for i in data.get("session_intents", []) if start_str <= i.get("date", "") <= end_str
         ]
 
     # ==================== TASK PATTERNS ====================
@@ -543,16 +523,15 @@ class JSONBackend(StorageBackend):
                 "uses": [],
                 "graduation_shown_count": 0,
                 "dismissal_count": 0,
-                "metadata": metadata or {}
+                "metadata": metadata or {},
             }
 
         pattern = data["task_patterns"][pattern_type]
         pattern["count"] += 1
         pattern["last_use"] = datetime.now().isoformat()
-        pattern["uses"].append({
-            "datetime": datetime.now().isoformat(),
-            "date": date.today().isoformat()
-        })
+        pattern["uses"].append(
+            {"datetime": datetime.now().isoformat(), "date": date.today().isoformat()}
+        )
 
         # Keep only last 100 uses
         if len(pattern["uses"]) > 100:
@@ -574,7 +553,7 @@ class JSONBackend(StorageBackend):
             "first_use": pattern.get("first_use"),
             "last_use": pattern.get("last_use"),
             "graduation_shown_count": pattern.get("graduation_shown_count", 0),
-            "dismissal_count": pattern.get("dismissal_count", 0)
+            "dismissal_count": pattern.get("dismissal_count", 0),
         }
 
     def get_task_pattern_stats(self, pattern_type: str) -> Optional[Dict]:
@@ -587,10 +566,7 @@ class JSONBackend(StorageBackend):
     def get_all_task_patterns(self) -> Dict[str, Dict]:
         data = self._load_wellness()
         patterns = data.get("task_patterns", {})
-        return {
-            pt: self._calculate_pattern_stats(pt, p)
-            for pt, p in patterns.items()
-        }
+        return {pt: self._calculate_pattern_stats(pt, p) for pt, p in patterns.items()}
 
     def update_task_pattern(self, pattern_type: str, updates: Dict) -> None:
         self._ensure_write_allowed()
@@ -612,7 +588,7 @@ class JSONBackend(StorageBackend):
             "datetime": datetime.now().isoformat(),
             "task_category": task_category,
             "milestone": milestone,
-            "notes": notes
+            "notes": notes,
         }
         if "independence_records" not in data:
             data["independence_records"] = []
@@ -627,7 +603,8 @@ class JSONBackend(StorageBackend):
         start_str = start_date.isoformat()
         end_str = (end_date or date.today()).isoformat()
         return [
-            r for r in data.get("independence_records", [])
+            r
+            for r in data.get("independence_records", [])
             if start_str <= r.get("date", "") <= end_str
         ]
 
@@ -639,7 +616,7 @@ class JSONBackend(StorageBackend):
         domain: str = None,
         person_name: str = None,
         completed: bool = False,
-        notes: str = ""
+        notes: str = "",
     ) -> Dict:
         self._ensure_write_allowed()
         data = self._load_wellness()
@@ -651,7 +628,7 @@ class JSONBackend(StorageBackend):
             "domain": domain,
             "person_name": person_name,
             "completed": completed,
-            "notes": notes
+            "notes": notes,
         }
         if "handoff_events" not in data:
             data["handoff_events"] = []
@@ -659,15 +636,12 @@ class JSONBackend(StorageBackend):
         self._save_wellness(data)
         return event
 
-    def get_handoff_events_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_handoff_events_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         data = self._load_wellness()
         start_str = start_date.isoformat()
         end_str = (end_date or date.today()).isoformat()
         return [
-            e for e in data.get("handoff_events", [])
-            if start_str <= e.get("date", "") <= end_str
+            e for e in data.get("handoff_events", []) if start_str <= e.get("date", "") <= end_str
         ]
 
     def update_handoff_event(self, event_id: int, updates: Dict) -> Optional[Dict]:
@@ -682,9 +656,7 @@ class JSONBackend(StorageBackend):
 
     # ==================== SELF-REPORTS ====================
 
-    def add_self_report(
-        self, report_type: str, content: str = "", score: int = None
-    ) -> Dict:
+    def add_self_report(self, report_type: str, content: str = "", score: int = None) -> Dict:
         self._ensure_write_allowed()
         data = self._load_wellness()
         report = {
@@ -693,7 +665,7 @@ class JSONBackend(StorageBackend):
             "datetime": datetime.now().isoformat(),
             "report_type": report_type,
             "content": content,
-            "score": score
+            "score": score,
         }
         if "self_reports" not in data:
             data["self_reports"] = []
@@ -714,7 +686,7 @@ class JSONBackend(StorageBackend):
         relationship: str = "",
         contact: str = "",
         notes: str = "",
-        domains: List[str] = None
+        domains: List[str] = None,
     ) -> Dict:
         self._ensure_write_allowed()
         data = self._load_network()
@@ -726,7 +698,7 @@ class JSONBackend(StorageBackend):
             "notes": notes,
             "domains": domains or [],
             "added_at": datetime.now().isoformat(),
-            "last_contact": None
+            "last_contact": None,
         }
         data["people"].append(person)
         self._save_network(data)
@@ -764,7 +736,7 @@ class JSONBackend(StorageBackend):
         person_name: str = "",
         method: str = "",
         notes: str = "",
-        outcome: str = ""
+        outcome: str = "",
     ) -> Dict:
         self._ensure_write_allowed()
         data = self._load_network()
@@ -776,7 +748,7 @@ class JSONBackend(StorageBackend):
             "person_name": person_name,
             "method": method,
             "notes": notes,
-            "outcome": outcome
+            "outcome": outcome,
         }
         if "reach_outs" not in data:
             data["reach_outs"] = []
@@ -797,16 +769,11 @@ class JSONBackend(StorageBackend):
         self._save_network(data)
         return reach_out
 
-    def get_reach_outs_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_reach_outs_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         data = self._load_network()
         start_str = start_date.isoformat()
         end_str = (end_date or date.today()).isoformat()
-        return [
-            r for r in data.get("reach_outs", [])
-            if start_str <= r.get("date", "") <= end_str
-        ]
+        return [r for r in data.get("reach_outs", []) if start_str <= r.get("date", "") <= end_str]
 
     # ==================== DATA MANAGEMENT ====================
 
@@ -881,7 +848,7 @@ class SQLiteBackend(StorageBackend):
             try:
                 db.execute(
                     "INSERT INTO schema_info (version, migrated_at, description) VALUES (?, datetime('now'), ?)",
-                    (0, "Data migrated from JSON files")
+                    (0, "Data migrated from JSON files"),
                 )
                 db.commit()
             except Exception as e:
@@ -908,8 +875,7 @@ class SQLiteBackend(StorageBackend):
     def add_check_in(self, feeling_score: int, notes: str = "") -> Dict:
         self._ensure_write_allowed()
         cursor = self.db.execute(
-            "INSERT INTO check_ins (feeling_score, notes) VALUES (?, ?)",
-            (feeling_score, notes)
+            "INSERT INTO check_ins (feeling_score, notes) VALUES (?, ?)", (feeling_score, notes)
         )
         self.db.commit()
 
@@ -918,14 +884,13 @@ class SQLiteBackend(StorageBackend):
             "date": date.today().isoformat(),
             "datetime": datetime.now().isoformat(),
             "feeling_score": feeling_score,
-            "notes": notes
+            "notes": notes,
         }
 
     def get_recent_check_ins(self, days: int = 7) -> List[Dict]:
         cutoff = (datetime.now() - timedelta(days=days)).isoformat()
         rows = self.db.execute(
-            "SELECT * FROM check_ins WHERE created_at >= ? ORDER BY created_at DESC",
-            (cutoff,)
+            "SELECT * FROM check_ins WHERE created_at >= ? ORDER BY created_at DESC", (cutoff,)
         ).fetchall()
 
         return [dict(row) for row in rows]
@@ -935,8 +900,7 @@ class SQLiteBackend(StorageBackend):
         end = datetime.combine(target_date, datetime.max.time()).isoformat()
 
         row = self.db.execute(
-            "SELECT * FROM check_ins WHERE created_at BETWEEN ? AND ? LIMIT 1",
-            (start, end)
+            "SELECT * FROM check_ins WHERE created_at BETWEEN ? AND ? LIMIT 1", (start, end)
         ).fetchone()
 
         return dict(row) if row else None
@@ -949,15 +913,20 @@ class SQLiteBackend(StorageBackend):
         turn_count: int = 0,
         domains_touched: List[str] = None,
         max_risk_weight: float = 0,
-        intent: str = None
+        intent: str = None,
     ) -> Dict:
         self._ensure_write_allowed()
         cursor = self.db.execute(
             """INSERT INTO usage_sessions
                (duration_minutes, turn_count, domains_touched, max_risk_weight, intent)
                VALUES (?, ?, ?, ?, ?)""",
-            (duration_minutes, turn_count, json.dumps(domains_touched or []),
-             max_risk_weight, intent)
+            (
+                duration_minutes,
+                turn_count,
+                json.dumps(domains_touched or []),
+                max_risk_weight,
+                intent,
+            ),
         )
         self.db.commit()
 
@@ -970,20 +939,15 @@ class SQLiteBackend(StorageBackend):
             "turn_count": turn_count,
             "domains_touched": domains_touched or [],
             "max_risk_weight": max_risk_weight,
-            "intent": intent
+            "intent": intent,
         }
 
-    def get_sessions_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_sessions_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         start = datetime.combine(start_date, datetime.min.time()).isoformat()
-        end = datetime.combine(
-            end_date or date.today(), datetime.max.time()
-        ).isoformat()
+        end = datetime.combine(end_date or date.today(), datetime.max.time()).isoformat()
 
         rows = self.db.execute(
-            "SELECT * FROM usage_sessions WHERE started_at BETWEEN ? AND ?",
-            (start, end)
+            "SELECT * FROM usage_sessions WHERE started_at BETWEEN ? AND ?", (start, end)
         ).fetchall()
 
         result = []
@@ -1002,14 +966,14 @@ class SQLiteBackend(StorageBackend):
         domain: str,
         action_taken: str,
         risk_weight: float = 0,
-        explanation: str = ""
+        explanation: str = "",
     ) -> Dict:
         self._ensure_write_allowed()
         cursor = self.db.execute(
             """INSERT INTO policy_events
                (event_type, domain, action_taken, risk_weight, explanation)
                VALUES (?, ?, ?, ?, ?)""",
-            (event_type, domain, action_taken, risk_weight, explanation)
+            (event_type, domain, action_taken, risk_weight, explanation),
         )
         self.db.commit()
 
@@ -1021,13 +985,12 @@ class SQLiteBackend(StorageBackend):
             "domain": domain,
             "action_taken": action_taken,
             "risk_weight": risk_weight,
-            "explanation": explanation
+            "explanation": explanation,
         }
 
     def get_recent_policy_events(self, limit: int = 10) -> List[Dict]:
         rows = self.db.execute(
-            "SELECT * FROM policy_events ORDER BY created_at DESC LIMIT ?",
-            (limit,)
+            "SELECT * FROM policy_events ORDER BY created_at DESC LIMIT ?", (limit,)
         ).fetchall()
         return [dict(row) for row in rows]
 
@@ -1038,12 +1001,11 @@ class SQLiteBackend(StorageBackend):
         intent: str,
         was_check_in: bool = False,
         auto_detected: bool = False,
-        user_input: str = ""
+        user_input: str = "",
     ) -> Dict:
         self._ensure_write_allowed()
         cursor = self.db.execute(
-            "INSERT INTO session_intents (intent, user_input) VALUES (?, ?)",
-            (intent, user_input)
+            "INSERT INTO session_intents (intent, user_input) VALUES (?, ?)", (intent, user_input)
         )
         self.db.commit()
 
@@ -1054,20 +1016,15 @@ class SQLiteBackend(StorageBackend):
             "intent": intent,
             "was_check_in": was_check_in,
             "auto_detected": auto_detected,
-            "user_input": user_input
+            "user_input": user_input,
         }
 
-    def get_session_intents_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_session_intents_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         start = datetime.combine(start_date, datetime.min.time()).isoformat()
-        end = datetime.combine(
-            end_date or date.today(), datetime.max.time()
-        ).isoformat()
+        end = datetime.combine(end_date or date.today(), datetime.max.time()).isoformat()
 
         rows = self.db.execute(
-            "SELECT * FROM session_intents WHERE created_at BETWEEN ? AND ?",
-            (start, end)
+            "SELECT * FROM session_intents WHERE created_at BETWEEN ? AND ?", (start, end)
         ).fetchall()
         return [dict(row) for row in rows]
 
@@ -1077,8 +1034,7 @@ class SQLiteBackend(StorageBackend):
         self._ensure_write_allowed()
         # Check if pattern exists
         row = self.db.execute(
-            "SELECT * FROM task_patterns WHERE pattern_type = ?",
-            (pattern_type,)
+            "SELECT * FROM task_patterns WHERE pattern_type = ?", (pattern_type,)
         ).fetchone()
 
         if row:
@@ -1087,14 +1043,14 @@ class SQLiteBackend(StorageBackend):
                 """UPDATE task_patterns
                    SET count = count + 1, last_seen = datetime('now')
                    WHERE pattern_type = ?""",
-                (pattern_type,)
+                (pattern_type,),
             )
         else:
             # Insert new
             self.db.execute(
                 """INSERT INTO task_patterns (pattern_type, metadata)
                    VALUES (?, ?)""",
-                (pattern_type, json.dumps(metadata or {}))
+                (pattern_type, json.dumps(metadata or {})),
             )
 
         self.db.commit()
@@ -1102,8 +1058,7 @@ class SQLiteBackend(StorageBackend):
 
     def get_task_pattern_stats(self, pattern_type: str) -> Optional[Dict]:
         row = self.db.execute(
-            "SELECT * FROM task_patterns WHERE pattern_type = ?",
-            (pattern_type,)
+            "SELECT * FROM task_patterns WHERE pattern_type = ?", (pattern_type,)
         ).fetchone()
 
         if not row:
@@ -1139,7 +1094,7 @@ class SQLiteBackend(StorageBackend):
             values.append(pattern_type)
             self.db.execute(
                 f"UPDATE task_patterns SET {', '.join(set_parts)} WHERE pattern_type = ?",
-                tuple(values)
+                tuple(values),
             )
             self.db.commit()
 
@@ -1151,7 +1106,7 @@ class SQLiteBackend(StorageBackend):
         self._ensure_write_allowed()
         cursor = self.db.execute(
             "INSERT INTO independence_records (task_category, milestone, notes) VALUES (?, ?, ?)",
-            (task_category, milestone, notes)
+            (task_category, milestone, notes),
         )
         self.db.commit()
 
@@ -1161,20 +1116,17 @@ class SQLiteBackend(StorageBackend):
             "datetime": datetime.now().isoformat(),
             "task_category": task_category,
             "milestone": milestone,
-            "notes": notes
+            "notes": notes,
         }
 
     def get_independence_records_for_period(
         self, start_date: date, end_date: date = None
     ) -> List[Dict]:
         start = datetime.combine(start_date, datetime.min.time()).isoformat()
-        end = datetime.combine(
-            end_date or date.today(), datetime.max.time()
-        ).isoformat()
+        end = datetime.combine(end_date or date.today(), datetime.max.time()).isoformat()
 
         rows = self.db.execute(
-            "SELECT * FROM independence_records WHERE created_at BETWEEN ? AND ?",
-            (start, end)
+            "SELECT * FROM independence_records WHERE created_at BETWEEN ? AND ?", (start, end)
         ).fetchall()
         return [dict(row) for row in rows]
 
@@ -1186,14 +1138,14 @@ class SQLiteBackend(StorageBackend):
         domain: str = None,
         person_name: str = None,
         completed: bool = False,
-        notes: str = ""
+        notes: str = "",
     ) -> Dict:
         self._ensure_write_allowed()
         cursor = self.db.execute(
             """INSERT INTO handoff_events
                (handoff_type, domain, person_name, completed, notes)
                VALUES (?, ?, ?, ?, ?)""",
-            (handoff_type, domain, person_name, 1 if completed else 0, notes)
+            (handoff_type, domain, person_name, 1 if completed else 0, notes),
         )
         self.db.commit()
 
@@ -1205,20 +1157,15 @@ class SQLiteBackend(StorageBackend):
             "domain": domain,
             "person_name": person_name,
             "completed": completed,
-            "notes": notes
+            "notes": notes,
         }
 
-    def get_handoff_events_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_handoff_events_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         start = datetime.combine(start_date, datetime.min.time()).isoformat()
-        end = datetime.combine(
-            end_date or date.today(), datetime.max.time()
-        ).isoformat()
+        end = datetime.combine(end_date or date.today(), datetime.max.time()).isoformat()
 
         rows = self.db.execute(
-            "SELECT * FROM handoff_events WHERE created_at BETWEEN ? AND ?",
-            (start, end)
+            "SELECT * FROM handoff_events WHERE created_at BETWEEN ? AND ?", (start, end)
         ).fetchall()
 
         result = []
@@ -1242,14 +1189,11 @@ class SQLiteBackend(StorageBackend):
         if set_parts:
             values.append(event_id)
             self.db.execute(
-                f"UPDATE handoff_events SET {', '.join(set_parts)} WHERE id = ?",
-                tuple(values)
+                f"UPDATE handoff_events SET {', '.join(set_parts)} WHERE id = ?", tuple(values)
             )
             self.db.commit()
 
-        row = self.db.execute(
-            "SELECT * FROM handoff_events WHERE id = ?", (event_id,)
-        ).fetchone()
+        row = self.db.execute("SELECT * FROM handoff_events WHERE id = ?", (event_id,)).fetchone()
 
         if row:
             d = dict(row)
@@ -1259,13 +1203,11 @@ class SQLiteBackend(StorageBackend):
 
     # ==================== SELF-REPORTS ====================
 
-    def add_self_report(
-        self, report_type: str, content: str = "", score: int = None
-    ) -> Dict:
+    def add_self_report(self, report_type: str, content: str = "", score: int = None) -> Dict:
         self._ensure_write_allowed()
         cursor = self.db.execute(
             "INSERT INTO self_reports (report_type, content, score) VALUES (?, ?, ?)",
-            (report_type, content, score)
+            (report_type, content, score),
         )
         self.db.commit()
 
@@ -1275,13 +1217,12 @@ class SQLiteBackend(StorageBackend):
             "datetime": datetime.now().isoformat(),
             "report_type": report_type,
             "content": content,
-            "score": score
+            "score": score,
         }
 
     def get_recent_self_reports(self, limit: int = 10) -> List[Dict]:
         rows = self.db.execute(
-            "SELECT * FROM self_reports ORDER BY created_at DESC LIMIT ?",
-            (limit,)
+            "SELECT * FROM self_reports ORDER BY created_at DESC LIMIT ?", (limit,)
         ).fetchall()
         return [dict(row) for row in rows]
 
@@ -1293,14 +1234,14 @@ class SQLiteBackend(StorageBackend):
         relationship: str = "",
         contact: str = "",
         notes: str = "",
-        domains: List[str] = None
+        domains: List[str] = None,
     ) -> Dict:
         self._ensure_write_allowed()
         cursor = self.db.execute(
             """INSERT INTO trusted_people
                (name, relationship, contact, notes, domains)
                VALUES (?, ?, ?, ?, ?)""",
-            (name, relationship, contact, notes, json.dumps(domains or []))
+            (name, relationship, contact, notes, json.dumps(domains or [])),
         )
         self.db.commit()
 
@@ -1312,7 +1253,7 @@ class SQLiteBackend(StorageBackend):
             "notes": notes,
             "domains": domains or [],
             "added_at": datetime.now().isoformat(),
-            "last_contact": None
+            "last_contact": None,
         }
 
     def get_all_trusted_people(self) -> List[Dict]:
@@ -1339,14 +1280,11 @@ class SQLiteBackend(StorageBackend):
         if set_parts:
             values.append(person_id)
             self.db.execute(
-                f"UPDATE trusted_people SET {', '.join(set_parts)} WHERE id = ?",
-                tuple(values)
+                f"UPDATE trusted_people SET {', '.join(set_parts)} WHERE id = ?", tuple(values)
             )
             self.db.commit()
 
-        row = self.db.execute(
-            "SELECT * FROM trusted_people WHERE id = ?", (person_id,)
-        ).fetchone()
+        row = self.db.execute("SELECT * FROM trusted_people WHERE id = ?", (person_id,)).fetchone()
 
         if row:
             d = dict(row)
@@ -1357,9 +1295,7 @@ class SQLiteBackend(StorageBackend):
 
     def remove_trusted_person(self, person_id: int) -> bool:
         self._ensure_write_allowed()
-        cursor = self.db.execute(
-            "DELETE FROM trusted_people WHERE id = ?", (person_id,)
-        )
+        cursor = self.db.execute("DELETE FROM trusted_people WHERE id = ?", (person_id,))
         self.db.commit()
         return cursor.rowcount > 0
 
@@ -1371,12 +1307,12 @@ class SQLiteBackend(StorageBackend):
         person_name: str = "",
         method: str = "",
         notes: str = "",
-        outcome: str = ""
+        outcome: str = "",
     ) -> Dict:
         self._ensure_write_allowed()
         cursor = self.db.execute(
             "INSERT INTO reach_outs (person_id, method, notes, outcome) VALUES (?, ?, ?, ?)",
-            (person_id, method, notes, outcome)
+            (person_id, method, notes, outcome),
         )
         self.db.commit()
 
@@ -1384,7 +1320,7 @@ class SQLiteBackend(StorageBackend):
         if person_id:
             self.db.execute(
                 "UPDATE trusted_people SET last_contact = datetime('now') WHERE id = ?",
-                (person_id,)
+                (person_id,),
             )
             self.db.commit()
 
@@ -1396,20 +1332,15 @@ class SQLiteBackend(StorageBackend):
             "person_name": person_name,
             "method": method,
             "notes": notes,
-            "outcome": outcome
+            "outcome": outcome,
         }
 
-    def get_reach_outs_for_period(
-        self, start_date: date, end_date: date = None
-    ) -> List[Dict]:
+    def get_reach_outs_for_period(self, start_date: date, end_date: date = None) -> List[Dict]:
         start = datetime.combine(start_date, datetime.min.time()).isoformat()
-        end = datetime.combine(
-            end_date or date.today(), datetime.max.time()
-        ).isoformat()
+        end = datetime.combine(end_date or date.today(), datetime.max.time()).isoformat()
 
         rows = self.db.execute(
-            "SELECT * FROM reach_outs WHERE created_at BETWEEN ? AND ?",
-            (start, end)
+            "SELECT * FROM reach_outs WHERE created_at BETWEEN ? AND ?", (start, end)
         ).fetchall()
         return [dict(row) for row in rows]
 
@@ -1418,9 +1349,16 @@ class SQLiteBackend(StorageBackend):
     def clear_all_data(self) -> None:
         self._ensure_write_allowed()
         tables = [
-            "check_ins", "usage_sessions", "policy_events", "session_intents",
-            "independence_records", "handoff_events", "self_reports",
-            "task_patterns", "trusted_people", "reach_outs"
+            "check_ins",
+            "usage_sessions",
+            "policy_events",
+            "session_intents",
+            "independence_records",
+            "handoff_events",
+            "self_reports",
+            "task_patterns",
+            "trusted_people",
+            "reach_outs",
         ]
         for table in tables:
             self.db.execute(f"DELETE FROM {table}")

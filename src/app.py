@@ -20,8 +20,11 @@ sys.path.append(str(Path(__file__).parent))
 from config.settings import settings
 from models.ai_wellness_guide import WellnessGuide
 from models.risk_classifier import (
-    RiskClassifier, INTENT_PRACTICAL, INTENT_PROCESSING,
-    INTENT_EMOTIONAL, INTENT_CONNECTION
+    RiskClassifier,
+    INTENT_PRACTICAL,
+    INTENT_PROCESSING,
+    INTENT_EMOTIONAL,
+    INTENT_CONNECTION,
 )
 from utils.helpers import setup_logging, validate_environment
 from utils.wellness_tracker import WellnessTracker
@@ -31,14 +34,12 @@ from utils.health_check import run_health_checks, has_critical_failures
 
 # Configure page
 st.set_page_config(
-    page_title="empathySync",
-    page_icon="",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="empathySync", page_icon="", layout="wide", initial_sidebar_state="expanded"
 )
 
 # Custom CSS for better visual hierarchy (Phase 9.5)
-st.markdown("""
+st.markdown(
+    """
 <style>
     /* Sidebar section headers */
     .sidebar-header {
@@ -79,7 +80,9 @@ st.markdown("""
         margin-top: 0;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 
 def display_safety_banner():
@@ -97,7 +100,7 @@ def display_safety_banner():
             "turn_limit_reached": f"We've reached the conversation limit for {domain} topics. This is by design.",
             "dependency_intervention": "I noticed a pattern that suggests it might be healthy to step back.",
             "high_risk_response": f"This topic ({domain}) involves significant decisions. My responses are shorter and I'm suggesting human guidance.",
-            "cooldown_enforced": "Based on your usage pattern, I'm suggesting a break."
+            "cooldown_enforced": "Based on your usage pattern, I'm suggesting a break.",
         }
 
         explanation = explanations.get(policy_type, "A safety guardrail was activated.")
@@ -133,7 +136,7 @@ def display_transparency_panel():
             st.markdown(f"**{ui_labels.get('domain_label', 'Topic detected')}**")
         with col2:
             st.markdown(f"{domain_info.get('name', domain.title())}")
-            st.caption(domain_info.get('description', ''))
+            st.caption(domain_info.get("description", ""))
 
         st.markdown("---")
 
@@ -151,9 +154,11 @@ def display_transparency_panel():
             st.markdown(f"{mode_info.get('name', mode.title())}")
             # Phase 9.1: Show note if practical technique detected in sensitive domain
             if is_practical_technique and domain != "logistics":
-                st.caption(f"Technique question detected in {domain} domain → full response allowed")
+                st.caption(
+                    f"Technique question detected in {domain} domain → full response allowed"
+                )
             else:
-                st.caption(mode_info.get('description', ''))
+                st.caption(mode_info.get("description", ""))
 
         # Word limit
         word_limit = ui_labels.get("no_limit", "None") if is_practical else "50-150 words"
@@ -175,8 +180,8 @@ def display_transparency_panel():
                 st.markdown(f"**{ui_labels.get('emotional_weight_label', 'Emotional weight')}**")
             with col2:
                 st.markdown(f"{weight_info.get('name', emotional_weight)}")
-                if weight_info.get('note'):
-                    st.caption(weight_info.get('note'))
+                if weight_info.get("note"):
+                    st.caption(weight_info.get("note"))
 
             st.markdown("---")
 
@@ -189,8 +194,8 @@ def display_transparency_panel():
             st.markdown(f"**{ui_labels.get('risk_level_label', 'Risk level')}**")
         with col2:
             st.markdown(f"{risk_info.get('name', 'Low')} ({risk_weight:.1f}/10)")
-            if risk_info.get('description'):
-                st.caption(risk_info.get('description'))
+            if risk_info.get("description"):
+                st.caption(risk_info.get("description"))
 
         # Policy action (if any)
         if guide.last_policy_action:
@@ -203,9 +208,9 @@ def display_transparency_panel():
                 st.markdown(f"**{ui_labels.get('policy_label', 'Policy action')}**")
             with col2:
                 st.markdown(f"{policy_info.get('name', policy_type)}")
-                st.caption(policy_info.get('reason', ''))
-                if policy_info.get('user_note'):
-                    st.info(policy_info.get('user_note'))
+                st.caption(policy_info.get("reason", ""))
+                if policy_info.get("user_note"):
+                    st.info(policy_info.get("user_note"))
         else:
             st.markdown("---")
             col1, col2 = st.columns([1, 2])
@@ -233,8 +238,10 @@ def display_session_summary():
 
     # Calculate duration
     duration_minutes = 0
-    if hasattr(st.session_state, 'session_start'):
-        duration_minutes = int((datetime.now() - st.session_state.session_start).total_seconds() / 60)
+    if hasattr(st.session_state, "session_start"):
+        duration_minutes = int(
+            (datetime.now() - st.session_state.session_start).total_seconds() / 60
+        )
 
     # Check thresholds - don't show for very short sessions
     settings = loader.get_transparency_settings()
@@ -246,7 +253,7 @@ def display_session_summary():
 
     st.markdown("---")
     st.markdown(f"### {summary_config.get('header', 'Session Summary')}")
-    st.caption(summary_config.get('subheader', "Here's what happened in this conversation"))
+    st.caption(summary_config.get("subheader", "Here's what happened in this conversation"))
 
     sections = summary_config.get("sections", {})
 
@@ -303,13 +310,15 @@ def display_session_summary():
     # Policy actions
     col1, col2 = st.columns([1, 2])
     with col1:
-        st.markdown(f"**{sections.get('policy_actions', {}).get('label', 'Guardrails Activated')}**")
+        st.markdown(
+            f"**{sections.get('policy_actions', {}).get('label', 'Guardrails Activated')}**"
+        )
     with col2:
         if policy_action:
             policy_info = loader.get_policy_explanation(policy_action.get("type", ""))
             st.markdown(policy_info.get("name", "Yes"))
         else:
-            st.markdown(sections.get('policy_actions', {}).get('none_message', 'None'))
+            st.markdown(sections.get("policy_actions", {}).get("none_message", "None"))
 
     # Footer message based on session type
     st.markdown("---")
@@ -338,14 +347,14 @@ def display_session_summary():
             "max_risk_weight": max_risk,
             "policy_action": policy_action.get("type") if policy_action else None,
             "practical_turns": practical_turns,
-            "reflective_turns": reflective_turns
+            "reflective_turns": reflective_turns,
         }
         st.download_button(
             ui_labels.get("export_summary", "Export summary"),
             data=json.dumps(export_data, indent=2),
             file_name=f"session_summary_{date.today()}.json",
             mime="application/json",
-            use_container_width=True
+            use_container_width=True,
         )
     with col2:
         if st.button(ui_labels.get("close_summary", "Close"), use_container_width=True):
@@ -557,8 +566,7 @@ def display_self_report_prompt():
         st.markdown(f"**{question}**")
 
         for opt in options:
-            if st.button(opt["label"], key=f"self_report_{opt['value']}",
-                         use_container_width=True):
+            if st.button(opt["label"], key=f"self_report_{opt['value']}", use_container_width=True):
                 tracker.record_self_report(prompt_type, opt["value"])
 
                 # Show appropriate follow-up
@@ -586,11 +594,11 @@ def display_trusted_network_setup():
             col1, col2 = st.columns([3, 1])
             with col1:
                 st.markdown(f"**{person['name']}**")
-                if person.get('relationship'):
-                    st.caption(person['relationship'])
+                if person.get("relationship"):
+                    st.caption(person["relationship"])
             with col2:
                 if st.button("Remove", key=f"remove_{person['id']}", type="secondary"):
-                    network.remove_person(person['id'])
+                    network.remove_person(person["id"])
                     st.rerun()
     else:
         st.caption("No one added yet.")
@@ -603,12 +611,14 @@ def display_trusted_network_setup():
     with st.form("add_person", clear_on_submit=True):
         name = st.text_input("Name", placeholder="e.g., Mom, Jake, Dr. Smith")
         relationship = st.text_input("Relationship", placeholder="e.g., friend, sister, therapist")
-        contact = st.text_input("How to reach them", placeholder="e.g., phone, usually free evenings")
+        contact = st.text_input(
+            "How to reach them", placeholder="e.g., phone, usually free evenings"
+        )
 
         domains = st.multiselect(
             "Good for talking about",
             ["relationships", "money", "health", "spirituality", "general"],
-            default=["general"]
+            default=["general"],
         )
 
         if st.form_submit_button("Add"):
@@ -729,7 +739,7 @@ def display_building_your_network(domain: str = None):
             "turning_acquaintance_into_friend": "Moving from acquaintance to friend",
             "reconnecting_with_someone_from_the_past": "Reconnecting with someone",
             "joining_a_new_community": "Becoming part of a new community",
-            "asking_for_help_or_support": "Asking someone for help"
+            "asking_for_help_or_support": "Asking someone for help",
         }
 
         for key, title in situation_titles.items():
@@ -754,7 +764,9 @@ def display_building_your_network(domain: str = None):
                             st.caption(f"  *{starter.get('why_it_works', '')}*")
 
                     # Show templates if available
-                    templates = sit.get("templates", []) or sit.get("ways_to_suggest_hanging_out", [])
+                    templates = sit.get("templates", []) or sit.get(
+                        "ways_to_suggest_hanging_out", []
+                    )
                     if templates:
                         st.markdown("**Templates:**")
                         for template in templates:
@@ -763,7 +775,7 @@ def display_building_your_network(domain: str = None):
                                 if template.get("context"):
                                     st.caption(f"  *{template.get('context', '')}*")
                             else:
-                                st.markdown(f"- \"{template}\"")
+                                st.markdown(f'- "{template}"')
 
         # General principles
         principles = first_contact.get("principles", [])
@@ -785,14 +797,18 @@ def display_building_your_network(domain: str = None):
         # Reuse the existing add person form
         with st.form("add_person_building", clear_on_submit=True):
             name = st.text_input("Name", placeholder="e.g., Mom, Jake, Dr. Smith")
-            relationship = st.text_input("Relationship", placeholder="e.g., friend, sister, therapist")
-            contact = st.text_input("How to reach them", placeholder="e.g., phone, usually free evenings")
+            relationship = st.text_input(
+                "Relationship", placeholder="e.g., friend, sister, therapist"
+            )
+            contact = st.text_input(
+                "How to reach them", placeholder="e.g., phone, usually free evenings"
+            )
 
             domains = st.multiselect(
                 "Good for talking about",
                 ["relationships", "money", "health", "spirituality", "general"],
                 default=["general"],
-                key="building_domains"
+                key="building_domains",
             )
 
             if st.form_submit_button("Add"):
@@ -828,7 +844,7 @@ def display_bring_someone_in(domain: str = "general"):
         domain=domain,
         dependency_score=dependency_score,
         is_late_night=tracker.is_late_night_session(),
-        sessions_today=tracker.get_wellness_summary().get("sessions_today", 0)
+        sessions_today=tracker.get_wellness_summary().get("sessions_today", 0),
     )
 
     # Show context-aware intro prompt
@@ -840,8 +856,8 @@ def display_bring_someone_in(domain: str = "general"):
         suggested = network.suggest_person_for_domain(domain)
         if suggested:
             st.markdown(f"**Consider reaching out to:** {suggested['name']}")
-            if suggested.get('relationship'):
-                st.caption(suggested['relationship'])
+            if suggested.get("relationship"):
+                st.caption(suggested["relationship"])
     else:
         prompt = network.get_domain_prompt(domain)
         st.markdown(f"*{prompt}*")
@@ -857,7 +873,13 @@ def display_bring_someone_in(domain: str = "general"):
         "processing_decision": ["need_to_talk", "asking_for_help", "checking_in"],
         "after_sensitive_topic": ["need_to_talk", "hard_conversation", "reconnecting"],
         "high_usage_pattern": ["checking_in", "reconnecting", "need_to_talk"],
-        "general": ["need_to_talk", "reconnecting", "checking_in", "hard_conversation", "asking_for_help"]
+        "general": [
+            "need_to_talk",
+            "reconnecting",
+            "checking_in",
+            "hard_conversation",
+            "asking_for_help",
+        ],
     }
 
     template_options = context_template_map.get(context_category, context_template_map["general"])
@@ -872,9 +894,9 @@ def display_bring_someone_in(domain: str = "general"):
             "reconnecting": "Reconnecting after silence",
             "checking_in": "Just checking in",
             "hard_conversation": "Starting a hard conversation",
-            "asking_for_help": "Asking for help"
+            "asking_for_help": "Asking for help",
         }.get(x, x),
-        label_visibility="collapsed"
+        label_visibility="collapsed",
     )
 
     # Get message template - prefer contextual if available, fallback to standard
@@ -882,7 +904,7 @@ def display_bring_someone_in(domain: str = "general"):
         base_message = contextual["message_template"]
     else:
         template = network.get_reach_out_template(template_type)
-        base_message = template['template']
+        base_message = template["template"]
 
     # Build message with context from conversation
     if st.session_state.messages:
@@ -896,10 +918,7 @@ def display_bring_someone_in(domain: str = "general"):
         full_message = base_message
 
     message = st.text_area(
-        "Message to send:",
-        value=full_message,
-        height=120,
-        label_visibility="collapsed"
+        "Message to send:", value=full_message, height=120, label_visibility="collapsed"
     )
 
     col1, col2 = st.columns(2)
@@ -911,14 +930,16 @@ def display_bring_someone_in(domain: str = "general"):
     with col2:
         if st.button("I reached out!", use_container_width=True, type="primary"):
             # Log the reach out with context
-            person_name = suggested['name'] if people and 'suggested' in dir() and suggested else "someone"
+            person_name = (
+                suggested["name"] if people and "suggested" in dir() and suggested else "someone"
+            )
 
             # Log in TrustedNetwork with handoff context
             network.log_handoff_initiated(
                 context=context_category,
                 domain=domain,
                 person_name=person_name,
-                message_sent=message
+                message_sent=message,
             )
 
             # Also log in WellnessTracker for metrics
@@ -926,7 +947,7 @@ def display_bring_someone_in(domain: str = "general"):
                 event_type="initiated",
                 context=context_category,
                 domain=domain,
-                details={"person_name": person_name}
+                details={"person_name": person_name},
             )
 
             # Show exit celebration
@@ -946,7 +967,9 @@ def display_handoff_follow_up(pending_handoff: Dict):
 
     context = pending_handoff.get("context", "general")
     follow_up_prompts = loader.get_handoff_follow_up_prompts(context)
-    prompt = random.choice(follow_up_prompts) if follow_up_prompts else "Did you reach out to someone?"
+    prompt = (
+        random.choice(follow_up_prompts) if follow_up_prompts else "Did you reach out to someone?"
+    )
 
     st.markdown(f"*{prompt}*")
 
@@ -961,11 +984,7 @@ def display_handoff_follow_up(pending_handoff: Dict):
 
     with col2:
         if st.button("Not yet", use_container_width=True):
-            tracker.log_handoff_event(
-                event_type="follow_up",
-                context=context,
-                outcome="not_yet"
-            )
+            tracker.log_handoff_event(event_type="follow_up", context=context, outcome="not_yet")
             tracker.mark_handoff_follow_up_shown(pending_handoff.get("datetime"))
             celebration = network.get_handoff_celebration("not_yet")
             st.info(celebration)
@@ -994,14 +1013,10 @@ def display_handoff_outcome():
     with col1:
         if st.button("Really helpful", use_container_width=True, type="primary"):
             tracker.log_handoff_event(
-                event_type="reached_out",
-                context=context,
-                outcome="very_helpful"
+                event_type="reached_out", context=context, outcome="very_helpful"
             )
             tracker.log_handoff_event(
-                event_type="outcome_reported",
-                context=context,
-                outcome="very_helpful"
+                event_type="outcome_reported", context=context, outcome="very_helpful"
             )
             celebration = network.get_handoff_celebration("very_helpful")
             st.success(celebration)
@@ -1013,14 +1028,10 @@ def display_handoff_outcome():
     with col2:
         if st.button("Somewhat helpful", use_container_width=True):
             tracker.log_handoff_event(
-                event_type="reached_out",
-                context=context,
-                outcome="somewhat_helpful"
+                event_type="reached_out", context=context, outcome="somewhat_helpful"
             )
             tracker.log_handoff_event(
-                event_type="outcome_reported",
-                context=context,
-                outcome="somewhat_helpful"
+                event_type="outcome_reported", context=context, outcome="somewhat_helpful"
             )
             celebration = network.get_handoff_celebration("reached_out")
             st.success(celebration)
@@ -1031,14 +1042,10 @@ def display_handoff_outcome():
     with col3:
         if st.button("Not very helpful", use_container_width=True):
             tracker.log_handoff_event(
-                event_type="reached_out",
-                context=context,
-                outcome="not_helpful"
+                event_type="reached_out", context=context, outcome="not_helpful"
             )
             tracker.log_handoff_event(
-                event_type="outcome_reported",
-                context=context,
-                outcome="not_helpful"
+                event_type="outcome_reported", context=context, outcome="not_helpful"
             )
             st.info("Not every conversation lands. The willingness to try is what counts.")
             st.session_state.show_handoff_outcome = False
@@ -1065,7 +1072,7 @@ def display_intent_check_in():
         if st.button(
             practical.get("label", "Get something done"),
             use_container_width=True,
-            help=practical.get("description", "I have a specific task")
+            help=practical.get("description", "I have a specific task"),
         ):
             tracker.record_session_intent(INTENT_PRACTICAL, was_check_in=True)
             st.session_state.session_intent = INTENT_PRACTICAL
@@ -1077,7 +1084,7 @@ def display_intent_check_in():
         if st.button(
             processing.get("label", "Think through something"),
             use_container_width=True,
-            help=processing.get("description", "I need to work through something")
+            help=processing.get("description", "I need to work through something"),
         ):
             tracker.record_session_intent(INTENT_PROCESSING, was_check_in=True)
             st.session_state.session_intent = INTENT_PROCESSING
@@ -1089,7 +1096,7 @@ def display_intent_check_in():
         if st.button(
             connection.get("label", "Just wanted to talk"),
             use_container_width=True,
-            help=connection.get("description", "No specific goal")
+            help=connection.get("description", "No specific goal"),
         ):
             # Connection-seeking - show gentle redirect
             tracker.record_session_intent(INTENT_CONNECTION, was_check_in=True)
@@ -1142,7 +1149,7 @@ def display_connection_redirect():
                 policy_type="connection_redirect",
                 domain="connection_seeking",
                 risk_weight=0,
-                action_taken="User chose to reach out to human"
+                action_taken="User chose to reach out to human",
             )
             network.log_reach_out("someone", method="message", topic="general")
             st.balloons()
@@ -1261,14 +1268,14 @@ def display_independence_form():
         "code_help": "Solved a coding problem",
         "explanations": "Figured something out",
         "writing_general": "Wrote something",
-        "summarizing": "Summarized content"
+        "summarizing": "Summarized content",
     }
 
     category = st.selectbox(
         "Category",
         category_options,
         format_func=lambda x: category_labels.get(x, x.replace("_", " ").title()),
-        label_visibility="collapsed"
+        label_visibility="collapsed",
     )
 
     notes = st.text_input("Notes (optional)", placeholder="e.g., 'Wrote the meeting recap myself'")
@@ -1289,7 +1296,9 @@ def display_independence_form():
             if stats.get("is_milestone"):
                 st.balloons()
                 count = stats.get("total_recent", 0)
-                st.info(f"You've done {count} things on your own recently. Your skills are growing.")
+                st.info(
+                    f"You've done {count} things on your own recently. Your skills are growing."
+                )
 
             st.session_state.show_independence_form = False
             st.rerun()
@@ -1391,7 +1400,9 @@ def display_chat_interface(wellness_mode):
             people = network.get_people_for_domain(domain)
             if people:
                 person = people[0]
-                st.markdown(f"**You said {person['name']} is good for {domain} topics.** Consider reaching out to them.")
+                st.markdown(
+                    f"**You said {person['name']} is good for {domain} topics.** Consider reaching out to them."
+                )
 
     # Phase 6: Show transparency panel if we have assessment data
     if guide.last_risk_assessment and st.session_state.messages:
@@ -1450,12 +1461,13 @@ def display_chat_interface(wellness_mode):
 
         # Phase 4: Check for intent shift (after first turn)
         initial_intent = st.session_state.get("session_intent")
-        if (initial_intent and len(st.session_state.messages) > 2
-                and not st.session_state.get("acknowledged_shift")):
+        if (
+            initial_intent
+            and len(st.session_state.messages) > 2
+            and not st.session_state.get("acknowledged_shift")
+        ):
             shift = classifier.detect_intent_shift(
-                st.session_state.messages,
-                initial_intent,
-                prompt
+                st.session_state.messages, initial_intent, prompt
             )
             if shift and shift.get("is_concerning"):
                 st.session_state.pending_shift = shift
@@ -1464,10 +1476,7 @@ def display_chat_interface(wellness_mode):
         with st.chat_message("assistant"):
             with st.spinner(""):
                 response = guide.generate_response(
-                    prompt,
-                    wellness_mode,
-                    st.session_state.messages,
-                    wellness_tracker=tracker
+                    prompt, wellness_mode, st.session_state.messages, wellness_tracker=tracker
                 )
                 st.markdown(response)
 
@@ -1493,16 +1502,14 @@ def display_chat_interface(wellness_mode):
                             max_dismissals = settings.get("max_dismissals", 3)
 
                             should_show, reason = tracker.should_show_graduation_prompt(
-                                task_category,
-                                threshold,
-                                max_dismissals
+                                task_category, threshold, max_dismissals
                             )
                             if should_show:
                                 prompts = loader.get_graduation_prompts(task_category)
                                 if prompts:
                                     st.session_state.pending_graduation = {
                                         "category": task_category,
-                                        "prompt": random.choice(prompts)
+                                        "prompt": random.choice(prompts),
                                     }
                                     tracker.record_graduation_shown(task_category)
 
@@ -1515,7 +1522,7 @@ def save_session_on_end():
     guide = st.session_state.wellness_guide
     tracker = st.session_state.wellness_tracker
 
-    if hasattr(st.session_state, 'session_start'):
+    if hasattr(st.session_state, "session_start"):
         duration = (datetime.now() - st.session_state.session_start).total_seconds() / 60
         session_summary = guide.get_session_summary()
 
@@ -1523,7 +1530,7 @@ def save_session_on_end():
             duration_minutes=int(duration),
             turn_count=session_summary["turn_count"],
             domains_touched=session_summary["domains_touched"],
-            max_risk_weight=session_summary["max_risk_weight"]
+            max_risk_weight=session_summary["max_risk_weight"],
         )
 
 
@@ -1572,6 +1579,7 @@ def display_lock_warning():
     except Exception as e:
         # If lock check fails, log and continue (don't block the app)
         import logging
+
         logging.warning(f"Lock file check failed: {e}")
         st.session_state.lock_status_checked = True
         st.session_state.read_only_mode = False
@@ -1602,7 +1610,11 @@ def display_lock_banner():
             f"Writes are blocked to prevent sync conflicts. Close it there first."
         )
     with col2:
-        if st.button("Take Over", type="primary", help="Force access - use only if the other device is unavailable"):
+        if st.button(
+            "Take Over",
+            type="primary",
+            help="Force access - use only if the other device is unavailable",
+        ):
             handle_lock_takeover()
     with col3:
         if st.button("Dismiss"):
@@ -1615,6 +1627,7 @@ def handle_lock_takeover():
     try:
         from utils.lockfile import acquire_lock
         from utils.write_gate import set_read_only
+
         if acquire_lock(force=True):
             st.session_state.read_only_mode = False
             st.session_state.lock_status = None
@@ -1742,7 +1755,9 @@ def main():
         # Still show the rest of the UI below, just with the check-in modal
 
     # Phase 5: Check for pending handoff follow-ups
-    if not st.session_state.get("show_handoff_follow_up") and not st.session_state.get("show_handoff_outcome"):
+    if not st.session_state.get("show_handoff_follow_up") and not st.session_state.get(
+        "show_handoff_outcome"
+    ):
         tracker = st.session_state.wellness_tracker
         should_show, pending = tracker.should_show_handoff_follow_up()
         if should_show and pending:
@@ -1752,7 +1767,9 @@ def main():
     # Phase 5: Show handoff follow-up if pending
     if st.session_state.get("show_handoff_outcome"):
         display_handoff_outcome()
-    elif st.session_state.get("show_handoff_follow_up") and st.session_state.get("pending_handoff_info"):
+    elif st.session_state.get("show_handoff_follow_up") and st.session_state.get(
+        "pending_handoff_info"
+    ):
         display_handoff_follow_up(st.session_state.pending_handoff_info)
 
     # Phase 6: Show session summary if requested
@@ -1766,11 +1783,15 @@ def main():
         current_domain = None
         if st.session_state.messages:
             guide = st.session_state.wellness_guide
-            if hasattr(guide, '_session_state') and guide._session_state.get("domains"):
+            if hasattr(guide, "_session_state") and guide._session_state.get("domains"):
                 # Get most recent domain
-                current_domain = guide._session_state["domains"][-1] if guide._session_state["domains"] else None
+                current_domain = (
+                    guide._session_state["domains"][-1] if guide._session_state["domains"] else None
+                )
 
-        st.info("**No trusted network yet.** Instead of 'talk to someone', let's think about where you might find your people.")
+        st.info(
+            "**No trusted network yet.** Instead of 'talk to someone', let's think about where you might find your people."
+        )
 
         # Show Building Your Network panel
         display_building_your_network(domain=current_domain)
@@ -1801,9 +1822,12 @@ def main():
 
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Reality Check", use_container_width=True,
-                         type="primary" if reality_active else "secondary",
-                         help="Am I relying on this too much?"):
+            if st.button(
+                "Reality Check",
+                use_container_width=True,
+                type="primary" if reality_active else "secondary",
+                help="Am I relying on this too much?",
+            ):
                 if reality_active:
                     st.session_state.show_reality_check = False
                 else:
@@ -1812,9 +1836,12 @@ def main():
                     st.session_state.show_my_patterns = False
                 st.rerun()
         with col2:
-            if st.button("My People", use_container_width=True,
-                         type="primary" if network_active else "secondary",
-                         help="Manage trusted network"):
+            if st.button(
+                "My People",
+                use_container_width=True,
+                type="primary" if network_active else "secondary",
+                help="Manage trusted network",
+            ):
                 if network_active:
                     st.session_state.show_network_setup = False
                 else:
@@ -1824,9 +1851,12 @@ def main():
                 st.rerun()
 
         # Full-width secondary action - toggle behavior
-        if st.button("My Patterns", use_container_width=True,
-                     type="primary" if patterns_active else "secondary",
-                     help="Track your usage trends (sensitive vs practical)"):
+        if st.button(
+            "My Patterns",
+            use_container_width=True,
+            type="primary" if patterns_active else "secondary",
+            help="Track your usage trends (sensitive vs practical)",
+        ):
             if patterns_active:
                 st.session_state.show_my_patterns = False
             else:
@@ -1923,7 +1953,7 @@ def main():
                 data=json.dumps(data, indent=2),
                 file_name=f"empathysync_{date.today()}.json",
                 mime="application/json",
-                use_container_width=True
+                use_container_width=True,
             )
 
             st.markdown("---")
@@ -1937,7 +1967,9 @@ def main():
                     st.session_state.confirm_reset = False
 
                 if st.session_state.confirm_reset:
-                    st.warning("This will delete all your usage history, check-ins, and patterns. This cannot be undone.")
+                    st.warning(
+                        "This will delete all your usage history, check-ins, and patterns. This cannot be undone."
+                    )
                     col_yes, col_no = st.columns(2)
                     with col_yes:
                         if st.button("Yes, reset", use_container_width=True, type="primary"):
@@ -1951,16 +1983,22 @@ def main():
                             st.session_state.confirm_reset = False
                             st.rerun()
                 else:
-                    if st.button("Reset All Data", use_container_width=True,
-                                 help="Clear all usage history and patterns"):
+                    if st.button(
+                        "Reset All Data",
+                        use_container_width=True,
+                        help="Clear all usage history and patterns",
+                    ):
                         st.session_state.confirm_reset = True
                         st.rerun()
 
             # Phase 6: Session summary button (show only if there's been conversation)
             if guide.session_turn_count > 0:
                 st.markdown("---")
-                if st.button("View Session Summary", use_container_width=True,
-                            help="See a summary of this conversation"):
+                if st.button(
+                    "View Session Summary",
+                    use_container_width=True,
+                    help="See a summary of this conversation",
+                ):
                     st.session_state.show_session_summary = True
                     st.rerun()
 

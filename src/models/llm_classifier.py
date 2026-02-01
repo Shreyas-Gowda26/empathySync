@@ -64,7 +64,13 @@ class LLMClassifier:
 
     def __init__(self, config_path: Optional[str] = None):
         """Initialize the LLM classifier with configuration"""
-        self.config_path = config_path or Path(__file__).parent.parent.parent / "scenarios" / "classification" / "llm_classifier.yaml"
+        self.config_path = (
+            config_path
+            or Path(__file__).parent.parent.parent
+            / "scenarios"
+            / "classification"
+            / "llm_classifier.yaml"
+        )
         self.config = self._load_config()
         self.cache = LRUCache(max_size=self.config.get("cache", {}).get("max_entries", 100))
         self.ollama_url = f"{settings.OLLAMA_HOST}/api/generate"
@@ -81,7 +87,7 @@ class LLMClassifier:
         try:
             config_file = Path(self.config_path)
             if config_file.exists():
-                with open(config_file, 'r') as f:
+                with open(config_file, "r") as f:
                     return yaml.safe_load(f) or {}
             else:
                 logger.warning(f"LLM classifier config not found at {self.config_path}")
@@ -121,7 +127,7 @@ class LLMClassifier:
                     "is_personal_distress": True,
                     "is_practical_technique": False,
                     "confidence": 1.0,
-                    "classification_method": "fast_path_crisis"
+                    "classification_method": "fast_path_crisis",
                 }
 
         # Check harmful patterns
@@ -134,7 +140,7 @@ class LLMClassifier:
                     "is_personal_distress": False,
                     "is_practical_technique": False,
                     "confidence": 1.0,
-                    "classification_method": "fast_path_harmful"
+                    "classification_method": "fast_path_harmful",
                 }
 
         return None
@@ -158,7 +164,7 @@ class LLMClassifier:
 
         prompt = template.format(
             message=message,
-            recent_context=recent_context[:500] if recent_context else "No prior context"
+            recent_context=recent_context[:500] if recent_context else "No prior context",
         )
 
         # Add examples after the template
@@ -210,8 +216,16 @@ class LLMClassifier:
             return None
 
         # Normalize domain
-        valid_domains = {"logistics", "emotional", "relationships", "health",
-                        "money", "spirituality", "crisis", "harmful"}
+        valid_domains = {
+            "logistics",
+            "emotional",
+            "relationships",
+            "health",
+            "money",
+            "spirituality",
+            "crisis",
+            "harmful",
+        }
         domain = result.get("domain", "").lower()
         if domain not in valid_domains:
             # Try to map close matches
@@ -268,7 +282,7 @@ class LLMClassifier:
             "is_personal_distress": bool(is_distress),
             "is_practical_technique": bool(is_technique),
             "confidence": confidence,
-            "classification_method": "llm"
+            "classification_method": "llm",
         }
 
     def _call_ollama(self, prompt: str) -> Optional[str]:
@@ -281,18 +295,12 @@ class LLMClassifier:
             "model": self.model,
             "prompt": prompt,
             "stream": False,
-            "options": {
-                "temperature": temperature,
-                "top_p": 0.9,
-                "max_tokens": max_tokens
-            }
+            "options": {"temperature": temperature, "top_p": 0.9, "max_tokens": max_tokens},
         }
 
         try:
             response = requests.post(
-                self.ollama_url,
-                json=payload,
-                timeout=timeout_ms / 1000  # Convert to seconds
+                self.ollama_url, json=payload, timeout=timeout_ms / 1000  # Convert to seconds
             )
             response.raise_for_status()
 
@@ -307,10 +315,7 @@ class LLMClassifier:
             return None
 
     def classify(
-        self,
-        message: str,
-        conversation_history: List[Dict] = None,
-        use_cache: bool = True
+        self, message: str, conversation_history: List[Dict] = None, use_cache: bool = True
     ) -> Optional[Dict]:
         """
         Classify a user message using the LLM.
@@ -340,10 +345,12 @@ class LLMClassifier:
         recent_context = ""
         if conversation_history:
             recent_msgs = conversation_history[-6:]  # Last 3 exchanges
-            recent_context = "\n".join([
-                f"{msg.get('role', 'unknown')}: {msg.get('content', '')[:100]}"
-                for msg in recent_msgs
-            ])
+            recent_context = "\n".join(
+                [
+                    f"{msg.get('role', 'unknown')}: {msg.get('content', '')[:100]}"
+                    for msg in recent_msgs
+                ]
+            )
 
         # Check cache
         if use_cache and self.config.get("cache", {}).get("enabled", True):
@@ -375,7 +382,9 @@ class LLMClassifier:
         # Check confidence threshold
         confidence_threshold = self.config.get("confidence_threshold", 0.6)
         if validated["confidence"] < confidence_threshold:
-            logger.info(f"LLM confidence {validated['confidence']} below threshold {confidence_threshold}")
+            logger.info(
+                f"LLM confidence {validated['confidence']} below threshold {confidence_threshold}"
+            )
             return None  # Fall back to keyword matching
 
         # Cache result
@@ -383,9 +392,11 @@ class LLMClassifier:
             cache_key = self._get_cache_key(message, recent_context)
             self.cache.set(cache_key, validated)
 
-        logger.info(f"LLM classification: domain={validated['domain']}, "
-                   f"intensity={validated['emotional_intensity']}, "
-                   f"confidence={validated['confidence']}")
+        logger.info(
+            f"LLM classification: domain={validated['domain']}, "
+            f"intensity={validated['emotional_intensity']}, "
+            f"confidence={validated['confidence']}"
+        )
 
         return validated
 

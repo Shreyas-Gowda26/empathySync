@@ -11,42 +11,47 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+
 class Settings:
     """Application configuration settings"""
-    
+
     # Application
     APP_NAME: str = "empathySync"
     APP_VERSION: str = "0.1.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
-    
+
     # Server
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("STREAMLIT_SERVER_PORT", "8501"))
-    
+
     # Database (leveraging PostgreSQL)
     DB_HOST: str = os.getenv("DB_HOST", "")
     DB_PORT: Optional[int] = int(os.getenv("DB_PORT", "5432")) if os.getenv("DB_PORT") else None
     DB_NAME: str = os.getenv("DB_NAME", "")
     DB_USER: str = os.getenv("DB_USER", "")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", "")
-    
+
     @property
     def database_url(self) -> Optional[str]:
         """Construct database URL from components"""
         if not all([self.DB_HOST, self.DB_PORT, self.DB_NAME, self.DB_USER, self.DB_PASSWORD]):
             return None
         return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-    
+
     # Ollama Configuration
     OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "")
-    OLLAMA_TEMPERATURE: float = float(os.getenv("OLLAMA_TEMPERATURE", "0.7")) if os.getenv("OLLAMA_TEMPERATURE") else 0.7
+    OLLAMA_TEMPERATURE: float = (
+        float(os.getenv("OLLAMA_TEMPERATURE", "0.7")) if os.getenv("OLLAMA_TEMPERATURE") else 0.7
+    )
 
     # LLM Classification (Phase 9)
     # When enabled, uses the Ollama model to intelligently classify messages
     # instead of relying solely on keyword matching
-    LLM_CLASSIFICATION_ENABLED: bool = os.getenv("LLM_CLASSIFICATION_ENABLED", "true").lower() == "true"
+    LLM_CLASSIFICATION_ENABLED: bool = (
+        os.getenv("LLM_CLASSIFICATION_ENABLED", "true").lower() == "true"
+    )
 
     # Storage Backend (Phase 11)
     # When enabled, uses SQLite instead of JSON for data storage
@@ -66,30 +71,30 @@ class Settings:
     ENABLE_ANALYTICS: bool = os.getenv("ENABLE_ANALYTICS", "false").lower() == "true"
     STORE_CONVERSATIONS: bool = os.getenv("STORE_CONVERSATIONS", "true").lower() == "true"
     CONVERSATION_RETENTION_DAYS: int = int(os.getenv("CONVERSATION_RETENTION_DAYS", "30"))
-    
+
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE: str = os.getenv("LOG_FILE", "empathysync.log")
-    
+
     # Paths
     BASE_DIR: Path = Path(__file__).parent.parent.parent
     DATA_DIR: Path = BASE_DIR / "data"
     LOGS_DIR: Path = BASE_DIR / "logs"
-    
+
     def __init__(self):
         """Ensure required directories exist"""
         self.DATA_DIR.mkdir(exist_ok=True)
         self.LOGS_DIR.mkdir(exist_ok=True)
-    
+
     def validate_config(self) -> list[str]:
         """Validate configuration and return list of missing required settings"""
         missing = []
-        
+
         if not self.OLLAMA_HOST:
             missing.append("OLLAMA_HOST")
         if not self.OLLAMA_MODEL:
             missing.append("OLLAMA_MODEL")
-            
+
         # Database validation only if any DB setting is provided
         if any([self.DB_HOST, self.DB_NAME, self.DB_USER, self.DB_PASSWORD]):
             if not self.DB_HOST:
@@ -100,8 +105,9 @@ class Settings:
                 missing.append("DB_USER")
             if not self.DB_PASSWORD:
                 missing.append("DB_PASSWORD")
-                
+
         return missing
+
 
 # Global settings instance
 settings = Settings()

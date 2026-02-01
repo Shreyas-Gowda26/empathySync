@@ -32,6 +32,7 @@ _read_only_mode: bool = False
 
 class WriteBlockedError(Exception):
     """Raised when a write operation is attempted in read-only mode."""
+
     pass
 
 
@@ -69,6 +70,7 @@ def require_write(func: Callable) -> Callable:
         def save_data(self, data):
             ...
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs) -> Any:
         if _read_only_mode:
@@ -78,6 +80,7 @@ def require_write(func: Callable) -> Callable:
                 "Close empathySync on the other device first."
             )
         return func(*args, **kwargs)
+
     return wrapper
 
 
