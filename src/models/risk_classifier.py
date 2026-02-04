@@ -187,20 +187,47 @@ class RiskClassifier:
         if len(t) > 40:
             return False
         continuation_phrases = [
-            "yes", "yeah", "yep", "ok", "okay", "sure", "go ahead",
-            "continue", "proceed", "go on", "keep going", "more",
-            "tell me more", "do it", "please", "thanks", "thank you",
-            "got it", "sounds good", "makes sense", "right",
-            "what else", "and", "also", "next", "then what",
-            "how about", "what about", "let's", "lets",
+            "yes",
+            "yeah",
+            "yep",
+            "ok",
+            "okay",
+            "sure",
+            "go ahead",
+            "continue",
+            "proceed",
+            "go on",
+            "keep going",
+            "more",
+            "tell me more",
+            "do it",
+            "please",
+            "thanks",
+            "thank you",
+            "got it",
+            "sounds good",
+            "makes sense",
+            "right",
+            "what else",
+            "and",
+            "also",
+            "next",
+            "then what",
+            "how about",
+            "what about",
+            "let's",
+            "lets",
         ]
-        return any(phrase == t or t.startswith(phrase + " ") or t.startswith(phrase + ",")
-                   or t.startswith(phrase + "?") or t.startswith(phrase + "!")
-                   for phrase in continuation_phrases)
+        return any(
+            phrase == t
+            or t.startswith(phrase + " ")
+            or t.startswith(phrase + ",")
+            or t.startswith(phrase + "?")
+            or t.startswith(phrase + "!")
+            for phrase in continuation_phrases
+        )
 
-    def _detect_domain(
-        self, text: str, primary_domain: str = None, domain_streak: int = 0
-    ) -> str:
+    def _detect_domain(self, text: str, primary_domain: str = None, domain_streak: int = 0) -> str:
         """
         Keyword-based domain detection using scenarios knowledge base.
 
