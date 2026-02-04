@@ -60,6 +60,7 @@ Configure in `.env` file (see `.env.example`):
 - `STORE_CONVERSATIONS` - true/false
 - `CONVERSATION_RETENTION_DAYS` - integer (default: 30)
 - `LLM_CLASSIFICATION_ENABLED` - true/false (default: true) - enables LLM-based intelligent classification (Phase 9)
+- `OLLAMA_CLASSIFIER_MODEL` - optional dedicated model for classification (e.g., `qwen2.5:3b-instruct`). Falls back to `OLLAMA_MODEL` if not set. Smaller models run classification faster (~9s vs ~19s)
 
 **Storage Backend (Phase 11):**
 - `USE_SQLITE` - true/false (default: false) - enables SQLite backend with WAL mode

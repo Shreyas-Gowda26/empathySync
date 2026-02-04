@@ -82,7 +82,13 @@ class RiskClassifier:
             self._trigger_cache = self.loader.get_all_triggers_flat()
         return self._trigger_cache
 
-    def classify(self, user_input: str, conversation_history: List[Dict]) -> Dict:
+    def classify(
+        self,
+        user_input: str,
+        conversation_history: List[Dict],
+        primary_domain: str = None,
+        domain_streak: int = 0,
+    ) -> Dict:
         """
         Return a comprehensive risk assessment dictionary.
 
@@ -124,7 +130,9 @@ class RiskClassifier:
             domain = llm_result["domain"]
             emotional_intensity = llm_result["emotional_intensity"]
         else:
-            domain = self._detect_domain(user_input)
+            domain = self._detect_domain(
+                user_input, primary_domain=primary_domain, domain_streak=domain_streak
+            )
             emotional_intensity = self._measure_emotional_intensity(user_input)
 
         # Always use keyword matching for these (LLM doesn't handle them yet)
@@ -156,19 +164,52 @@ class RiskClassifier:
 
         return result
 
-    def _detect_domain(self, text: str) -> str:
+    def _detect_domain(
+        self, text: str, primary_domain: str = None, domain_streak: int = 0
+    ) -> str:
         """
         Keyword-based domain detection using scenarios knowledge base.
+
+        When an established domain context exists (streak >= 3), require
+        multiple trigger matches to override it. This prevents single-keyword
+        false positives like "nervous" triggering health during interview prep.
         """
         t = text.lower()
         triggers = self._get_triggers()
 
-        # Check each trigger word
+        # Count matches per domain
+        domain_matches: Dict[str, int] = {}
+        first_match_domain = None
         for trigger, domain in triggers.items():
             if trigger in t:
-                return domain
+                domain_matches[domain] = domain_matches.get(domain, 0) + 1
+                if first_match_domain is None:
+                    first_match_domain = domain
 
-        return "logistics"
+        if not domain_matches:
+            return "logistics"
+
+        # Crisis/harmful always win — safety first
+        if "crisis" in domain_matches:
+            return "crisis"
+        if "harmful" in domain_matches:
+            return "harmful"
+
+        # If we have an established context, require stronger evidence to shift
+        if primary_domain and domain_streak >= 3 and primary_domain not in domain_matches:
+            # Only shift if the new domain has 2+ trigger matches
+            best_domain = max(domain_matches, key=domain_matches.get)
+            if domain_matches[best_domain] < 2:
+                logger.debug(
+                    "Keyword detection: keeping %s (only %d trigger for %s)",
+                    primary_domain,
+                    domain_matches[best_domain],
+                    best_domain,
+                )
+                return primary_domain
+
+        # Return the domain with the most trigger matches
+        return max(domain_matches, key=domain_matches.get)
 
     def _measure_emotional_intensity(self, text: str) -> float:
         """

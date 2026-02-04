@@ -19,12 +19,15 @@ logger = logging.getLogger(__name__)
 
 
 # Session limits by risk level (from vision document)
+# These are backstops — the primary restraint mechanism is response style
+# (brief, redirects to humans). Limits should be generous enough to allow
+# natural conversation drift without prematurely cutting off practical help.
 TURN_LIMITS = {
-    "logistics": 20,  # Low risk: generous limit
-    "money": 8,  # Moderate risk: fewer turns
-    "health": 8,  # Moderate risk
-    "relationships": 10,  # Moderate risk
-    "spirituality": 5,  # High risk: very short
+    "logistics": 30,  # Low risk: generous limit
+    "money": 15,  # Moderate risk: enough room for practical finance help
+    "health": 15,  # Moderate risk: enough for practical health questions
+    "relationships": 15,  # Moderate risk: conversations naturally touch this
+    "spirituality": 10,  # Higher risk: still needs room for practical questions
     "crisis": 1,  # Immediate stop
     "harmful": 1,  # Immediate stop
 }
@@ -63,6 +66,11 @@ class WellnessGuide:
             "decay_turns": 5,  # How many turns context persists
         }
 
+        # Domain stability tracking: prevents false domain shifts
+        # when conversation has an established practical context
+        self.primary_domain = None  # Most recent consecutive domain
+        self.primary_domain_streak = 0  # How many consecutive turns in this domain
+
         # Phase 8: Wisdom feature state
         self.human_gate_count = 0  # Times human gate shown this session
         self.friend_mode_active = False  # Whether we're in friend mode
@@ -95,6 +103,10 @@ class WellnessGuide:
 
         if conversation_history is None:
             conversation_history = []
+
+        # Reset per-turn state so previous policy actions don't leak
+        self.last_policy_action = None
+        self.last_risk_assessment = None
 
         self.session_turn_count += 1
 
@@ -134,14 +146,20 @@ class WellnessGuide:
                     )
                     return cooldown_reason
 
-            # 2) Risk assessment
+            # 2) Risk assessment (pass domain context for keyword fallback awareness)
             risk_assessment = self.risk_classifier.classify(
-                user_input=user_input, conversation_history=conversation_history
+                user_input=user_input,
+                conversation_history=conversation_history,
+                primary_domain=self.primary_domain,
+                domain_streak=self.primary_domain_streak,
             )
 
             # 2.5) Phase 6.5: Adjust assessment based on session context
             # This handles continuation messages like "let's brainstorm" after a breakup request
             risk_assessment = self._get_context_adjusted_assessment(user_input, risk_assessment)
+
+            # 2.7) Domain stability: dampen false domain shifts from established practical context
+            risk_assessment = self._apply_domain_stability(risk_assessment)
             self.last_risk_assessment = risk_assessment
 
             # 2.6) Phase 6.5: Update session context for future turns
@@ -166,8 +184,16 @@ class WellnessGuide:
             if risk_assessment.get("is_practical_technique") and domain != "logistics":
                 technique_note = f" | is_practical_technique=True (practical mode in {domain})"
 
+            # Log domain stability dampening
+            stability_note = ""
+            if risk_assessment.get("domain_stability_applied"):
+                stability_note = (
+                    f" | domain_stability=True (was {risk_assessment.get('original_domain')}"
+                    f" risk={risk_assessment.get('original_risk_weight', 0):.1f})"
+                )
+
             logger.info(
-                "Risk assessment | turn=%d | domain=%s | intensity=%.2f | dependency=%.2f | weight=%.2f | emotional_weight=%s%s%s",
+                "Risk assessment | turn=%d | domain=%s | intensity=%.2f | dependency=%.2f | weight=%.2f | emotional_weight=%s%s%s%s",
                 self.session_turn_count,
                 domain,
                 risk_assessment["emotional_intensity"],
@@ -176,6 +202,7 @@ class WellnessGuide:
                 risk_assessment.get("emotional_weight", "unknown"),
                 context_note,
                 technique_note,
+                stability_note,
             )
 
             # 3) Hard-coded safety responses (don't trust model to comply)
@@ -297,6 +324,16 @@ class WellnessGuide:
                     pause_suggestion = self._get_before_you_send_pause(user_input)
                     if pause_suggestion:
                         processed_response = processed_response + "\n\n---\n\n" + pause_suggestion
+
+            # 8.7) Add emotional coloring acknowledgment for practical tasks
+            # When someone expresses emotions within a practical task (e.g., nervousness
+            # during interview prep), prepend a brief warm acknowledgment.
+            if is_practical and risk_assessment.get("domain_stability_applied"):
+                acknowledgment = self._get_emotional_coloring_acknowledgment(
+                    user_input, risk_assessment
+                )
+                if acknowledgment:
+                    processed_response = acknowledgment + "\n\n" + processed_response
 
             # Log if we redirected due to high risk
             if risk_assessment["risk_weight"] >= 5:
@@ -550,6 +587,14 @@ class WellnessGuide:
         """
         loader = self.prompts.loader
 
+        # Never trigger friend mode for practical/logistics domain
+        if domain == "logistics":
+            return None
+
+        # Skip if this is a practical technique question in any domain
+        if risk_assessment.get("is_practical_technique", False):
+            return None
+
         # Get detected intent if available
         intent = risk_assessment.get("intent", None)
 
@@ -673,7 +718,7 @@ class WellnessGuide:
             "model": self.model,
             "prompt": prompt,
             "stream": False,
-            "options": {"temperature": self.temperature, "top_p": 0.9, "max_tokens": max_tokens},
+            "options": {"temperature": self.temperature, "top_p": 0.9, "num_predict": max_tokens},
         }
 
         try:
@@ -816,6 +861,9 @@ class WellnessGuide:
             "turn_set": 0,
             "decay_turns": 5,
         }
+        # Reset domain stability tracking
+        self.primary_domain = None
+        self.primary_domain_streak = 0
         # Phase 8: Reset wisdom feature state
         self.human_gate_count = 0
         self.friend_mode_active = False
@@ -967,6 +1015,143 @@ class WellnessGuide:
                 return adjusted
 
         return risk_assessment
+
+    def _apply_domain_stability(self, risk_assessment: Dict) -> Dict:
+        """
+        Dampen false domain shifts when conversation has an established context.
+
+        When 3+ consecutive turns have been in ANY domain and the classifier detects
+        a shift to a different domain, check if this is genuine or just a topic tangent.
+
+        Rules:
+        - Crisis and harmful domains always punch through — safety is absolute.
+        - High emotional intensity (>= 7) allows the shift — genuine distress.
+        - Low intensity shifts from an established domain are dampened back.
+        - The established domain's base risk weight is preserved when dampening.
+
+        Works for all domain combinations:
+        - logistics(4 turns) + "I'm nervous" → stays logistics
+        - health(3 turns) + "I can't afford this medication" → stays health
+        - relationships(3 turns) + "I feel so anxious" → stays relationships
+        """
+        detected_domain = risk_assessment["domain"]
+        intensity = risk_assessment.get("emotional_intensity", 0)
+
+        # Crisis/harmful always bypass stability — safety first
+        if detected_domain in ("crisis", "harmful"):
+            self._update_domain_streak(detected_domain)
+            return risk_assessment
+
+        # Check if we have an established context (any domain, 3+ turns)
+        if (
+            self.primary_domain is not None
+            and self.primary_domain_streak >= 3
+            and detected_domain != self.primary_domain
+        ):
+            # High intensity (>= 7) suggests genuine distress — allow the shift
+            if intensity >= 7:
+                logger.info(
+                    "Domain stability: allowing shift %s→%s (intensity=%.1f >= 7)",
+                    self.primary_domain,
+                    detected_domain,
+                    intensity,
+                )
+                self._update_domain_streak(detected_domain)
+                return risk_assessment
+
+            # Lower intensity = topic tangent, not genuine shift — dampen
+            logger.info(
+                "Domain stability: dampening %s→%s (intensity=%.1f, streak=%d)",
+                self.primary_domain,
+                detected_domain,
+                intensity,
+                self.primary_domain_streak,
+            )
+            # Get the base weight for the established domain
+            domain_weights = self.risk_classifier.loader.get_domain_weights()
+            stable_base = domain_weights.get(self.primary_domain, 2.0)
+
+            adjusted = risk_assessment.copy()
+            adjusted["original_domain"] = detected_domain
+            adjusted["original_risk_weight"] = risk_assessment["risk_weight"]
+            adjusted["domain"] = self.primary_domain
+            adjusted["domain_stability_applied"] = True
+            # Recalculate risk with the established domain's base weight
+            adjusted["risk_weight"] = min(
+                stable_base + 0.3 * intensity + 0.2 * risk_assessment.get("dependency_risk", 0),
+                10.0,
+            )
+            self._update_domain_streak(self.primary_domain)
+            return adjusted
+
+        # No dampening needed
+        self._update_domain_streak(detected_domain)
+        return risk_assessment
+
+    def _update_domain_streak(self, domain: str) -> None:
+        """Update primary domain tracking."""
+        if domain == self.primary_domain:
+            self.primary_domain_streak += 1
+        else:
+            self.primary_domain = domain
+            self.primary_domain_streak = 1
+
+    def _get_emotional_coloring_acknowledgment(
+        self, user_input: str, risk_assessment: Dict
+    ) -> Optional[str]:
+        """
+        Return a brief warm acknowledgment when domain stability dampens a shift.
+
+        When someone says "I'm nervous about my interview" during interview prep,
+        the domain stays logistics but we prepend a short empathetic line so the
+        user doesn't feel ignored. The acknowledgment is deterministic — no LLM
+        call — and maps the original (dampened) domain to an appropriate phrase.
+        """
+        original_domain = risk_assessment.get("original_domain", "")
+        intensity = risk_assessment.get("emotional_intensity", 0)
+
+        # Only acknowledge if there's meaningful emotional signal
+        if intensity < 3:
+            return None
+
+        msg_lower = user_input.lower()
+
+        # Domain-specific acknowledgments — each list covers common emotional
+        # colorings that appear when someone is in the middle of a practical task.
+        acknowledgments = {
+            "health": [
+                "That's understandable — this kind of worry is natural.",
+                "It makes sense to feel that way.",
+            ],
+            "emotional": [
+                "I hear you — those feelings are real.",
+                "That's a lot to carry. Let's keep working on this.",
+            ],
+            "money": [
+                "Financial pressure is stressful — that's completely valid.",
+                "That kind of worry makes sense. Let's focus on what we can prepare.",
+            ],
+            "relationships": [
+                "That matters, and it makes sense you're thinking about it.",
+                "I can see why that weighs on you.",
+            ],
+            "spirituality": [
+                "Those are important questions to sit with.",
+                "That kind of reflection is natural.",
+            ],
+        }
+
+        phrases = acknowledgments.get(original_domain)
+        if not phrases:
+            # Generic fallback for unmapped domains
+            phrases = [
+                "I hear you.",
+                "That makes sense.",
+            ]
+
+        # Pick deterministically based on message length (stable, no randomness)
+        idx = len(msg_lower) % len(phrases)
+        return phrases[idx]
 
     def _is_continuation_message(self, user_input: str, context: Dict) -> bool:
         """

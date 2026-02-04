@@ -46,6 +46,11 @@ class Settings:
         float(os.getenv("OLLAMA_TEMPERATURE", "0.7")) if os.getenv("OLLAMA_TEMPERATURE") else 0.7
     )
 
+    # Dedicated classifier model (optional)
+    # Uses a smaller, faster model for classification while the main model handles responses.
+    # Falls back to OLLAMA_MODEL if not set. Recommended: qwen2.5:3b-instruct
+    OLLAMA_CLASSIFIER_MODEL: str = os.getenv("OLLAMA_CLASSIFIER_MODEL", "")
+
     # LLM Classification (Phase 9)
     # When enabled, uses the Ollama model to intelligently classify messages
     # instead of relying solely on keyword matching
