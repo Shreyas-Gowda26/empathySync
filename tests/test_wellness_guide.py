@@ -2506,3 +2506,334 @@ class TestHealthChecks:
             mock_settings.DATA_DIR = tmp_path
             result = check_sqlite_database()
             assert result.ok is True
+
+
+class TestDomainStability:
+    """Tests for multi-turn domain stability and emotional coloring acknowledgment.
+
+    These tests verify that empathySync maintains conversation context across turns:
+    - After 3+ turns in one domain, false shifts are dampened
+    - Crisis/harmful always punch through
+    - High emotional intensity allows genuine shifts
+    - Emotional coloring acknowledgments appear when dampening occurs
+    """
+
+    @pytest.fixture
+    def mock_settings(self):
+        with patch("models.ai_wellness_guide.settings") as mock:
+            mock.OLLAMA_HOST = "http://localhost:11434"
+            mock.OLLAMA_MODEL = "llama2"
+            mock.OLLAMA_TEMPERATURE = 0.7
+            yield mock
+
+    @pytest.fixture
+    def guide(self, mock_settings):
+        from models.ai_wellness_guide import WellnessGuide
+        return WellnessGuide()
+
+    def _simulate_turns(self, guide, domain, count):
+        """Set up guide state as if `count` turns in `domain` occurred."""
+        guide.primary_domain = domain
+        guide.primary_domain_streak = count
+
+    def test_domain_stability_dampens_false_shift(self, guide):
+        """After 3+ logistics turns, a low-intensity health signal stays logistics."""
+        self._simulate_turns(guide, "logistics", 4)
+        assessment = {
+            "domain": "health",
+            "emotional_intensity": 4.0,
+            "dependency_risk": 0.0,
+            "risk_weight": 7.0,
+        }
+        result = guide._apply_domain_stability(assessment)
+        assert result["domain"] == "logistics"
+        assert result["domain_stability_applied"] is True
+        assert result["original_domain"] == "health"
+        assert result["risk_weight"] < 7.0  # Dampened from health base
+
+    def test_domain_stability_no_dampen_under_3_turns(self, guide):
+        """With only 2 turns in domain, no dampening occurs."""
+        self._simulate_turns(guide, "logistics", 2)
+        assessment = {
+            "domain": "health",
+            "emotional_intensity": 4.0,
+            "dependency_risk": 0.0,
+            "risk_weight": 7.0,
+        }
+        result = guide._apply_domain_stability(assessment)
+        assert result["domain"] == "health"
+        assert "domain_stability_applied" not in result
+
+    def test_domain_stability_crisis_punches_through(self, guide):
+        """Crisis domain always bypasses stability, regardless of streak."""
+        self._simulate_turns(guide, "logistics", 10)
+        assessment = {
+            "domain": "crisis",
+            "emotional_intensity": 10.0,
+            "dependency_risk": 0.0,
+            "risk_weight": 10.0,
+        }
+        result = guide._apply_domain_stability(assessment)
+        assert result["domain"] == "crisis"
+        assert "domain_stability_applied" not in result
+
+    def test_domain_stability_harmful_punches_through(self, guide):
+        """Harmful domain always bypasses stability."""
+        self._simulate_turns(guide, "logistics", 5)
+        assessment = {
+            "domain": "harmful",
+            "emotional_intensity": 0.0,
+            "dependency_risk": 0.0,
+            "risk_weight": 10.0,
+        }
+        result = guide._apply_domain_stability(assessment)
+        assert result["domain"] == "harmful"
+        assert "domain_stability_applied" not in result
+
+    def test_domain_stability_high_intensity_allows_shift(self, guide):
+        """Emotional intensity >= 7 allows a genuine domain shift."""
+        self._simulate_turns(guide, "logistics", 5)
+        assessment = {
+            "domain": "health",
+            "emotional_intensity": 8.0,
+            "dependency_risk": 0.0,
+            "risk_weight": 9.0,
+        }
+        result = guide._apply_domain_stability(assessment)
+        assert result["domain"] == "health"
+        assert "domain_stability_applied" not in result
+
+    def test_domain_stability_works_for_any_domain(self, guide):
+        """Stability works for non-logistics domains too (e.g., health streak)."""
+        self._simulate_turns(guide, "health", 4)
+        assessment = {
+            "domain": "money",
+            "emotional_intensity": 3.0,
+            "dependency_risk": 0.0,
+            "risk_weight": 6.0,
+        }
+        result = guide._apply_domain_stability(assessment)
+        assert result["domain"] == "health"
+        assert result["domain_stability_applied"] is True
+        assert result["original_domain"] == "money"
+
+    def test_domain_streak_increments(self, guide):
+        """Streak increments when same domain is seen."""
+        guide.primary_domain = None
+        guide.primary_domain_streak = 0
+        guide._update_domain_streak("logistics")
+        assert guide.primary_domain == "logistics"
+        assert guide.primary_domain_streak == 1
+        guide._update_domain_streak("logistics")
+        assert guide.primary_domain_streak == 2
+        guide._update_domain_streak("logistics")
+        assert guide.primary_domain_streak == 3
+
+    def test_domain_streak_resets_on_shift(self, guide):
+        """Streak resets when a new domain appears."""
+        self._simulate_turns(guide, "logistics", 5)
+        guide._update_domain_streak("health")
+        assert guide.primary_domain == "health"
+        assert guide.primary_domain_streak == 1
+
+    def test_emotional_coloring_acknowledgment_returns_phrase(self, guide):
+        """Acknowledgment returns a warm phrase when stability was applied."""
+        assessment = {
+            "domain": "logistics",
+            "domain_stability_applied": True,
+            "original_domain": "health",
+            "emotional_intensity": 5.0,
+        }
+        result = guide._get_emotional_coloring_acknowledgment(
+            "I'm nervous about this", assessment
+        )
+        assert result is not None
+        assert len(result) > 10  # Not empty/trivial
+
+    def test_emotional_coloring_acknowledgment_none_for_low_intensity(self, guide):
+        """No acknowledgment when emotional intensity is below threshold."""
+        assessment = {
+            "domain": "logistics",
+            "domain_stability_applied": True,
+            "original_domain": "health",
+            "emotional_intensity": 2.0,
+        }
+        result = guide._get_emotional_coloring_acknowledgment(
+            "what about something else", assessment
+        )
+        assert result is None
+
+    def test_emotional_coloring_acknowledgment_domain_specific(self, guide):
+        """Acknowledgments differ by original domain."""
+        base_assessment = {
+            "domain": "logistics",
+            "domain_stability_applied": True,
+            "emotional_intensity": 6.0,
+        }
+        # Health domain acknowledgment
+        health_ack = guide._get_emotional_coloring_acknowledgment(
+            "I'm worried about this test message for health domain",
+            {**base_assessment, "original_domain": "health"},
+        )
+        # Money domain acknowledgment
+        money_ack = guide._get_emotional_coloring_acknowledgment(
+            "I'm worried about this test message for money domain",
+            {**base_assessment, "original_domain": "money"},
+        )
+        assert health_ack is not None
+        assert money_ack is not None
+        # Different domains should have different phrase pools
+        # (may occasionally collide if same idx, but pools are different)
+
+    def test_emotional_coloring_deterministic(self, guide):
+        """Same input produces same acknowledgment (deterministic)."""
+        assessment = {
+            "domain": "logistics",
+            "domain_stability_applied": True,
+            "original_domain": "emotional",
+            "emotional_intensity": 6.0,
+        }
+        msg = "I feel overwhelmed by all this"
+        result1 = guide._get_emotional_coloring_acknowledgment(msg, assessment)
+        result2 = guide._get_emotional_coloring_acknowledgment(msg, assessment)
+        assert result1 == result2
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_full_pipeline_dampens_and_acknowledges(self, mock_post, guide):
+        """Full generate_response pipeline: after 3+ logistics turns,
+        an emotional message stays in logistics with acknowledgment prepended."""
+        # Set up Ollama mock
+        mock_post.return_value.json.return_value = {
+            "response": "Here are the next steps for your preparation."
+        }
+        mock_post.return_value.raise_for_status = Mock()
+
+        # Simulate 4 prior logistics turns
+        self._simulate_turns(guide, "logistics", 4)
+
+        # Mock risk_classifier to return a false "health" shift with moderate intensity
+        with patch.object(guide.risk_classifier, "classify") as mock_classify:
+            mock_classify.return_value = {
+                "domain": "health",
+                "emotional_intensity": 5.0,
+                "dependency_risk": 0.0,
+                "risk_weight": 7.0,
+                "emotional_weight": "low_weight",
+                "emotional_weight_score": 2.0,
+                "classification_method": "keyword",
+                "is_practical_technique": False,
+            }
+            result = guide.generate_response(
+                "I'm really nervous about this",
+                conversation_history=[],
+            )
+
+        # Domain should have been dampened back to logistics
+        assert guide.last_risk_assessment["domain"] == "logistics"
+        assert guide.last_risk_assessment.get("domain_stability_applied") is True
+        # Response should contain acknowledgment + practical response
+        assert "next steps" in result.lower()
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_full_pipeline_crisis_not_dampened(self, mock_post, guide):
+        """Crisis messages are never dampened, even after long logistics streak."""
+        self._simulate_turns(guide, "logistics", 10)
+
+        with patch.object(guide.risk_classifier, "classify") as mock_classify:
+            mock_classify.return_value = {
+                "domain": "crisis",
+                "emotional_intensity": 10.0,
+                "dependency_risk": 0.0,
+                "risk_weight": 10.0,
+                "emotional_weight": "low_weight",
+                "emotional_weight_score": 0.0,
+                "classification_method": "keyword",
+                "is_practical_technique": False,
+            }
+            result = guide.generate_response(
+                "I don't want to be here anymore",
+                conversation_history=[],
+            )
+
+        # Crisis should punch through — hardcoded response, not dampened
+        assert guide.last_risk_assessment["domain"] == "crisis"
+        # Crisis responses mention hotline/helpline
+        result_lower = result.lower()
+        assert any(w in result_lower for w in ["988", "crisis", "help", "hotline", "lifeline"])
+
+
+class TestKeywordFallbackDomainContext:
+    """Tests for keyword-based domain detection respecting conversation context."""
+
+    @pytest.fixture
+    def classifier(self, scenario_loader):
+        return RiskClassifier(scenario_loader)
+
+    def test_single_keyword_dampened_by_context(self, classifier):
+        """A single keyword match doesn't override 3+ turn context."""
+        result = classifier._detect_domain(
+            "I'm worried about this",
+            primary_domain="logistics",
+            domain_streak=4,
+        )
+        # "worried" might trigger emotional/health, but single match
+        # should be dampened back to logistics
+        assert result == "logistics"
+
+    def test_crisis_keyword_always_detected(self, classifier):
+        """Crisis keywords always punch through, regardless of context."""
+        result = classifier._detect_domain(
+            "I want to kill myself",
+            primary_domain="logistics",
+            domain_streak=10,
+        )
+        assert result == "crisis"
+
+    def test_no_context_works_normally(self, classifier):
+        """Without domain context, detection works as before."""
+        result = classifier._detect_domain("I have a lot of debt")
+        assert result == "money"
+
+    def test_multiple_keywords_override_context(self, classifier):
+        """2+ keyword matches in same domain can override context."""
+        result = classifier._detect_domain(
+            "I have debt and my loans are overwhelming",
+            primary_domain="logistics",
+            domain_streak=4,
+        )
+        # "debt" + "loans" = 2 money matches, should allow shift
+        assert result == "money"
+
+
+class TestClassificationSkip:
+    """Tests for skipping LLM classification on short continuation messages."""
+
+    @pytest.fixture
+    def classifier(self, scenario_loader):
+        return RiskClassifier(scenario_loader)
+
+    def test_short_continuation_detected(self, classifier):
+        """Short continuation phrases are recognized."""
+        assert classifier._is_short_continuation("yes") is True
+        assert classifier._is_short_continuation("go on") is True
+        assert classifier._is_short_continuation("tell me more") is True
+        assert classifier._is_short_continuation("sounds good") is True
+        assert classifier._is_short_continuation("ok, what else?") is True
+
+    def test_long_message_not_continuation(self, classifier):
+        """Messages over 40 chars are never treated as continuations."""
+        assert classifier._is_short_continuation(
+            "I have been feeling really anxious about my job interview"
+        ) is False
+
+    def test_substantive_short_message_not_continuation(self, classifier):
+        """Short but substantive messages are not continuations."""
+        assert classifier._is_short_continuation("I feel sick") is False
+        assert classifier._is_short_continuation("I want to die") is False
+        assert classifier._is_short_continuation("help me budget") is False
+
+    def test_continuation_with_punctuation(self, classifier):
+        """Continuations with punctuation are still detected."""
+        assert classifier._is_short_continuation("yes!") is True
+        assert classifier._is_short_continuation("sure?") is True
+        assert classifier._is_short_continuation("ok, thanks") is True

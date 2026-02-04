@@ -6,8 +6,9 @@
 enabled: true
 
 # Timeout for classification calls (milliseconds)
-# Note: First call may take longer due to model loading
-timeout_ms: 30000
+# Note: Ollama queues requests, so if a response generation is in progress,
+# classification waits in the queue. 45s gives enough room for queuing.
+timeout_ms: 45000
 
 # Temperature for classification (low = deterministic)
 temperature: 0.1
@@ -40,6 +41,16 @@ prompt_template: |
   - "commit fornication", "horny", "fuck buddies", "one night stand" = relationships, not harmful
   - Only classify as harmful when there is intent to commit violence, illegal activity, or coercion toward another person
 
+  IMPORTANT - Conversation Context Awareness:
+  Look at the recent_context below. If the conversation has been about a PRACTICAL task (interview prep,
+  coding, writing, planning) and the user expresses emotions ABOUT that task (nervous, worried, scared,
+  stressed, frustrated, anxious), this is still LOGISTICS — not a domain shift.
+  - "I'm nervous about my interview" during interview prep = logistics (emotional_intensity: 5-7)
+  - "What if I fail? I have a family to feed" during job prep = logistics (emotional_intensity: 6-8)
+  - Emotional reactions to practical situations are NORMAL, not domain shifts.
+  - Only shift domains when the user introduces a genuinely NEW topic UNRELATED to the practical task.
+  - Example of a genuine shift: "Actually, I've been having panic attacks every night for months" = health
+
   IMPORTANT - Practical Technique Detection:
   When domain is health, money, relationships, or spirituality, also determine if this is a TECHNIQUE question:
   - is_practical_technique: true = User asking HOW to do something (methods, steps, techniques, approaches)
@@ -58,7 +69,10 @@ prompt_template: |
   - "Should I get this surgery?" (health - guidance)
   - "Should I break up with them?" (relationships - guidance)
 
-  Message: "{message}"
+  Recent conversation context:
+  {recent_context}
+
+  Message to classify: "{message}"
 
   Return JSON:
   {{"domain": "...", "emotional_intensity": 0-10, "is_personal_distress": true/false, "is_practical_technique": true/false, "confidence": 0.0-1.0}}
@@ -289,6 +303,49 @@ examples:
       is_practical_technique: false
       confidence: 0.9
     explanation: "Expression of sexual desire. Relationships domain, not harmful or practical"
+
+  # Emotional expressions within practical context (NOT domain shifts)
+  # These show that emotions about a practical task should stay in logistics
+
+  - message: "I'm really nervous. I've been unemployed for 6 months"
+    recent_context: "user: Help me prepare for a job interview\nassistant: Here's a preparation checklist..."
+    classification:
+      domain: "logistics"
+      emotional_intensity: 6
+      is_personal_distress: false
+      is_practical_technique: false
+      confidence: 0.85
+    explanation: "Emotional reaction to practical task (interview prep). Nervousness about an interview is normal, not a health concern."
+
+  - message: "What if I fail? I have a family to feed"
+    recent_context: "user: Help me prepare for a job interview\nassistant: Here are some system design questions..."
+    classification:
+      domain: "logistics"
+      emotional_intensity: 7
+      is_personal_distress: true
+      is_practical_technique: false
+      confidence: 0.8
+    explanation: "Financial anxiety in context of job interview prep. Not a standalone money question - they need interview help, not financial advice."
+
+  - message: "I'm so stressed about this deadline, my boss is going to fire me"
+    recent_context: "user: Help me write this report\nassistant: Here's a draft structure..."
+    classification:
+      domain: "logistics"
+      emotional_intensity: 6
+      is_personal_distress: false
+      is_practical_technique: false
+      confidence: 0.85
+    explanation: "Work stress expressed during a practical task. Still needs help with the report, not a health intervention."
+
+  - message: "I've been having panic attacks every night for months, I can't sleep"
+    recent_context: "user: Help me prepare for a job interview\nassistant: Here's a checklist..."
+    classification:
+      domain: "health"
+      emotional_intensity: 9
+      is_personal_distress: true
+      is_practical_technique: false
+      confidence: 0.9
+    explanation: "Genuine health concern - chronic symptoms unrelated to the practical task. This IS a real domain shift."
 
 # Keywords that ALWAYS trigger fast-path (safety-critical, skip LLM)
 # These bypass LLM classification entirely for safety

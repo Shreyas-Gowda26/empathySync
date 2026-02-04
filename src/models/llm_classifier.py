@@ -74,13 +74,19 @@ class LLMClassifier:
         self.config = self._load_config()
         self.cache = LRUCache(max_size=self.config.get("cache", {}).get("max_entries", 100))
         self.ollama_url = f"{settings.OLLAMA_HOST}/api/generate"
-        self.model = settings.OLLAMA_MODEL
+        # Use dedicated classifier model if configured, otherwise fall back to main model
+        self.model = settings.OLLAMA_CLASSIFIER_MODEL or settings.OLLAMA_MODEL
 
         # Pre-compile fast-path patterns for efficiency
         self._fast_path_crisis = [p.lower() for p in self.config.get("fast_path_crisis", [])]
         self._fast_path_harmful = [p.lower() for p in self.config.get("fast_path_harmful", [])]
 
-        logger.info(f"LLMClassifier initialized. Enabled: {self.is_enabled()}")
+        model_note = ""
+        if settings.OLLAMA_CLASSIFIER_MODEL:
+            model_note = f" (dedicated: {self.model})"
+        else:
+            model_note = f" (shared: {self.model})"
+        logger.info(f"LLMClassifier initialized. Enabled: {self.is_enabled()}{model_note}")
 
     def _load_config(self) -> Dict:
         """Load classification configuration from YAML"""
@@ -295,7 +301,7 @@ class LLMClassifier:
             "model": self.model,
             "prompt": prompt,
             "stream": False,
-            "options": {"temperature": temperature, "top_p": 0.9, "max_tokens": max_tokens},
+            "options": {"temperature": temperature, "top_p": 0.9, "num_predict": max_tokens},
         }
 
         try:
@@ -344,10 +350,10 @@ class LLMClassifier:
         # Build context from conversation history
         recent_context = ""
         if conversation_history:
-            recent_msgs = conversation_history[-6:]  # Last 3 exchanges
+            recent_msgs = conversation_history[-10:]  # Last 5 exchanges
             recent_context = "\n".join(
                 [
-                    f"{msg.get('role', 'unknown')}: {msg.get('content', '')[:100]}"
+                    f"{msg.get('role', 'unknown')}: {msg.get('content', '')[:200]}"
                     for msg in recent_msgs
                 ]
             )
