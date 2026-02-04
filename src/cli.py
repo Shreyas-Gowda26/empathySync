@@ -1,16 +1,19 @@
 """
 CLI entry point for empathySync.
 
-Launches the Streamlit app via the command line.
-Usage: empathysync
+Usage:
+    empathysync              # Launches Streamlit web interface (default)
+    empathysync --mode web   # Same as above
+    empathysync --mode cli   # Direct terminal interface (no browser needed)
 """
 
 import sys
+import argparse
 import subprocess
 from pathlib import Path
 
 
-def main():
+def run_streamlit():
     """Launch empathySync Streamlit app."""
     app_path = Path(__file__).parent / "app.py"
     sys.exit(
@@ -26,6 +29,41 @@ def main():
             ]
         )
     )
+
+
+def run_cli():
+    """Launch empathySync in direct terminal mode."""
+    from models.ai_wellness_guide import WellnessGuide
+    from models.conversation_session import ConversationSession
+    from utils.wellness_tracker import WellnessTracker
+    from utils.trusted_network import TrustedNetwork
+    from interfaces.cli_adapter import CLIAdapter
+
+    guide = WellnessGuide()
+    tracker = WellnessTracker()
+    network = TrustedNetwork()
+
+    session = ConversationSession(guide, tracker, network)
+    adapter = CLIAdapter(session)
+    adapter.run()
+
+
+def main():
+    """Main entry point with mode selection."""
+    parser = argparse.ArgumentParser(description="empathySync — Help that knows when to stop")
+    parser.add_argument(
+        "--mode",
+        choices=["web", "cli"],
+        default="web",
+        help="Interface mode: web (Streamlit) or cli (terminal)",
+    )
+
+    args = parser.parse_args()
+
+    if args.mode == "cli":
+        run_cli()
+    else:
+        run_streamlit()
 
 
 if __name__ == "__main__":

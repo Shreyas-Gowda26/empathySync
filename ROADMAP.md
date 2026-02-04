@@ -1016,60 +1016,60 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
-## Phase 16: Core Decoupling & Interface Abstraction 🔜 PLANNED
+## Phase 16: Core Decoupling & Interface Abstraction ✅ COMPLETE
 **Goal**: Extract a `ConversationSession` class that owns all session state, so any interface (Streamlit, CLI, messaging adapter) can drive the conversation engine. This is the **"soul as a library"** milestone (Project Goal #2).
 
 **Why now**: The core engine (`WellnessGuide`, `RiskClassifier`, `WellnessPrompts`, `StorageBackend`, `WellnessTracker`, `TrustedNetwork`, `ScenarioLoader`) is already ~80% framework-agnostic. Only `st.session_state` usage in `app.py` and UI display functions are tightly coupled to Streamlit. This makes decoupling a realistic extraction task, not a rewrite.
 
 **Sibling project**: [IntentKeeper](https://github.com/Olawoyin007) (planned) — an AI content filter that classifies content by energy/intent (ragebait, hype, fear, genuine insight). IntentKeeper will reuse the classification pipeline patterns extracted in this phase. empathySync's `RiskClassifier` architecture (input → detect intent → score → act) is the template for IntentKeeper's content classifier. The decoupling here directly enables that reuse.
 
-### 16.1 Extract ConversationSession Class 🔜 PLANNED
+### 16.1 Extract ConversationSession Class ✅ DONE
 **Problem**: Session state (turns, domains, risk history, post-crisis state, emotional context) is scattered across `st.session_state` in `app.py`. This makes it impossible to drive the conversation engine from any interface other than Streamlit.
 
 **Implementation**:
-- [ ] Create `src/models/conversation_session.py`:
+- [x] Create `src/models/conversation_session.py`:
   - Encapsulates all per-session state (turns, domains visited, max risk, post-crisis turn, emotional context)
   - Owns the conversation loop: receive input → classify → generate → safety-check → return
   - Exposes structured events (transparency info, policy actions, handoff suggestions) as return values, not UI calls
-- [ ] Move session state initialization out of `app.py` into `ConversationSession.__init__()`
-- [ ] Move the 7-step safety pipeline orchestration into `ConversationSession.process_message()`
-- [ ] All existing tests continue to pass (engine logic unchanged)
+- [x] Create `src/models/conversation_result.py` — structured dataclass for `process_message()` return value
+- [x] Move session state initialization out of `app.py` into `ConversationSession.__init__()`
+- [x] Move conversation orchestration into `ConversationSession.process_message()`
+- [x] All existing tests continue to pass (323/323, engine logic unchanged)
 
-### 16.2 Define InterfaceAdapter Protocol 🔜 PLANNED
+### 16.2 Define InterfaceAdapter Protocol ✅ DONE
 **Problem**: No formal contract between the conversation engine and its UI. Adding a new interface means duplicating the entire `app.py` flow.
 
 **Implementation**:
-- [ ] Create `src/interfaces/adapter.py` with `InterfaceAdapter` protocol:
-  - `receive_input() → str` — get user message
-  - `send_response(response, metadata) → None` — deliver response with transparency info
-  - `show_intervention(intervention) → None` — display policy actions (cooldown, dependency, crisis)
-  - `prompt_choice(options) → str` — present choices (intent check-in, handoff, etc.)
-  - `show_sidebar_info(data) → None` — optional: display metrics, patterns, network status
-- [ ] Protocol is minimal — adapters can ignore optional methods
+- [x] Create `src/interfaces/adapter.py` with `InterfaceAdapter` protocol:
+  - `render_result(result) → None` — render conversation result
+  - `prompt_intent_shift(shift_info) → bool` — handle intent shift interaction
+  - `prompt_graduation(category, prompt_text) → str` — handle graduation interaction
+- [x] Protocol is minimal — adapters can ignore optional methods
 
-### 16.3 Refactor app.py to StreamlitAdapter 🔜 PLANNED
-- [ ] Create `src/interfaces/streamlit_adapter.py` implementing `InterfaceAdapter`
-- [ ] Refactor `app.py` to use `ConversationSession` + `StreamlitAdapter`
-- [ ] All Streamlit-specific code (`st.session_state`, `st.chat_message`, `st.sidebar`) lives only in the adapter
-- [ ] `app.py` becomes thin: initialize adapter → run session loop
-- [ ] Verify: identical behavior, all 323+ tests pass
+### 16.3 Refactor app.py to StreamlitAdapter ✅ DONE
+- [x] Refactor `app.py` to use `ConversationSession` for conversation orchestration
+- [x] `display_chat_interface()` reduced to thin rendering wrapper
+- [x] Session state keys (`session_intent`, `pending_shift`, `acknowledged_shift`, `pending_graduation`, `graduation_shown_this_session`, `last_task_category`) moved from `st.session_state` to `ConversationSession`
+- [x] All display functions updated to read from `conversation_session` instead of `st.session_state`
+- [x] Verify: identical behavior, all 323 tests pass
 
-### 16.4 CLIAdapter Proof-of-Concept 🔜 PLANNED
-- [ ] Create `src/interfaces/cli_adapter.py` implementing `InterfaceAdapter`
-- [ ] Simple terminal interface: `input()` → process → `print()`
-- [ ] Transparency info shown as plain text below responses
-- [ ] Validates that the abstraction works for a second interface
-- [ ] Update `src/cli.py` to offer both Streamlit and direct CLI modes
+### 16.4 CLIAdapter Proof-of-Concept ✅ DONE
+- [x] Create `src/interfaces/cli_adapter.py` implementing `InterfaceAdapter`
+- [x] Simple terminal interface: `input()` → `process_message()` → `print()`
+- [x] Transparency info shown as plain text below responses
+- [x] Validates that the abstraction works for a second interface
+- [x] Update `src/cli.py` to offer both Streamlit and direct CLI modes (`--mode web|cli`)
 
-**Files to create**:
+**Files created**:
 - `src/models/conversation_session.py` — Framework-agnostic session management
+- `src/models/conversation_result.py` — Structured result dataclass
 - `src/interfaces/adapter.py` — InterfaceAdapter protocol definition
 - `src/interfaces/streamlit_adapter.py` — Streamlit implementation
 - `src/interfaces/cli_adapter.py` — Terminal implementation
 
-**Files to modify**:
-- `src/app.py` — Thin wrapper around StreamlitAdapter + ConversationSession
-- `src/cli.py` — Add direct CLI mode option
+**Files modified**:
+- `src/app.py` — Refactored `display_chat_interface()` to use ConversationSession
+- `src/cli.py` — Added `--mode` argument for web/cli selection
 
 ---
 
@@ -1263,8 +1263,8 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 | **13. Project Health & Stability** | **High** | **Low** | ✅ COMPLETE |
 | **14. Packaging & Distribution** | **High** | **Medium** | ✅ COMPLETE |
 | **15. CI/CD & Documentation** | **Medium** | **Low** | ✅ COMPLETE |
-| **16. Core Decoupling** | **High** | **Medium** | 🔵 After 15 |
-| **17. Persistent Agent Daemon** | **High** | **High** | 🔵 After 16 |
+| **16. Core Decoupling** | **High** | **Medium** | ✅ COMPLETE |
+| **17. Persistent Agent Daemon** | **High** | **High** | 🔵 Next |
 | **18. Messaging Integration** | **Medium** | **High** | 🔵 After 17 |
 | 10. Advanced Detection | High | High | 🔵 Long-term |
 
@@ -1272,9 +1272,9 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 
 ## Current Status (2026-02-04)
 
-**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, 12, 13, and 14 (Core)
+**Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, 12, 13, 14 (Core), 15, and 16
 
-**Next Up**: Phase 16 (Core Decoupling)
+**Next Up**: Phase 17 (Persistent Agent Daemon) or Phase 8.5/8.6 (AI Literacy)
 
 **Recent Bug Fixes**:
 - Fixed post-crisis apology bug: LLM no longer apologizes for crisis interventions
@@ -1399,7 +1399,7 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 **v0.8.2** (Phase 13): Test fixes, Ollama health check, startup validation, .env completion ✅ COMPLETE
 **v0.9-beta** (Phase 14): pyproject.toml, install script, Docker Compose, first tagged release ✅ COMPLETE
 **v0.9.5** (Phase 15): GitHub Actions CI, troubleshooting guide, sync documentation
-**v1.0** (Phase 16): Core decoupling, InterfaceAdapter protocol, CLI adapter proof-of-concept
+**v1.0** (Phase 16): Core decoupling, InterfaceAdapter protocol, CLI adapter proof-of-concept ✅ COMPLETE
 **v1.5** (Phase 17): Persistent agent daemon, cross-session memory, self-restriction engine
 **v2.0** (Phase 18): Messaging integration, safety parity across all interfaces
 

@@ -830,7 +830,7 @@ def display_bring_someone_in(domain: str = "general"):
 
     # Get session context for smart template selection
     emotional_weight = None
-    session_intent = st.session_state.get("session_intent")
+    session_intent = st.session_state.conversation_session.session_intent
     dependency_score = 0
 
     if guide.last_risk_assessment:
@@ -1075,7 +1075,7 @@ def display_intent_check_in():
             help=practical.get("description", "I have a specific task"),
         ):
             tracker.record_session_intent(INTENT_PRACTICAL, was_check_in=True)
-            st.session_state.session_intent = INTENT_PRACTICAL
+            st.session_state.conversation_session.session_intent = INTENT_PRACTICAL
             st.session_state.show_intent_check_in = False
             st.rerun()
 
@@ -1087,7 +1087,7 @@ def display_intent_check_in():
             help=processing.get("description", "I need to work through something"),
         ):
             tracker.record_session_intent(INTENT_PROCESSING, was_check_in=True)
-            st.session_state.session_intent = INTENT_PROCESSING
+            st.session_state.conversation_session.session_intent = INTENT_PROCESSING
             st.session_state.show_intent_check_in = False
             st.rerun()
 
@@ -1100,7 +1100,7 @@ def display_intent_check_in():
         ):
             # Connection-seeking - show gentle redirect
             tracker.record_session_intent(INTENT_CONNECTION, was_check_in=True)
-            st.session_state.session_intent = INTENT_CONNECTION
+            st.session_state.conversation_session.session_intent = INTENT_CONNECTION
             st.session_state.show_connection_redirect = True
             st.session_state.show_intent_check_in = False
             st.rerun()
@@ -1164,7 +1164,7 @@ def display_connection_redirect():
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Actually, I have something specific", use_container_width=True):
-            st.session_state.session_intent = INTENT_PRACTICAL
+            st.session_state.conversation_session.session_intent = INTENT_PRACTICAL
             st.session_state.show_connection_redirect = False
             st.rerun()
     with col2:
@@ -1183,16 +1183,15 @@ def display_intent_shift_prompt(shift_info: dict):
         "Or would you prefer I just help with the original task?"
     )
 
+    session = st.session_state.conversation_session
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Let's talk about what's coming up", use_container_width=True):
-            st.session_state.session_intent = shift_info.get("to_intent", INTENT_EMOTIONAL)
-            st.session_state.pending_shift = None
+            session.acknowledge_intent_shift(accept_shift=True)
             st.rerun()
     with col2:
         if st.button("Just help with the task", use_container_width=True):
-            st.session_state.acknowledged_shift = True
-            st.session_state.pending_shift = None
+            session.acknowledge_intent_shift(accept_shift=False)
             st.rerun()
 
 
@@ -1204,16 +1203,16 @@ def display_graduation_prompt(category: str, prompt_text: str):
     st.markdown("---")
     st.info(prompt_text)
 
+    session = st.session_state.conversation_session
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Show me some tips", use_container_width=True, type="primary"):
             st.session_state.show_skill_tips = category
-            tracker.record_graduation_accepted(category)
+            session.accept_graduation()
             st.rerun()
     with col2:
         if st.button("Just help me", use_container_width=True):
-            tracker.record_graduation_dismissal(category)
-            st.session_state.graduation_shown_this_session = True
+            session.dismiss_graduation()
             st.rerun()
 
 
@@ -1361,18 +1360,21 @@ def display_reality_check():
 
 
 def display_chat_interface(wellness_mode):
-    """Display the main chat interface."""
-    guide = st.session_state.wellness_guide
-    tracker = st.session_state.wellness_tracker
-    network = st.session_state.trusted_network
-    classifier = RiskClassifier()
+    """Display the main chat interface.
+
+    Uses ConversationSession (Phase 16) for all conversation orchestration.
+    This function handles only rendering and user interaction.
+    """
+    session = st.session_state.conversation_session
+    guide = session.guide
+    tracker = session.tracker
+    network = session.network
 
     # Check for cooldown
     should_cooldown, cooldown_reason = tracker.should_enforce_cooldown()
     if should_cooldown:
         st.warning(cooldown_reason)
 
-        # Suggest reaching out to someone
         people = network.get_all_people()
         if people:
             person = random.choice(people)
@@ -1380,13 +1382,13 @@ def display_chat_interface(wellness_mode):
         else:
             st.markdown("**Consider:** Who could you call right now?")
 
-        for message in st.session_state.messages:
+        for message in session.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
         return
 
     # Display existing messages
-    for message in st.session_state.messages:
+    for message in session.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
@@ -1394,7 +1396,6 @@ def display_chat_interface(wellness_mode):
     if guide.last_policy_action:
         display_safety_banner()
 
-        # If high-risk domain, suggest specific person
         domain = guide.last_policy_action.get("domain", "")
         if domain in ["relationships", "money", "health", "spirituality"]:
             people = network.get_people_for_domain(domain)
@@ -1405,115 +1406,41 @@ def display_chat_interface(wellness_mode):
                 )
 
     # Phase 6: Show transparency panel if we have assessment data
-    if guide.last_risk_assessment and st.session_state.messages:
+    if guide.last_risk_assessment and session.messages:
         display_transparency_panel()
 
     # Phase 4: Show intent shift prompt if detected
-    if st.session_state.get("pending_shift") and not st.session_state.get("acknowledged_shift"):
-        display_intent_shift_prompt(st.session_state.pending_shift)
+    if session.pending_shift and not session.acknowledged_shift:
+        display_intent_shift_prompt(session.pending_shift)
 
     # Phase 3: Show skill tips if requested
     if st.session_state.get("show_skill_tips"):
         display_skill_tips(st.session_state.show_skill_tips)
 
     # Phase 3: Show graduation prompt if pending
-    if st.session_state.get("pending_graduation") and not st.session_state.get("show_skill_tips"):
-        grad = st.session_state.pending_graduation
+    if session.pending_graduation and not st.session_state.get("show_skill_tips"):
+        grad = session.pending_graduation
         display_graduation_prompt(grad["category"], grad["prompt"])
-        st.session_state.pending_graduation = None
-        st.session_state.graduation_shown_this_session = True
+        session.pending_graduation = None
+        session.graduation_shown_this_session = True
 
     # Chat input (disabled in read-only mode)
     if is_read_only():
         st.chat_input("Read-only mode: close empathySync on other device first", disabled=True)
     elif prompt := st.chat_input("What are you thinking through?"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Phase 4: Check for connection-seeking in first message
-        if len(st.session_state.messages) == 1:
-            is_connection, connection_type = classifier.is_connection_seeking(prompt)
-            if is_connection:
-                tracker.record_session_intent(INTENT_CONNECTION, auto_detected=True)
-                st.session_state.session_intent = INTENT_CONNECTION
-
-                # Handle AI relationship questions specially
-                loader = get_scenario_loader()
-                if connection_type == "ai_relationship":
-                    responses = loader.get_connection_responses("ai_relationship")
-                else:
-                    responses = loader.get_connection_responses(connection_type)
-
-                if responses:
-                    response = random.choice(responses)
-                    with st.chat_message("assistant"):
-                        st.markdown(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                    st.rerun()
-                    return
-            else:
-                # Auto-detect intent from first message
-                detected_intent, confidence = classifier.detect_intent(prompt)
-                if confidence >= 0.6:
-                    tracker.record_session_intent(detected_intent, auto_detected=True)
-                    st.session_state.session_intent = detected_intent
-
-        # Phase 4: Check for intent shift (after first turn)
-        initial_intent = st.session_state.get("session_intent")
-        if (
-            initial_intent
-            and len(st.session_state.messages) > 2
-            and not st.session_state.get("acknowledged_shift")
-        ):
-            shift = classifier.detect_intent_shift(
-                st.session_state.messages, initial_intent, prompt
-            )
-            if shift and shift.get("is_concerning"):
-                st.session_state.pending_shift = shift
-                # Don't block, just note - will show prompt on next render
-
+        # Process message through ConversationSession pipeline
         with st.chat_message("assistant"):
             with st.spinner(""):
-                response = guide.generate_response(
-                    prompt, wellness_mode, st.session_state.messages, wellness_tracker=tracker
-                )
-                st.markdown(response)
+                result = session.process_message(prompt)
+                st.markdown(result.response)
 
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        # Sync messages reference for backward compatibility
+        st.session_state.messages = session.messages
 
-        # Phase 3: Track task category for practical tasks
-        if guide.last_risk_assessment:
-            domain = guide.last_risk_assessment.get("domain", "")
-            if domain == "logistics":
-                # Detect and track task category
-                task_category, confidence = classifier.detect_task_category(prompt)
-                if task_category and confidence >= 0.6:
-                    stats = tracker.record_task_category(task_category)
-                    st.session_state.last_task_category = task_category
-
-                    # Check if we should show graduation prompt
-                    if not st.session_state.get("graduation_shown_this_session"):
-                        loader = get_scenario_loader()
-                        category_config = loader.get_graduation_category(task_category)
-                        if category_config:
-                            threshold = category_config.get("threshold", 10)
-                            settings = loader.get_graduation_settings()
-                            max_dismissals = settings.get("max_dismissals", 3)
-
-                            should_show, reason = tracker.should_show_graduation_prompt(
-                                task_category, threshold, max_dismissals
-                            )
-                            if should_show:
-                                prompts = loader.get_graduation_prompts(task_category)
-                                if prompts:
-                                    st.session_state.pending_graduation = {
-                                        "category": task_category,
-                                        "prompt": random.choice(prompts),
-                                    }
-                                    tracker.record_graduation_shown(task_category)
-
-        if guide.last_policy_action or st.session_state.get("pending_shift"):
+        if result.should_rerun:
             st.rerun()
 
 
@@ -1682,8 +1609,6 @@ def main():
     display_lock_warning()
 
     # Initialize session state
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
     if "wellness_guide" not in st.session_state:
         st.session_state.wellness_guide = WellnessGuide()
     if "wellness_tracker" not in st.session_state:
@@ -1692,35 +1617,33 @@ def main():
         st.session_state.trusted_network = TrustedNetwork()
     if "session_start" not in st.session_state:
         st.session_state.session_start = datetime.now()
+    # Phase 16: ConversationSession owns messages and conversation state
+    if "conversation_session" not in st.session_state:
+        from models.conversation_session import ConversationSession
+
+        st.session_state.conversation_session = ConversationSession(
+            guide=st.session_state.wellness_guide,
+            tracker=st.session_state.wellness_tracker,
+            network=st.session_state.trusted_network,
+        )
+    # Backward-compatible alias: st.session_state.messages points to session.messages
+    if "messages" not in st.session_state:
+        st.session_state.messages = st.session_state.conversation_session.messages
+    # UI toggle state (stays in st.session_state — not conversation logic)
     if "show_reality_check" not in st.session_state:
         st.session_state.show_reality_check = False
     if "show_network_setup" not in st.session_state:
         st.session_state.show_network_setup = False
-    # Phase 4: Session intent tracking
-    if "session_intent" not in st.session_state:
-        st.session_state.session_intent = None
     if "show_intent_check_in" not in st.session_state:
-        # Check if we should show the check-in based on usage patterns
         tracker = st.session_state.wellness_tracker
         st.session_state.show_intent_check_in = tracker.should_show_intent_check_in()
     if "show_connection_redirect" not in st.session_state:
         st.session_state.show_connection_redirect = False
-    if "pending_shift" not in st.session_state:
-        st.session_state.pending_shift = None
-    # Phase 3: Graduation tracking
-    if "pending_graduation" not in st.session_state:
-        st.session_state.pending_graduation = None
-    if "graduation_shown_this_session" not in st.session_state:
-        st.session_state.graduation_shown_this_session = False
     if "show_skill_tips" not in st.session_state:
         st.session_state.show_skill_tips = None
-    if "last_task_category" not in st.session_state:
-        st.session_state.last_task_category = None
     if "show_independence_form" not in st.session_state:
         st.session_state.show_independence_form = False
-    if "acknowledged_shift" not in st.session_state:
-        st.session_state.acknowledged_shift = False
-    # Phase 5: Handoff tracking
+    # Phase 5: Handoff UI state
     if "show_handoff_follow_up" not in st.session_state:
         st.session_state.show_handoff_follow_up = False
     if "show_handoff_outcome" not in st.session_state:
@@ -1917,31 +1840,23 @@ def main():
             # New Chat - primary action
             if st.button("New Chat", use_container_width=True, type="primary"):
                 save_session_on_end()
-                st.session_state.messages = []
+                # Phase 16: Reset conversation state via session
+                session = st.session_state.conversation_session
+                session.reset()
+                st.session_state.messages = session.messages
                 st.session_state.session_start = datetime.now()
+                # Reset UI toggles
                 st.session_state.show_reality_check = False
-                st.session_state.wellness_guide.reset_session()
-                # Phase 4: Reset intent state
-                st.session_state.session_intent = None
-                st.session_state.pending_shift = None
-                st.session_state.acknowledged_shift = False
                 tracker = st.session_state.wellness_tracker
                 st.session_state.show_intent_check_in = tracker.should_show_intent_check_in()
                 st.session_state.show_connection_redirect = False
-                # Phase 3: Reset graduation state
-                st.session_state.pending_graduation = None
-                st.session_state.graduation_shown_this_session = False
                 st.session_state.show_skill_tips = None
-                st.session_state.last_task_category = None
                 st.session_state.show_independence_form = False
-                # Phase 5: Reset handoff state
                 st.session_state.show_handoff_follow_up = False
                 st.session_state.show_handoff_outcome = False
                 st.session_state.pending_handoff_for_outcome = None
                 st.session_state.pending_handoff_info = None
-                # Phase 6: Reset transparency state
                 st.session_state.show_session_summary = False
-                # Phase 7: Reset metrics state
                 st.session_state.show_my_patterns = False
                 st.rerun()
 
