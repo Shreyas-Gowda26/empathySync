@@ -2803,3 +2803,37 @@ class TestKeywordFallbackDomainContext:
         )
         # "debt" + "loans" = 2 money matches, should allow shift
         assert result == "money"
+
+
+class TestClassificationSkip:
+    """Tests for skipping LLM classification on short continuation messages."""
+
+    @pytest.fixture
+    def classifier(self, scenario_loader):
+        return RiskClassifier(scenario_loader)
+
+    def test_short_continuation_detected(self, classifier):
+        """Short continuation phrases are recognized."""
+        assert classifier._is_short_continuation("yes") is True
+        assert classifier._is_short_continuation("go on") is True
+        assert classifier._is_short_continuation("tell me more") is True
+        assert classifier._is_short_continuation("sounds good") is True
+        assert classifier._is_short_continuation("ok, what else?") is True
+
+    def test_long_message_not_continuation(self, classifier):
+        """Messages over 40 chars are never treated as continuations."""
+        assert classifier._is_short_continuation(
+            "I have been feeling really anxious about my job interview"
+        ) is False
+
+    def test_substantive_short_message_not_continuation(self, classifier):
+        """Short but substantive messages are not continuations."""
+        assert classifier._is_short_continuation("I feel sick") is False
+        assert classifier._is_short_continuation("I want to die") is False
+        assert classifier._is_short_continuation("help me budget") is False
+
+    def test_continuation_with_punctuation(self, classifier):
+        """Continuations with punctuation are still detected."""
+        assert classifier._is_short_continuation("yes!") is True
+        assert classifier._is_short_continuation("sure?") is True
+        assert classifier._is_short_continuation("ok, thanks") is True

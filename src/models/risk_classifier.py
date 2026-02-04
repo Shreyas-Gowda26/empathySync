@@ -116,7 +116,16 @@ class RiskClassifier:
         llm_result = None
         classification_method = "keyword"
 
-        if self._use_llm and self._llm_classifier:
+        # Skip LLM for short continuation messages when we have established context.
+        # This avoids a ~9s classifier round-trip for "yes", "go on", "okay", etc.
+        # Safety check: always run keyword detection to catch crisis/harmful signals.
+        skip_llm = False
+        if primary_domain and domain_streak >= 2:
+            skip_llm = self._is_short_continuation(user_input)
+            if skip_llm:
+                logger.debug("Skipping LLM classifier for short continuation message")
+
+        if self._use_llm and self._llm_classifier and not skip_llm:
             try:
                 llm_result = self._llm_classifier.classify(user_input, conversation_history)
                 if llm_result:
@@ -163,6 +172,31 @@ class RiskClassifier:
             result["intervention"] = intervention
 
         return result
+
+    def _is_short_continuation(self, text: str) -> bool:
+        """Check if message is a short continuation that doesn't need LLM classification.
+
+        Short replies like "yes", "go on", "tell me more" carry no domain signal —
+        they just mean "keep going with what we were doing." Running these through
+        the LLM classifier wastes ~9s for no benefit.
+
+        Safety: This only controls whether the LLM is called. Keyword detection
+        still runs to catch crisis/harmful triggers even in short messages.
+        """
+        t = text.lower().strip()
+        if len(t) > 40:
+            return False
+        continuation_phrases = [
+            "yes", "yeah", "yep", "ok", "okay", "sure", "go ahead",
+            "continue", "proceed", "go on", "keep going", "more",
+            "tell me more", "do it", "please", "thanks", "thank you",
+            "got it", "sounds good", "makes sense", "right",
+            "what else", "and", "also", "next", "then what",
+            "how about", "what about", "let's", "lets",
+        ]
+        return any(phrase == t or t.startswith(phrase + " ") or t.startswith(phrase + ",")
+                   or t.startswith(phrase + "?") or t.startswith(phrase + "!")
+                   for phrase in continuation_phrases)
 
     def _detect_domain(
         self, text: str, primary_domain: str = None, domain_streak: int = 0
