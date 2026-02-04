@@ -106,13 +106,9 @@ class ConversationSession:
         # Step 2: First-turn processing
         if self.turn_count == 1:
             # Check for connection-seeking
-            is_connection, connection_type = self.classifier.is_connection_seeking(
-                user_input
-            )
+            is_connection, connection_type = self.classifier.is_connection_seeking(user_input)
             if is_connection:
-                self.tracker.record_session_intent(
-                    INTENT_CONNECTION, auto_detected=True
-                )
+                self.tracker.record_session_intent(INTENT_CONNECTION, auto_detected=True)
                 self.session_intent = INTENT_CONNECTION
 
                 # Get connection response
@@ -135,17 +131,11 @@ class ConversationSession:
                 # Auto-detect intent from first message
                 detected_intent, confidence = self.classifier.detect_intent(user_input)
                 if confidence >= 0.6:
-                    self.tracker.record_session_intent(
-                        detected_intent, auto_detected=True
-                    )
+                    self.tracker.record_session_intent(detected_intent, auto_detected=True)
                     self.session_intent = detected_intent
 
         # Step 3: Intent shift detection (after first turn)
-        if (
-            self.session_intent
-            and len(self.messages) > 2
-            and not self.acknowledged_shift
-        ):
+        if self.session_intent and len(self.messages) > 2 and not self.acknowledged_shift:
             shift = self.classifier.detect_intent_shift(
                 self.messages, self.session_intent, user_input
             )
@@ -167,9 +157,7 @@ class ConversationSession:
         if self.guide.last_risk_assessment:
             domain = self.guide.last_risk_assessment.get("domain", "")
             if domain == "logistics":
-                task_category, confidence = self.classifier.detect_task_category(
-                    user_input
-                )
+                task_category, confidence = self.classifier.detect_task_category(user_input)
                 if task_category and confidence >= 0.6:
                     self.tracker.record_task_category(task_category)
                     self.last_task_category = task_category
@@ -179,9 +167,7 @@ class ConversationSession:
 
         # Step 6: Check graduation eligibility
         if should_check_graduation and self.last_task_category:
-            category_config = self.loader.get_graduation_category(
-                self.last_task_category
-            )
+            category_config = self.loader.get_graduation_category(self.last_task_category)
             if category_config:
                 threshold = category_config.get("threshold", 10)
                 grad_settings = self.loader.get_graduation_settings()
@@ -191,9 +177,7 @@ class ConversationSession:
                     self.last_task_category, threshold, max_dismissals
                 )
                 if should_show:
-                    prompts = self.loader.get_graduation_prompts(
-                        self.last_task_category
-                    )
+                    prompts = self.loader.get_graduation_prompts(self.last_task_category)
                     if prompts:
                         self.pending_graduation = {
                             "category": self.last_task_category,
@@ -213,10 +197,7 @@ class ConversationSession:
                     suggested_domain = domain
 
         # Step 8: Build result
-        should_rerun = (
-            self.guide.last_policy_action is not None
-            or self.pending_shift is not None
-        )
+        should_rerun = self.guide.last_policy_action is not None or self.pending_shift is not None
 
         return ConversationResult(
             response=response,
@@ -233,27 +214,21 @@ class ConversationSession:
     def acknowledge_intent_shift(self, accept_shift: bool) -> None:
         """User responded to intent shift prompt."""
         if accept_shift and self.pending_shift:
-            self.session_intent = self.pending_shift.get(
-                "to_intent", INTENT_EMOTIONAL
-            )
+            self.session_intent = self.pending_shift.get("to_intent", INTENT_EMOTIONAL)
         self.acknowledged_shift = True
         self.pending_shift = None
 
     def dismiss_graduation(self) -> None:
         """User dismissed graduation prompt."""
         if self.pending_graduation:
-            self.tracker.record_graduation_dismissal(
-                self.pending_graduation["category"]
-            )
+            self.tracker.record_graduation_dismissal(self.pending_graduation["category"])
         self.graduation_shown_this_session = True
         self.pending_graduation = None
 
     def accept_graduation(self) -> None:
         """User accepted graduation prompt."""
         if self.pending_graduation:
-            self.tracker.record_graduation_accepted(
-                self.pending_graduation["category"]
-            )
+            self.tracker.record_graduation_accepted(self.pending_graduation["category"])
         self.graduation_shown_this_session = True
 
     def get_session_summary(self) -> Dict:

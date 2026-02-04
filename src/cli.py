@@ -50,9 +50,7 @@ def run_cli():
 
 def main():
     """Main entry point with mode selection."""
-    parser = argparse.ArgumentParser(
-        description="empathySync — Help that knows when to stop"
-    )
+    parser = argparse.ArgumentParser(description="empathySync — Help that knows when to stop")
     parser.add_argument(
         "--mode",
         choices=["web", "cli"],
