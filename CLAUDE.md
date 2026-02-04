@@ -75,13 +75,18 @@ Configure in `.env` file (see `.env.example`):
 ```
 empathySync/
 ├── src/                          # Application source code
-│   ├── app.py                   # Streamlit entry point (~1500 lines)
-│   ├── cli.py                   # CLI entry point for `empathysync` command (Phase 14)
+│   ├── app.py                   # Streamlit entry point
+│   ├── cli.py                   # CLI entry point: `empathysync` or `empathysync --mode cli` (Phase 14, 16)
 │   ├── config/settings.py       # Environment configuration
 │   ├── models/
 │   │   ├── ai_wellness_guide.py # Core conversation engine (~800 lines)
 │   │   ├── risk_classifier.py   # Risk assessment + intent detection (~600 lines)
-│   │   └── llm_classifier.py    # LLM-based classification (Phase 9)
+│   │   ├── llm_classifier.py    # LLM-based classification (Phase 9)
+│   │   ├── conversation_session.py # Framework-agnostic session manager (Phase 16)
+│   │   └── conversation_result.py  # Structured result dataclass (Phase 16)
+│   ├── interfaces/              # Interface adapters (Phase 16)
+│   │   ├── adapter.py           # InterfaceAdapter protocol
+│   │   └── cli_adapter.py       # Terminal interface adapter
 │   ├── prompts/
 │   │   └── wellness_prompts.py  # Dynamic prompt generation (~350 lines)
 │   └── utils/
@@ -128,6 +133,12 @@ empathySync/
 - [src/models/ai_wellness_guide.py](src/models/ai_wellness_guide.py) - `WellnessGuide` class: main conversation engine with 7-step safety pipeline, session state tracking, context persistence, and identity reminder injection
 - [src/models/risk_classifier.py](src/models/risk_classifier.py) - `RiskClassifier` class: detects conversation domain (8 domains), measures emotional intensity (0-10), assesses dependency risk, intent detection, and provides domain-specific rules
 - [src/models/llm_classifier.py](src/models/llm_classifier.py) - `LLMClassifier` class: LLM-based intelligent classification with caching, used for context-aware domain detection when `LLM_CLASSIFICATION_ENABLED=true`
+- [src/models/conversation_session.py](src/models/conversation_session.py) - `ConversationSession` class: framework-agnostic session manager that orchestrates WellnessGuide, RiskClassifier, WellnessTracker, and TrustedNetwork. Single entry point: `process_message()` → `ConversationResult` (Phase 16)
+- [src/models/conversation_result.py](src/models/conversation_result.py) - `ConversationResult` dataclass: structured return type from `process_message()` containing response, risk assessment, policy actions, and UI hints
+
+**Interfaces** (Phase 16):
+- [src/interfaces/adapter.py](src/interfaces/adapter.py) - `InterfaceAdapter` protocol: minimal contract for UI adapters (render result, prompt interactions)
+- [src/interfaces/cli_adapter.py](src/interfaces/cli_adapter.py) - `CLIAdapter` class: terminal interface for `empathysync --mode cli`
 
 **Prompts**:
 - [src/prompts/wellness_prompts.py](src/prompts/wellness_prompts.py) - `WellnessPrompts` class: builds system prompts via 3-layer composition (base rules + style modifier + risk context)
@@ -391,3 +402,4 @@ See [ROADMAP.md](ROADMAP.md) for the phased implementation plan covering:
 - Phase 10: Advanced Detection (Long-term)
 - Phase 11: Persistence Hardening & Multi-Device Sync ✅ (Core)
 - Phase 12: Connection Building ✅ (signposts, first-contact templates for empty networks)
+- Phase 16: Core Decoupling & Interface Abstraction ✅ (ConversationSession, InterfaceAdapter, CLIAdapter)
