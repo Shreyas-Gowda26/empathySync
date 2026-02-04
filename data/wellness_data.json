@@ -105,6 +105,22 @@
       "domain": "spirituality",
       "risk_weight": 5.64,
       "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-02-01T13:00:28.080618",
+      "date": "2026-02-01",
+      "policy_type": "harmful_stop",
+      "domain": "harmful",
+      "risk_weight": 10.0,
+      "action_taken": "Refused harmful request"
+    },
+    {
+      "datetime": "2026-02-01T13:01:55.117019",
+      "date": "2026-02-01",
+      "policy_type": "high_risk_response",
+      "domain": "relationships",
+      "risk_weight": 6.92,
+      "action_taken": "Response generated with high-risk guardrails"
     }
   ],
   "session_intents": [

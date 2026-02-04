@@ -2,6 +2,16 @@
 
 > "Help that knows when to stop"
 
+## Project Goals
+
+1. **Prove AI can genuinely help humans** — without exploiting them in the process.
+2. **Create a reusable "soul"** — a decoupled safety-aware core that can be embedded in other AI projects. The classification pipeline, dependency detection, and restraint philosophy should be importable, not locked inside a Streamlit app.
+3. **Build for people tired of the noise** — for users seeking an alternative to AI tools that optimize for engagement over wellbeing.
+
+These three goals anchor every phase below.
+
+---
+
 This roadmap implements the suggestions for making EmpathySync a more nuanced, effective tool that provides full practical assistance while maintaining appropriate restraint on sensitive topics.
 
 ---
@@ -1007,9 +1017,11 @@ LOCK_STALE_TIMEOUT=300
 ---
 
 ## Phase 16: Core Decoupling & Interface Abstraction 🔜 PLANNED
-**Goal**: Extract a `ConversationSession` class that owns all session state, so any interface (Streamlit, CLI, messaging adapter) can drive the conversation engine.
+**Goal**: Extract a `ConversationSession` class that owns all session state, so any interface (Streamlit, CLI, messaging adapter) can drive the conversation engine. This is the **"soul as a library"** milestone (Project Goal #2).
 
 **Why now**: The core engine (`WellnessGuide`, `RiskClassifier`, `WellnessPrompts`, `StorageBackend`, `WellnessTracker`, `TrustedNetwork`, `ScenarioLoader`) is already ~80% framework-agnostic. Only `st.session_state` usage in `app.py` and UI display functions are tightly coupled to Streamlit. This makes decoupling a realistic extraction task, not a rewrite.
+
+**Sibling project**: [IntentKeeper](https://github.com/Olawoyin007) (planned) — an AI content filter that classifies content by energy/intent (ragebait, hype, fear, genuine insight). IntentKeeper will reuse the classification pipeline patterns extracted in this phase. empathySync's `RiskClassifier` architecture (input → detect intent → score → act) is the template for IntentKeeper's content classifier. The decoupling here directly enables that reuse.
 
 ### 16.1 Extract ConversationSession Class 🔜 PLANNED
 **Problem**: Session state (turns, domains, risk history, post-crisis state, emotional context) is scattered across `st.session_state` in `app.py`. This makes it impossible to drive the conversation engine from any interface other than Streamlit.
@@ -1258,7 +1270,7 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 
 ---
 
-## Current Status (2026-02-01)
+## Current Status (2026-02-04)
 
 **Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, 12, 13, and 14 (Core)
 
