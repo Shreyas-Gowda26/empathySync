@@ -5,7 +5,7 @@ Any interface (Streamlit, CLI, messaging) implements this protocol to
 receive conversation results and handle user interactions.
 """
 
-from typing import Dict, List, Optional, Protocol
+from typing import Dict, Iterator, List, Optional, Protocol
 
 from models.conversation_result import ConversationResult
 
@@ -20,6 +20,10 @@ class InterfaceAdapter(Protocol):
 
     def render_result(self, result: ConversationResult) -> None:
         """Render the result of processing a message."""
+        ...
+
+    def render_stream(self, result: ConversationResult) -> None:
+        """Render a streaming result, consuming response_stream token by token."""
         ...
 
     def prompt_intent_shift(self, shift_info: Dict) -> bool:

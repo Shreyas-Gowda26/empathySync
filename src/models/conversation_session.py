@@ -211,6 +211,167 @@ class ConversationSession:
             should_rerun=should_rerun,
         )
 
+    def process_message_stream(self, user_input: str) -> ConversationResult:
+        """
+        Process a user message and return a streaming ConversationResult.
+
+        Pre-LLM pipeline steps (cooldown, connection-seeking, intent shift)
+        run synchronously. If they produce an early return, the result has
+        response set and response_stream=None.
+
+        Otherwise, result.response_stream is an iterator that yields tokens.
+        After consuming the stream, call finalize_stream() to populate
+        post-stream metadata (graduation, handoff, message history).
+        """
+        # Add user message to history
+        self.messages.append({"role": "user", "content": user_input})
+
+        # Step 1: Check cooldown
+        should_cooldown, cooldown_reason = self.tracker.should_enforce_cooldown()
+        if should_cooldown:
+            suggested_person = None
+            people = self.network.get_all_people()
+            if people:
+                person = random.choice(people)
+                suggested_person = person.get("name")
+
+            return ConversationResult(
+                response="",
+                is_cooldown_active=True,
+                cooldown_message=cooldown_reason,
+                suggested_handoff_person=suggested_person,
+                turn_count=self.turn_count,
+            )
+
+        # Step 2: First-turn processing
+        if self.turn_count == 1:
+            is_connection, connection_type = self.classifier.is_connection_seeking(user_input)
+            if is_connection:
+                self.tracker.record_session_intent(INTENT_CONNECTION, auto_detected=True)
+                self.session_intent = INTENT_CONNECTION
+
+                if connection_type == "ai_relationship":
+                    responses = self.loader.get_connection_responses("ai_relationship")
+                else:
+                    responses = self.loader.get_connection_responses(connection_type)
+
+                if responses:
+                    response = random.choice(responses)
+                    self.messages.append({"role": "assistant", "content": response})
+
+                    return ConversationResult(
+                        response=response,
+                        pending_connection_redirect={"type": connection_type},
+                        should_rerun=True,
+                        turn_count=self.turn_count,
+                    )
+            else:
+                detected_intent, confidence = self.classifier.detect_intent(user_input)
+                if confidence >= 0.6:
+                    self.tracker.record_session_intent(detected_intent, auto_detected=True)
+                    self.session_intent = detected_intent
+
+        # Step 3: Intent shift detection
+        if self.session_intent and len(self.messages) > 2 and not self.acknowledged_shift:
+            shift = self.classifier.detect_intent_shift(
+                self.messages, self.session_intent, user_input
+            )
+            if shift and shift.get("is_concerning"):
+                self.pending_shift = shift
+
+        # Step 4: Get streaming generator from WellnessGuide
+        stream = self.guide.generate_response_stream(
+            user_input,
+            self.wellness_mode,
+            self.messages,
+            wellness_tracker=self.tracker,
+        )
+
+        # Store user_input for finalize_stream
+        self._pending_stream_input = user_input
+
+        return ConversationResult(
+            response="",
+            response_stream=stream,
+            pending_shift=self.pending_shift,
+            turn_count=self.turn_count,
+        )
+
+    def finalize_stream(self) -> ConversationResult:
+        """
+        Populate post-stream metadata after the token stream is consumed.
+
+        Call this after fully consuming result.response_stream. It reads
+        the accumulated response from WellnessGuide, updates message history,
+        and runs graduation/handoff checks.
+
+        Returns a ConversationResult with final metadata (no stream).
+        """
+        # Get the accumulated response from the guide
+        response = getattr(self.guide, "_last_streamed_response", "")
+
+        # Add to message history
+        self.messages.append({"role": "assistant", "content": response})
+
+        # Step 5: Track task category for practical tasks
+        should_check_graduation = False
+        if self.guide.last_risk_assessment:
+            domain = self.guide.last_risk_assessment.get("domain", "")
+            if domain == "logistics":
+                user_input = getattr(self, "_pending_stream_input", "")
+                task_category, confidence = self.classifier.detect_task_category(user_input)
+                if task_category and confidence >= 0.6:
+                    self.tracker.record_task_category(task_category)
+                    self.last_task_category = task_category
+
+                    if not self.graduation_shown_this_session:
+                        should_check_graduation = True
+
+        # Step 6: Check graduation eligibility
+        if should_check_graduation and self.last_task_category:
+            category_config = self.loader.get_graduation_category(self.last_task_category)
+            if category_config:
+                threshold = category_config.get("threshold", 10)
+                grad_settings = self.loader.get_graduation_settings()
+                max_dismissals = grad_settings.get("max_dismissals", 3)
+
+                should_show, reason = self.tracker.should_show_graduation_prompt(
+                    self.last_task_category, threshold, max_dismissals
+                )
+                if should_show:
+                    prompts = self.loader.get_graduation_prompts(self.last_task_category)
+                    if prompts:
+                        self.pending_graduation = {
+                            "category": self.last_task_category,
+                            "prompt": random.choice(prompts),
+                        }
+                        self.tracker.record_graduation_shown(self.last_task_category)
+
+        # Step 7: Determine suggested handoff
+        suggested_person = None
+        suggested_domain = None
+        if self.guide.last_policy_action:
+            domain = self.guide.last_policy_action.get("domain", "")
+            if domain in ["relationships", "money", "health", "spirituality"]:
+                people = self.network.get_people_for_domain(domain)
+                if people:
+                    suggested_person = people[0].get("name")
+                    suggested_domain = domain
+
+        should_rerun = self.guide.last_policy_action is not None or self.pending_shift is not None
+
+        return ConversationResult(
+            response=response,
+            risk_assessment=self.guide.last_risk_assessment,
+            policy_action=self.guide.last_policy_action,
+            pending_shift=self.pending_shift,
+            pending_graduation=self.pending_graduation,
+            suggested_handoff_person=suggested_person,
+            suggested_handoff_domain=suggested_domain,
+            turn_count=self.turn_count,
+            should_rerun=should_rerun,
+        )
+
     def acknowledge_intent_shift(self, accept_shift: bool) -> None:
         """User responded to intent shift prompt."""
         if accept_shift and self.pending_shift:

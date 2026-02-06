@@ -8,14 +8,32 @@ Implements the empathySync vision:
 - Help that knows when to stop
 """
 
+import json
 import requests
 import logging
-from typing import List, Dict, Optional
+from dataclasses import dataclass, field
+from typing import Generator, Iterator, List, Dict, Optional
 from config.settings import settings
 from prompts.wellness_prompts import WellnessPrompts
 from models.risk_classifier import RiskClassifier
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class PreparedResponse:
+    """Result of the pre-LLM pipeline in generate_response().
+
+    Carries all state needed by both blocking and streaming response paths.
+    """
+
+    full_prompt: str = ""
+    is_practical: bool = False
+    risk_assessment: Dict = field(default_factory=dict)
+    domain: str = "logistics"
+    emotional_weight: str = "low_weight"
+    early_return: Optional[str] = None
+    is_likely_practical: bool = False
 
 
 # Session limits by risk level (from vision document)
@@ -81,6 +99,299 @@ class WellnessGuide:
         # Used to prevent the LLM from apologizing for crisis redirects
         self.post_crisis_turn = None  # Turn number when crisis was triggered
 
+    def _prepare_response(
+        self,
+        user_input: str,
+        wellness_mode: str = "Balanced",
+        conversation_history: List[Dict] = None,
+        wellness_tracker=None,
+    ) -> PreparedResponse:
+        """
+        Run the pre-LLM safety pipeline and compose the prompt.
+
+        Returns a PreparedResponse with either:
+        - early_return set (for crisis, harmful, cooldown, etc.) — caller should
+          yield/return that string directly without calling Ollama.
+        - full_prompt set — caller should send this to Ollama.
+
+        Raises on classification errors so the caller can fall back.
+        """
+        if conversation_history is None:
+            conversation_history = []
+
+        # Quick check if this looks like a practical request (for fallback purposes)
+        practical_indicators = [
+            "write",
+            "code",
+            "explain",
+            "help me",
+            "create",
+            "draft",
+            "cv",
+            "resume",
+            "email",
+            "template",
+        ]
+        is_likely_practical = any(ind in user_input.lower() for ind in practical_indicators)
+
+        prepared = PreparedResponse(is_likely_practical=is_likely_practical)
+
+        # Reset per-turn state so previous policy actions don't leak
+        self.last_policy_action = None
+        self.last_risk_assessment = None
+
+        self.session_turn_count += 1
+
+        # Post-crisis handling: check if previous turn was a crisis intervention
+        post_crisis_response = self._handle_post_crisis(user_input, wellness_tracker)
+        if post_crisis_response:
+            prepared.early_return = post_crisis_response
+            return prepared
+
+        # 1) Check if cooldown should be enforced
+        if wellness_tracker:
+            should_cooldown, cooldown_reason = wellness_tracker.should_enforce_cooldown()
+            if should_cooldown:
+                self._log_policy(
+                    "cooldown_enforced",
+                    "dependency",
+                    10.0,
+                    "Session blocked due to usage pattern",
+                    wellness_tracker,
+                )
+                prepared.early_return = cooldown_reason
+                return prepared
+
+        # 2) Risk assessment (pass domain context for keyword fallback awareness)
+        risk_assessment = self.risk_classifier.classify(
+            user_input=user_input,
+            conversation_history=conversation_history,
+            primary_domain=self.primary_domain,
+            domain_streak=self.primary_domain_streak,
+        )
+
+        # 2.5) Phase 6.5: Adjust assessment based on session context
+        risk_assessment = self._get_context_adjusted_assessment(user_input, risk_assessment)
+
+        # 2.7) Domain stability: dampen false domain shifts from established practical context
+        risk_assessment = self._apply_domain_stability(risk_assessment)
+        self.last_risk_assessment = risk_assessment
+
+        # 2.6) Phase 6.5: Update session context for future turns
+        self._update_session_context(user_input, risk_assessment)
+
+        # Track session metrics
+        domain = risk_assessment["domain"]
+        if domain not in self.session_domains:
+            self.session_domains.append(domain)
+        self.session_max_risk = max(self.session_max_risk, risk_assessment["risk_weight"])
+
+        # Log context inheritance if it occurred
+        context_note = ""
+        if risk_assessment.get("context_inherited"):
+            context_note = (
+                f" | context_inherited=True (was {risk_assessment.get('original_weight')})"
+            )
+
+        # Log practical technique detection (Phase 9.1)
+        technique_note = ""
+        if risk_assessment.get("is_practical_technique") and domain != "logistics":
+            technique_note = f" | is_practical_technique=True (practical mode in {domain})"
+
+        # Log domain stability dampening
+        stability_note = ""
+        if risk_assessment.get("domain_stability_applied"):
+            stability_note = (
+                f" | domain_stability=True (was {risk_assessment.get('original_domain')}"
+                f" risk={risk_assessment.get('original_risk_weight', 0):.1f})"
+            )
+
+        logger.info(
+            "Risk assessment | turn=%d | domain=%s | intensity=%.2f | dependency=%.2f | weight=%.2f | emotional_weight=%s%s%s%s",
+            self.session_turn_count,
+            domain,
+            risk_assessment["emotional_intensity"],
+            risk_assessment["dependency_risk"],
+            risk_assessment["risk_weight"],
+            risk_assessment.get("emotional_weight", "unknown"),
+            context_note,
+            technique_note,
+            stability_note,
+        )
+
+        # 3) Hard-coded safety responses (don't trust model to comply)
+        if domain == "crisis":
+            self._log_policy(
+                "crisis_stop", domain, 10.0, "Immediate crisis redirect", wellness_tracker
+            )
+            self.post_crisis_turn = self.session_turn_count
+            prepared.early_return = self._get_crisis_response()
+            prepared.risk_assessment = risk_assessment
+            prepared.domain = domain
+            return prepared
+
+        if domain == "harmful":
+            self._log_policy(
+                "harmful_stop", domain, 10.0, "Refused harmful request", wellness_tracker
+            )
+            prepared.early_return = (
+                "I can't help with that. This isn't something I can engage with."
+            )
+            prepared.risk_assessment = risk_assessment
+            prepared.domain = domain
+            return prepared
+
+        # 3.5) Check for reflection redirect
+        emotional_weight = risk_assessment.get("emotional_weight", "low_weight")
+        if emotional_weight == "reflection_redirect":
+            self._log_policy(
+                "reflection_redirect",
+                "logistics",
+                9.0,
+                "Redirected to reflection - personal message needs user's own words",
+                wellness_tracker,
+            )
+            prepared.early_return = self._get_reflection_response_with_journaling(user_input)
+            prepared.risk_assessment = risk_assessment
+            prepared.domain = domain
+            return prepared
+
+        # 3.6) Phase 8: Check for "What Would You Tell a Friend?" mode
+        friend_mode_response = self._check_friend_mode(user_input, risk_assessment, domain)
+        if friend_mode_response:
+            self._log_policy(
+                "friend_mode",
+                domain,
+                risk_assessment["risk_weight"],
+                "Triggered friend mode - helping user access own wisdom",
+                wellness_tracker,
+            )
+            prepared.early_return = friend_mode_response
+            prepared.risk_assessment = risk_assessment
+            prepared.domain = domain
+            return prepared
+
+        # 4) Check turn limits by risk level
+        turn_limit = TURN_LIMITS.get(domain, 15)
+        if self.session_turn_count >= turn_limit:
+            self._log_policy(
+                "turn_limit_reached",
+                domain,
+                risk_assessment["risk_weight"],
+                f"Session limit ({turn_limit} turns) reached for {domain}",
+                wellness_tracker,
+            )
+            prepared.early_return = self._get_turn_limit_response(domain)
+            prepared.risk_assessment = risk_assessment
+            prepared.domain = domain
+            return prepared
+
+        # 5) Check for dependency intervention
+        dependency_response = self._check_dependency_intervention(
+            risk_assessment, conversation_history, wellness_tracker
+        )
+        if dependency_response:
+            prepared.early_return = dependency_response
+            prepared.risk_assessment = risk_assessment
+            prepared.domain = domain
+            return prepared
+
+        # 6) Build prompt and generate response
+        system_prompt = self.prompts.get_system_prompt(wellness_mode, risk_context=risk_assessment)
+        conversation_context = self._build_context(conversation_history)
+
+        # Check if this is a practical task
+        is_practical_technique = risk_assessment.get("is_practical_technique", False)
+        is_practical = domain == "logistics" or is_practical_technique
+
+        # Add identity reminder periodically (only for non-practical conversations)
+        identity_reminder = ""
+        if not is_practical and self.session_turn_count % IDENTITY_REMINDER_FREQUENCY == 0:
+            identity_reminder = (
+                "\n\n[Remember: Include a brief reminder that you are software, not a person.]"
+            )
+
+        # Add post-crisis context if we recently had a crisis intervention
+        post_crisis_context = ""
+        if self.post_crisis_turn is not None:
+            post_crisis_context = (
+                "\n\n[IMPORTANT: A crisis intervention was recently triggered in this conversation. "
+                "NEVER apologize for that intervention or suggest it was an overreaction. "
+                "The system responded correctly to protect the user. "
+                "If they mention the intervention, acknowledge calmly without self-criticism.]"
+            )
+            # Clear the state after 3 turns
+            if self.session_turn_count > self.post_crisis_turn + 3:
+                self.post_crisis_turn = None
+
+        full_prompt = (
+            f"{system_prompt}{post_crisis_context}\n\n"
+            f"{conversation_context}\n\n"
+            f"User: {user_input}\n\n"
+            f"Assistant:{identity_reminder}"
+        )
+
+        prepared.full_prompt = full_prompt
+        prepared.is_practical = is_practical
+        prepared.risk_assessment = risk_assessment
+        prepared.domain = domain
+        prepared.emotional_weight = emotional_weight
+        return prepared
+
+    def _finalize_response(
+        self,
+        response: str,
+        user_input: str,
+        prepared: "PreparedResponse",
+        wellness_tracker=None,
+    ) -> str:
+        """
+        Post-LLM processing: safety check, acknowledgments, emotional coloring.
+
+        Takes the raw Ollama response and the PreparedResponse context,
+        returns the final user-facing string.
+        """
+        risk_assessment = prepared.risk_assessment
+        is_practical = prepared.is_practical
+
+        # 7) Process and validate response
+        processed_response = self._process_response(
+            response, user_input, risk_assessment, is_practical
+        )
+
+        # 8) Add acknowledgment for emotionally weighted practical tasks
+        if is_practical:
+            emotional_weight = risk_assessment.get("emotional_weight", "low_weight")
+            processed_response = self._add_acknowledgment_if_needed(
+                processed_response, user_input, emotional_weight
+            )
+
+            # 8.5) Phase 8: Add "Before You Send" pause for high-weight tasks
+            if emotional_weight == "high_weight":
+                pause_suggestion = self._get_before_you_send_pause(user_input)
+                if pause_suggestion:
+                    processed_response = processed_response + "\n\n---\n\n" + pause_suggestion
+
+        # 8.7) Add emotional coloring acknowledgment for practical tasks
+        if is_practical and risk_assessment.get("domain_stability_applied"):
+            acknowledgment = self._get_emotional_coloring_acknowledgment(
+                user_input, risk_assessment
+            )
+            if acknowledgment:
+                processed_response = acknowledgment + "\n\n" + processed_response
+
+        # Log if we redirected due to high risk
+        if risk_assessment["risk_weight"] >= 5:
+            self._log_policy(
+                "high_risk_response",
+                prepared.domain,
+                risk_assessment["risk_weight"],
+                "Response generated with high-risk guardrails",
+                wellness_tracker,
+            )
+
+        return processed_response
+
     def generate_response(
         self,
         user_input: str,
@@ -100,256 +411,134 @@ class WellnessGuide:
         6. Generate response
         7. Post-process for safety
         """
-
-        if conversation_history is None:
-            conversation_history = []
-
-        # Reset per-turn state so previous policy actions don't leak
-        self.last_policy_action = None
-        self.last_risk_assessment = None
-
-        self.session_turn_count += 1
-
-        # Post-crisis handling: check if previous turn was a crisis intervention
-        # This prevents the LLM from apologizing for crisis redirects
-        post_crisis_response = self._handle_post_crisis(user_input, wellness_tracker)
-        if post_crisis_response:
-            return post_crisis_response
-
-        # Quick check if this looks like a practical request (for fallback purposes)
-        # This is a fast heuristic - full classification happens in the try block
-        practical_indicators = [
-            "write",
-            "code",
-            "explain",
-            "help me",
-            "create",
-            "draft",
-            "cv",
-            "resume",
-            "email",
-            "template",
-        ]
-        is_likely_practical = any(ind in user_input.lower() for ind in practical_indicators)
-
         try:
-            # 1) Check if cooldown should be enforced
-            if wellness_tracker:
-                should_cooldown, cooldown_reason = wellness_tracker.should_enforce_cooldown()
-                if should_cooldown:
-                    self._log_policy(
-                        "cooldown_enforced",
-                        "dependency",
-                        10.0,
-                        "Session blocked due to usage pattern",
-                        wellness_tracker,
-                    )
-                    return cooldown_reason
-
-            # 2) Risk assessment (pass domain context for keyword fallback awareness)
-            risk_assessment = self.risk_classifier.classify(
-                user_input=user_input,
-                conversation_history=conversation_history,
-                primary_domain=self.primary_domain,
-                domain_streak=self.primary_domain_streak,
+            prepared = self._prepare_response(
+                user_input, wellness_mode, conversation_history, wellness_tracker
             )
 
-            # 2.5) Phase 6.5: Adjust assessment based on session context
-            # This handles continuation messages like "let's brainstorm" after a breakup request
-            risk_assessment = self._get_context_adjusted_assessment(user_input, risk_assessment)
-
-            # 2.7) Domain stability: dampen false domain shifts from established practical context
-            risk_assessment = self._apply_domain_stability(risk_assessment)
-            self.last_risk_assessment = risk_assessment
-
-            # 2.6) Phase 6.5: Update session context for future turns
-            # This captures emotional weight/domain so continuation messages inherit context
-            self._update_session_context(user_input, risk_assessment)
-
-            # Track session metrics
-            domain = risk_assessment["domain"]
-            if domain not in self.session_domains:
-                self.session_domains.append(domain)
-            self.session_max_risk = max(self.session_max_risk, risk_assessment["risk_weight"])
-
-            # Log context inheritance if it occurred
-            context_note = ""
-            if risk_assessment.get("context_inherited"):
-                context_note = (
-                    f" | context_inherited=True (was {risk_assessment.get('original_weight')})"
-                )
-
-            # Log practical technique detection (Phase 9.1)
-            technique_note = ""
-            if risk_assessment.get("is_practical_technique") and domain != "logistics":
-                technique_note = f" | is_practical_technique=True (practical mode in {domain})"
-
-            # Log domain stability dampening
-            stability_note = ""
-            if risk_assessment.get("domain_stability_applied"):
-                stability_note = (
-                    f" | domain_stability=True (was {risk_assessment.get('original_domain')}"
-                    f" risk={risk_assessment.get('original_risk_weight', 0):.1f})"
-                )
-
-            logger.info(
-                "Risk assessment | turn=%d | domain=%s | intensity=%.2f | dependency=%.2f | weight=%.2f | emotional_weight=%s%s%s%s",
-                self.session_turn_count,
-                domain,
-                risk_assessment["emotional_intensity"],
-                risk_assessment["dependency_risk"],
-                risk_assessment["risk_weight"],
-                risk_assessment.get("emotional_weight", "unknown"),
-                context_note,
-                technique_note,
-                stability_note,
-            )
-
-            # 3) Hard-coded safety responses (don't trust model to comply)
-            if domain == "crisis":
-                self._log_policy(
-                    "crisis_stop", domain, 10.0, "Immediate crisis redirect", wellness_tracker
-                )
-                # Track post-crisis state for next turn
-                self.post_crisis_turn = self.session_turn_count
-                return self._get_crisis_response()
-
-            if domain == "harmful":
-                self._log_policy(
-                    "harmful_stop", domain, 10.0, "Refused harmful request", wellness_tracker
-                )
-                return "I can't help with that. This isn't something I can engage with."
-
-            # 3.5) Check for reflection redirect (personal messages that should come from them)
-            emotional_weight = risk_assessment.get("emotional_weight", "low_weight")
-            if emotional_weight == "reflection_redirect":
-                self._log_policy(
-                    "reflection_redirect",
-                    "logistics",
-                    9.0,
-                    "Redirected to reflection - personal message needs user's own words",
-                    wellness_tracker,
-                )
-                # Phase 8: Offer journaling as alternative
-                return self._get_reflection_response_with_journaling(user_input)
-
-            # 3.6) Phase 8: Check for "What Would You Tell a Friend?" mode
-            # Triggers on "what should I do" type questions for sensitive topics
-            friend_mode_response = self._check_friend_mode(user_input, risk_assessment, domain)
-            if friend_mode_response:
-                self._log_policy(
-                    "friend_mode",
-                    domain,
-                    risk_assessment["risk_weight"],
-                    "Triggered friend mode - helping user access own wisdom",
-                    wellness_tracker,
-                )
-                return friend_mode_response
-
-            # 4) Check turn limits by risk level
-            turn_limit = TURN_LIMITS.get(domain, 15)
-            if self.session_turn_count >= turn_limit:
-                self._log_policy(
-                    "turn_limit_reached",
-                    domain,
-                    risk_assessment["risk_weight"],
-                    f"Session limit ({turn_limit} turns) reached for {domain}",
-                    wellness_tracker,
-                )
-                return self._get_turn_limit_response(domain)
-
-            # 5) Check for dependency intervention
-            dependency_response = self._check_dependency_intervention(
-                risk_assessment, conversation_history, wellness_tracker
-            )
-            if dependency_response:
-                return dependency_response
-
-            # 6) Build prompt and generate response
-            system_prompt = self.prompts.get_system_prompt(
-                wellness_mode, risk_context=risk_assessment
-            )
-            conversation_context = self._build_context(conversation_history)
-
-            # Check if this is a practical task
-            # Phase 9.1: Also treat practical technique questions as practical
-            # This allows full responses for "how do I meditate?" even in spirituality domain
-            is_practical_technique = risk_assessment.get("is_practical_technique", False)
-            is_practical = domain == "logistics" or is_practical_technique
-
-            # Add identity reminder periodically (only for non-practical conversations)
-            identity_reminder = ""
-            if not is_practical and self.session_turn_count % IDENTITY_REMINDER_FREQUENCY == 0:
-                identity_reminder = (
-                    "\n\n[Remember: Include a brief reminder that you are software, not a person.]"
-                )
-
-            # Add post-crisis context if we recently had a crisis intervention
-            post_crisis_context = ""
-            if self.post_crisis_turn is not None:
-                post_crisis_context = (
-                    "\n\n[IMPORTANT: A crisis intervention was recently triggered in this conversation. "
-                    "NEVER apologize for that intervention or suggest it was an overreaction. "
-                    "The system responded correctly to protect the user. "
-                    "If they mention the intervention, acknowledge calmly without self-criticism.]"
-                )
-                # Clear the state after 3 turns
-                if self.session_turn_count > self.post_crisis_turn + 3:
-                    self.post_crisis_turn = None
-
-            full_prompt = (
-                f"{system_prompt}{post_crisis_context}\n\n"
-                f"{conversation_context}\n\n"
-                f"User: {user_input}\n\n"
-                f"Assistant:{identity_reminder}"
-            )
+            if prepared.early_return:
+                return prepared.early_return
 
             # Call Ollama API with appropriate token limit
-            response = self._call_ollama(full_prompt, is_practical=is_practical)
+            response = self._call_ollama(prepared.full_prompt, is_practical=prepared.is_practical)
 
-            # 7) Process and validate response
-            processed_response = self._process_response(
-                response, user_input, risk_assessment, is_practical
+            return self._finalize_response(response, user_input, prepared, wellness_tracker)
+
+        except Exception as e:
+            logger.error(f"Error generating response: {str(e)}")
+            return self._get_fallback_response(
+                is_practical=prepared.is_likely_practical if "prepared" in dir() else False
             )
 
-            # 8) Add acknowledgment for emotionally weighted practical tasks
-            if is_practical:
-                emotional_weight = risk_assessment.get("emotional_weight", "low_weight")
-                processed_response = self._add_acknowledgment_if_needed(
-                    processed_response, user_input, emotional_weight
-                )
+    def generate_response_stream(
+        self,
+        user_input: str,
+        wellness_mode: str = "Balanced",
+        conversation_history: List[Dict] = None,
+        wellness_tracker=None,
+    ) -> Generator[str, None, None]:
+        """
+        Stream empathetic response tokens with full safety pipeline.
 
-                # 8.5) Phase 8: Add "Before You Send" pause for high-weight tasks
-                if emotional_weight == "high_weight":
-                    pause_suggestion = self._get_before_you_send_pause(user_input)
-                    if pause_suggestion:
-                        processed_response = processed_response + "\n\n---\n\n" + pause_suggestion
+        Same safety pipeline as generate_response(), but yields tokens
+        as they arrive from Ollama instead of blocking for the full response.
 
-            # 8.7) Add emotional coloring acknowledgment for practical tasks
-            # When someone expresses emotions within a practical task (e.g., nervousness
-            # during interview prep), prepend a brief warm acknowledgment.
-            if is_practical and risk_assessment.get("domain_stability_applied"):
+        Early returns (crisis, harmful, cooldown, etc.) are yielded as a
+        single chunk. The accumulated response is stored on
+        self._last_streamed_response for post-stream metadata population.
+        """
+        try:
+            prepared = self._prepare_response(
+                user_input, wellness_mode, conversation_history, wellness_tracker
+            )
+
+            if prepared.early_return:
+                self._last_streamed_response = prepared.early_return
+                yield prepared.early_return
+                return
+
+            # Yield emotional coloring prefix before Ollama tokens
+            prefix = ""
+            if prepared.is_practical and prepared.risk_assessment.get("domain_stability_applied"):
                 acknowledgment = self._get_emotional_coloring_acknowledgment(
-                    user_input, risk_assessment
+                    user_input, prepared.risk_assessment
                 )
                 if acknowledgment:
-                    processed_response = acknowledgment + "\n\n" + processed_response
+                    prefix = acknowledgment + "\n\n"
+                    yield prefix
 
-            # Log if we redirected due to high risk
+            # Stream Ollama tokens
+            accumulated = ""
+            for token in self._call_ollama_stream(prepared.full_prompt, prepared.is_practical):
+                accumulated += token
+                yield token
+
+            # Post-stream safety check on accumulated response
+            if not accumulated or len(accumulated.strip()) < 10:
+                fallback = self._get_fallback_response(is_practical=prepared.is_practical)
+                self._last_streamed_response = prefix + fallback
+                yield "\n" + fallback
+                return
+
+            if self._contains_harmful_content(accumulated):
+                logger.warning("Harmful content detected in streamed response (post-stream check)")
+                safe_alt = self._get_safe_alternative_response()
+                self._last_streamed_response = safe_alt
+                # Content already streamed — log warning, safe alt appended
+                yield "\n\n" + safe_alt
+                return
+
+            # Apply brevity enforcement for high-risk non-practical responses
+            # (Note: truncation is less meaningful for streamed content since tokens
+            # are already sent, but we record the truncated version for history)
+            risk_assessment = prepared.risk_assessment
+            final_response = accumulated
+
+            if not prepared.is_practical and risk_assessment.get("risk_weight", 0) >= 7:
+                words = accumulated.split()
+                if len(words) > 60:
+                    final_response = " ".join(words[:50]) + "..."
+
+            # Yield suffix: acknowledgments and before-you-send pause
+            suffix = ""
+            if prepared.is_practical:
+                emotional_weight = risk_assessment.get("emotional_weight", "low_weight")
+                # Acknowledgment for emotionally weighted tasks
+                if emotional_weight != "low_weight":
+                    ack = self.prompts.get_acknowledgment(user_input, emotional_weight)
+                    if ack:
+                        formatted_ack = self.prompts.format_acknowledgment(ack)
+                        suffix += formatted_ack
+                        yield formatted_ack
+
+                # Before-you-send pause for high-weight tasks
+                if emotional_weight == "high_weight":
+                    pause = self._get_before_you_send_pause(user_input)
+                    if pause:
+                        pause_text = "\n\n---\n\n" + pause
+                        suffix += pause_text
+                        yield pause_text
+
+            # Log high risk
             if risk_assessment["risk_weight"] >= 5:
                 self._log_policy(
                     "high_risk_response",
-                    domain,
+                    prepared.domain,
                     risk_assessment["risk_weight"],
                     "Response generated with high-risk guardrails",
                     wellness_tracker,
                 )
 
-            return processed_response
+            # Store accumulated response for post-stream metadata
+            self._last_streamed_response = prefix + final_response + suffix
 
         except Exception as e:
-            logger.error(f"Error generating response: {str(e)}")
-            return self._get_fallback_response(is_practical=is_likely_practical)
+            logger.error(f"Error in streaming response: {str(e)}")
+            fallback = self._get_fallback_response(
+                is_practical=prepared.is_likely_practical if "prepared" in dir() else False
+            )
+            self._last_streamed_response = fallback
+            yield fallback
 
     def _add_acknowledgment_if_needed(
         self, response: str, user_input: str, emotional_weight: str
@@ -730,6 +919,53 @@ class WellnessGuide:
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Ollama API error: {str(e)}")
+            raise Exception(
+                f"Unable to connect to Ollama. Please ensure it's running at {settings.OLLAMA_HOST}"
+            )
+
+    def _call_ollama_stream(
+        self, prompt: str, is_practical: bool = False
+    ) -> Generator[str, None, None]:
+        """Stream tokens from Ollama API.
+
+        Args:
+            prompt: The prompt to send
+            is_practical: If True, allows longer responses and timeout for practical tasks
+
+        Yields:
+            Individual tokens as they arrive from the model.
+        """
+        max_tokens = 2000 if is_practical else 300
+        timeout_seconds = 120 if is_practical else 45
+
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": True,
+            "options": {"temperature": self.temperature, "top_p": 0.9, "num_predict": max_tokens},
+        }
+
+        try:
+            response = requests.post(
+                self.ollama_url, json=payload, timeout=timeout_seconds, stream=True
+            )
+            response.raise_for_status()
+
+            for line in response.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+                try:
+                    chunk = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                token = chunk.get("response", "")
+                if token:
+                    yield token
+                if chunk.get("done"):
+                    break
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Ollama streaming API error: {str(e)}")
             raise Exception(
                 f"Unable to connect to Ollama. Please ensure it's running at {settings.OLLAMA_HOST}"
             )
