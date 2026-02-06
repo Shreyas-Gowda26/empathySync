@@ -234,7 +234,9 @@ class WellnessGuide:
             self._log_policy(
                 "harmful_stop", domain, 10.0, "Refused harmful request", wellness_tracker
             )
-            prepared.early_return = "I can't help with that. This isn't something I can engage with."
+            prepared.early_return = (
+                "I can't help with that. This isn't something I can engage with."
+            )
             prepared.risk_assessment = risk_assessment
             prepared.domain = domain
             return prepared
@@ -295,9 +297,7 @@ class WellnessGuide:
             return prepared
 
         # 6) Build prompt and generate response
-        system_prompt = self.prompts.get_system_prompt(
-            wellness_mode, risk_context=risk_assessment
-        )
+        system_prompt = self.prompts.get_system_prompt(wellness_mode, risk_context=risk_assessment)
         conversation_context = self._build_context(conversation_history)
 
         # Check if this is a practical task
@@ -426,7 +426,9 @@ class WellnessGuide:
 
         except Exception as e:
             logger.error(f"Error generating response: {str(e)}")
-            return self._get_fallback_response(is_practical=prepared.is_likely_practical if 'prepared' in dir() else False)
+            return self._get_fallback_response(
+                is_practical=prepared.is_likely_practical if "prepared" in dir() else False
+            )
 
     def generate_response_stream(
         self,
@@ -467,9 +469,7 @@ class WellnessGuide:
 
             # Stream Ollama tokens
             accumulated = ""
-            for token in self._call_ollama_stream(
-                prepared.full_prompt, prepared.is_practical
-            ):
+            for token in self._call_ollama_stream(prepared.full_prompt, prepared.is_practical):
                 accumulated += token
                 yield token
 
@@ -481,9 +481,7 @@ class WellnessGuide:
                 return
 
             if self._contains_harmful_content(accumulated):
-                logger.warning(
-                    "Harmful content detected in streamed response (post-stream check)"
-                )
+                logger.warning("Harmful content detected in streamed response (post-stream check)")
                 safe_alt = self._get_safe_alternative_response()
                 self._last_streamed_response = safe_alt
                 # Content already streamed — log warning, safe alt appended
