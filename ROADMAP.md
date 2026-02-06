@@ -1034,7 +1034,7 @@ LOCK_STALE_TIMEOUT=300
 - [x] Create `src/models/conversation_result.py` — structured dataclass for `process_message()` return value
 - [x] Move session state initialization out of `app.py` into `ConversationSession.__init__()`
 - [x] Move conversation orchestration into `ConversationSession.process_message()`
-- [x] All existing tests continue to pass (323/323, engine logic unchanged)
+- [x] All existing tests continue to pass (360/360 including 15 new streaming tests)
 
 ### 16.2 Define InterfaceAdapter Protocol ✅ DONE
 **Problem**: No formal contract between the conversation engine and its UI. Adding a new interface means duplicating the entire `app.py` flow.
@@ -1059,6 +1059,16 @@ LOCK_STALE_TIMEOUT=300
 - [x] Transparency info shown as plain text below responses
 - [x] Validates that the abstraction works for a second interface
 - [x] Update `src/cli.py` to offer both Streamlit and direct CLI modes (`--mode web|cli`)
+
+### 16.5 Streaming Support ✅ DONE
+- [x] `generate_response_stream()` in WellnessGuide yields tokens progressively
+- [x] `_call_ollama_stream()` handles Ollama streaming API
+- [x] `process_message_stream()` + `finalize_stream()` in ConversationSession
+- [x] CLI streaming: `sys.stdout.write(chunk)` + flush per token
+- [x] Streamlit streaming: `st.write_stream()` for progressive display
+- [x] Pre-LLM safety pipeline runs synchronously before streaming
+- [x] Crisis/harmful responses return complete immediately (no streaming)
+- [x] 15 new streaming tests added
 
 **Files created**:
 - `src/models/conversation_session.py` — Framework-agnostic session management
@@ -1270,7 +1280,7 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 
 ---
 
-## Current Status (2026-02-04)
+## Current Status (2026-02-06)
 
 **Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, 12, 13, 14 (Core), 15, and 16
 

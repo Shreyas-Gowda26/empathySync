@@ -63,7 +63,8 @@ git clone https://github.com/Olawoyin007/empathySync.git
 cd empathySync
 pip install -e ".[dev]"
 cp .env.example .env
-empathysync
+empathysync          # Launches Streamlit web UI
+empathysync --mode cli  # Direct terminal mode
 ```
 
 ### Option 3: Docker
@@ -120,9 +121,11 @@ Immediate redirect to professional resources. Never engages with crisis content.
 
 - **Local LLM**: Runs entirely on your hardware via Ollama
 - **Privacy-First**: Zero external API calls, complete data sovereignty
-- **Streamlit UI**: Clean, simple interface
+- **Dual Interface**: Streamlit web UI or direct CLI mode (`empathysync --mode cli`)
+- **Streaming Responses**: Real-time token streaming for faster perceived response times
 - **YAML-Driven**: All prompts, rules, and thresholds configurable
 - **LLM Classification**: Optional intelligent classification for nuanced context detection
+- **Framework-Agnostic Core**: `ConversationSession` class can be embedded in any Python project
 
 ## Configuration
 
@@ -143,11 +146,11 @@ ENABLE_DEVICE_LOCK=false         # Multi-device sync safety
 
 ## Project Status
 
-**Core Complete.** 14 phases shipped — safety systems, dual-mode operation, dependency tracking, human handoff, transparency, LLM classification, persistence hardening, connection building, and startup health checks.
+**Core Complete.** 16 phases shipped — safety systems, dual-mode operation, dependency tracking, human handoff, transparency, LLM classification, persistence hardening, connection building, startup health checks, core decoupling, and streaming support.
 
-**Distribution Ready.** Three installation methods available: install script, pip, and Docker Compose.
+**Distribution Ready.** Three installation methods plus CLI mode.
 
-**323 tests passing.**
+**360 tests passing.**
 
 See [ROADMAP.md](ROADMAP.md) for detailed implementation status.
 
