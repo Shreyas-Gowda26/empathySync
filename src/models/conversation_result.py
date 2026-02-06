@@ -6,7 +6,7 @@ Contains the response and all metadata an interface adapter needs to render it.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, Iterator, List, Optional
 
 
 @dataclass
@@ -38,3 +38,11 @@ class ConversationResult:
     # Session metadata
     turn_count: int = 0
     should_rerun: bool = False
+
+    # Streaming support: when set, response_stream yields tokens progressively
+    response_stream: Optional[Iterator[str]] = None
+
+    @property
+    def is_streaming(self) -> bool:
+        """True if this result contains a token stream instead of a complete response."""
+        return self.response_stream is not None

@@ -33,6 +33,9 @@ def run_streamlit():
 
 def run_cli():
     """Launch empathySync in direct terminal mode."""
+    # Add src to path for imports (same as app.py)
+    sys.path.append(str(Path(__file__).parent))
+
     from models.ai_wellness_guide import WellnessGuide
     from models.conversation_session import ConversationSession
     from utils.wellness_tracker import WellnessTracker

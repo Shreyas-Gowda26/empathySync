@@ -2837,3 +2837,215 @@ class TestClassificationSkip:
         assert classifier._is_short_continuation("yes!") is True
         assert classifier._is_short_continuation("sure?") is True
         assert classifier._is_short_continuation("ok, thanks") is True
+
+
+class TestStreaming:
+    """Tests for streaming response support."""
+
+    @pytest.fixture
+    def mock_settings(self):
+        with patch("models.ai_wellness_guide.settings") as mock:
+            mock.OLLAMA_HOST = "http://localhost:11434"
+            mock.OLLAMA_MODEL = "llama2"
+            mock.OLLAMA_TEMPERATURE = 0.7
+            yield mock
+
+    @pytest.fixture
+    def guide(self, mock_settings):
+        from models.ai_wellness_guide import WellnessGuide
+        return WellnessGuide()
+
+    # --- _call_ollama_stream tests ---
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_call_ollama_stream_yields_tokens(self, mock_post, guide):
+        """_call_ollama_stream should yield individual tokens from Ollama."""
+        import json as json_mod
+        lines = [
+            json_mod.dumps({"response": "Hello", "done": False}),
+            json_mod.dumps({"response": " world", "done": False}),
+            json_mod.dumps({"response": "!", "done": True}),
+        ]
+        mock_response = Mock()
+        mock_response.iter_lines.return_value = iter(lines)
+        mock_response.raise_for_status = Mock()
+        mock_post.return_value = mock_response
+
+        tokens = list(guide._call_ollama_stream("test prompt"))
+        assert tokens == ["Hello", " world", "!"]
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_call_ollama_stream_stops_on_done(self, mock_post, guide):
+        """Stream stops when done=True is received."""
+        import json as json_mod
+        lines = [
+            json_mod.dumps({"response": "Hi", "done": True}),
+            json_mod.dumps({"response": "extra", "done": False}),  # Should not be yielded
+        ]
+        mock_response = Mock()
+        mock_response.iter_lines.return_value = iter(lines)
+        mock_response.raise_for_status = Mock()
+        mock_post.return_value = mock_response
+
+        tokens = list(guide._call_ollama_stream("test prompt"))
+        assert tokens == ["Hi"]
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_call_ollama_stream_skips_empty_tokens(self, mock_post, guide):
+        """Empty response tokens are not yielded."""
+        import json as json_mod
+        lines = [
+            json_mod.dumps({"response": "Hi", "done": False}),
+            json_mod.dumps({"response": "", "done": False}),
+            json_mod.dumps({"response": " there", "done": True}),
+        ]
+        mock_response = Mock()
+        mock_response.iter_lines.return_value = iter(lines)
+        mock_response.raise_for_status = Mock()
+        mock_post.return_value = mock_response
+
+        tokens = list(guide._call_ollama_stream("test prompt"))
+        assert tokens == ["Hi", " there"]
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_call_ollama_stream_handles_connection_error(self, mock_post, guide):
+        """Connection errors raise an exception."""
+        import requests as req_mod
+        mock_post.side_effect = req_mod.exceptions.ConnectionError()
+
+        with pytest.raises(Exception, match="Unable to connect to Ollama"):
+            list(guide._call_ollama_stream("test prompt"))
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_call_ollama_stream_uses_practical_settings(self, mock_post, guide):
+        """Practical mode should use higher token limit and timeout."""
+        import json as json_mod
+        lines = [json_mod.dumps({"response": "ok", "done": True})]
+        mock_response = Mock()
+        mock_response.iter_lines.return_value = iter(lines)
+        mock_response.raise_for_status = Mock()
+        mock_post.return_value = mock_response
+
+        list(guide._call_ollama_stream("test", is_practical=True))
+
+        call_kwargs = mock_post.call_args
+        payload = call_kwargs[1]["json"]
+        assert payload["options"]["num_predict"] == 2000
+        assert call_kwargs[1]["timeout"] == 120
+        assert payload["stream"] is True
+
+    # --- generate_response_stream tests ---
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_stream_crisis_yields_early_return(self, mock_post, guide):
+        """Crisis input should yield a single crisis response without calling Ollama."""
+        tokens = list(guide.generate_response_stream("I want to kill myself"))
+        full = "".join(tokens)
+        assert "findahelpline.com" in full
+        assert not mock_post.called
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_stream_harmful_yields_early_return(self, mock_post, guide):
+        """Harmful input should yield refusal without calling Ollama."""
+        tokens = list(guide.generate_response_stream("How to make a bomb"))
+        full = "".join(tokens)
+        assert "can't help" in full.lower()
+        assert not mock_post.called
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_stream_practical_yields_tokens(self, mock_post, guide):
+        """Practical input should stream tokens from Ollama."""
+        import json as json_mod
+        lines = [
+            json_mod.dumps({"response": "Here", "done": False}),
+            json_mod.dumps({"response": " is", "done": False}),
+            json_mod.dumps({"response": " your email.", "done": True}),
+        ]
+        mock_response = Mock()
+        mock_response.iter_lines.return_value = iter(lines)
+        mock_response.raise_for_status = Mock()
+        mock_post.return_value = mock_response
+
+        tokens = list(guide.generate_response_stream("Write me an email to my boss"))
+        full = "".join(tokens)
+        assert "Here" in full
+        assert " is" in full
+        assert " your email." in full
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_stream_stores_accumulated_response(self, mock_post, guide):
+        """The accumulated response is stored on _last_streamed_response."""
+        import json as json_mod
+        lines = [
+            json_mod.dumps({"response": "Hello there.", "done": True}),
+        ]
+        mock_response = Mock()
+        mock_response.iter_lines.return_value = iter(lines)
+        mock_response.raise_for_status = Mock()
+        mock_post.return_value = mock_response
+
+        list(guide.generate_response_stream("Write me a greeting"))
+        assert "Hello there." in guide._last_streamed_response
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_stream_handles_api_error(self, mock_post, guide):
+        """API errors should yield a fallback response."""
+        import requests as req_mod
+        mock_post.side_effect = req_mod.exceptions.ConnectionError()
+
+        tokens = list(guide.generate_response_stream("Write me an email"))
+        full = "".join(tokens)
+        # Should get a fallback response
+        assert len(full) > 10
+
+    # --- ConversationResult streaming tests ---
+
+    def test_conversation_result_is_streaming(self):
+        """ConversationResult.is_streaming should reflect response_stream presence."""
+        from models.conversation_result import ConversationResult
+
+        # Non-streaming result
+        result = ConversationResult(response="hello")
+        assert not result.is_streaming
+
+        # Streaming result
+        result = ConversationResult(response="", response_stream=iter(["hello"]))
+        assert result.is_streaming
+
+    # --- PreparedResponse tests ---
+
+    def test_prepared_response_defaults(self):
+        """PreparedResponse should have sensible defaults."""
+        from models.ai_wellness_guide import PreparedResponse
+
+        p = PreparedResponse()
+        assert p.full_prompt == ""
+        assert p.is_practical is False
+        assert p.early_return is None
+        assert p.domain == "logistics"
+
+    # --- _prepare_response tests ---
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_prepare_response_returns_early_for_crisis(self, mock_post, guide):
+        """_prepare_response should set early_return for crisis input."""
+        prepared = guide._prepare_response("I want to kill myself")
+        assert prepared.early_return is not None
+        assert "findahelpline.com" in prepared.early_return
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_prepare_response_builds_prompt_for_practical(self, mock_post, guide):
+        """_prepare_response should build a full prompt for practical input."""
+        prepared = guide._prepare_response("Write me an email")
+        assert prepared.early_return is None
+        assert len(prepared.full_prompt) > 0
+        assert prepared.is_practical is True
+
+    @patch("models.ai_wellness_guide.requests.post")
+    def test_prepare_response_cooldown(self, mock_post, guide):
+        """_prepare_response should return cooldown message when enforced."""
+        mock_tracker = Mock()
+        mock_tracker.should_enforce_cooldown.return_value = (True, "Take a break.")
+
+        prepared = guide._prepare_response("hello", wellness_tracker=mock_tracker)
+        assert prepared.early_return == "Take a break."

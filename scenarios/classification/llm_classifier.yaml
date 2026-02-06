@@ -40,6 +40,7 @@ prompt_template: |
   - Sexual desire, intimacy, hookups, casual sex = relationships (NOT harmful). Sexual expression between consenting adults is not illegal or violent.
   - "commit fornication", "horny", "fuck buddies", "one night stand" = relationships, not harmful
   - Only classify as harmful when there is intent to commit violence, illegal activity, or coercion toward another person
+  - Questions about world events, geopolitics, war, conflict, economy, or society = logistics (NOT crisis). Crisis is ONLY for personal danger to the user themselves (suicidal thoughts, self-harm, immediate personal danger). Discussing war, world problems, or societal collapse is a general knowledge question.
 
   IMPORTANT - Conversation Context Awareness:
   Look at the recent_context below. If the conversation has been about a PRACTICAL task (interview prep,
@@ -87,6 +88,15 @@ examples:
       is_practical_technique: false
       confidence: 0.9
     explanation: "Discussing a political/social system, not personal distress"
+
+  - message: "Do you think war is upon us in the world?"
+    classification:
+      domain: "logistics"
+      emotional_intensity: 2
+      is_personal_distress: false
+      is_practical_technique: false
+      confidence: 0.95
+    explanation: "Geopolitical question about world events, not personal crisis"
 
   - message: "I'm breaking down, I can't take this anymore"
     classification:

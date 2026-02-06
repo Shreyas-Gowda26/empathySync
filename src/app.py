@@ -1431,10 +1431,13 @@ def display_chat_interface(wellness_mode):
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Process message through ConversationSession pipeline
+        # Process message through ConversationSession streaming pipeline
         with st.chat_message("assistant"):
-            with st.spinner(""):
-                result = session.process_message(prompt)
+            result = session.process_message_stream(prompt)
+            if result.is_streaming:
+                st.write_stream(result.response_stream)
+                result = session.finalize_stream()
+            else:
                 st.markdown(result.response)
 
         # Sync messages reference for backward compatibility
