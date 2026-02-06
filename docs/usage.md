@@ -4,12 +4,25 @@ This guide explains how to use empathySync day-to-day.
 
 ## Starting a Session
 
-Launch the app:
+### Web Interface (Streamlit)
+
+Launch the web app:
 ```bash
-streamlit run src/app.py
+empathysync                    # Via CLI entry point
+# or
+streamlit run src/app.py       # Direct
 ```
 
 Open your browser to `http://localhost:8501`.
+
+### Terminal Interface (CLI Mode)
+
+For a direct terminal experience without a browser:
+```bash
+empathysync --mode cli
+```
+
+CLI mode provides the same conversation engine with text-based interaction. Responses stream in real-time as tokens are generated.
 
 ### First Time Setup
 
@@ -20,6 +33,8 @@ On first launch, you'll be prompted to set up your **Trusted Network**—the rea
 ### Main Chat Area
 
 The center of the screen is your conversation. Type your message and press Enter.
+
+**Streaming Responses**: Responses stream in real-time as tokens are generated, providing faster perceived response times. You'll see text appear progressively instead of waiting for the full response.
 
 empathySync operates in two modes:
 

@@ -10,8 +10,9 @@ This document provides a visual overview of empathySync's architecture. For deta
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │                     empathySync                               │   │
 │  │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐       │   │
-│  │  │  Streamlit  │───▶│  Wellness   │───▶│   Ollama    │       │   │
-│  │  │    (UI)     │    │    Guide    │    │   (LLM)     │       │   │
+│  │  │ Streamlit   │    │ Conversa-   │    │   Ollama    │       │   │
+│  │  │   or CLI    │───▶│   tion      │───▶│   (LLM)     │       │   │
+│  │  │ (Adapters)  │    │  Session    │    │ (Streaming) │       │   │
 │  │  └─────────────┘    └─────────────┘    └─────────────┘       │   │
 │  │         │                  │                                  │   │
 │  │         │           ┌──────┴──────┐                          │   │
@@ -126,8 +127,9 @@ User Input
     │
     ▼
 ┌─────────────────────────────────────────────┐
-│  OLLAMA API CALL                            │
+│  OLLAMA API CALL (Streaming)                │
 │     Local LLM generates response            │
+│     Tokens stream as generated              │
 └─────────────────────────────────────────────┘
     │
     ▼
@@ -138,20 +140,30 @@ User Input
 └─────────────────────────────────────────────┘
     │
     ▼
-Response to User
+Response to User (streamed in real-time)
 ```
 
 ## Component Relationships
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                          app.py                                 │
-│                     (Streamlit Entry)                           │
+│                    Interface Adapters                           │
+│         app.py (Streamlit)  │  cli_adapter.py (Terminal)        │
 │                                                                 │
 │   Responsibilities:                                             │
 │   - UI rendering (chat, sidebar, panels)                        │
-│   - Session state management                                    │
-│   - Routing between UI modes                                    │
+│   - User input handling                                         │
+│   - Response display (streaming supported)                      │
+└───────────────────────────┬────────────────────────────────────┘
+                            │ uses
+                            ▼
+┌────────────────────────────────────────────────────────────────┐
+│                    ConversationSession                          │
+│               (Framework-Agnostic Orchestrator)                 │
+│                                                                 │
+│   - Owns all session state (turns, domains, risk history)       │
+│   - Single entry: process_message() → ConversationResult        │
+│   - Streaming: process_message_stream() + finalize_stream()     │
 └───────────────────────────┬────────────────────────────────────┘
                             │ uses
             ┌───────────────┼───────────────┐
@@ -161,7 +173,7 @@ Response to User
 │                   │ │               │ │                       │
 │ - Response gen    │ │ - Sessions    │ │ - Trusted people      │
 │ - Safety pipeline │ │ - Check-ins   │ │ - Domain suggestions  │
-│ - Session state   │ │ - Policy log  │ │ - Reach-out history   │
+│ - Streaming API   │ │ - Policy log  │ │ - Reach-out history   │
 │ - Policy actions  │ │ - Dependency  │ │ - Message templates   │
 └─────────┬─────────┘ └───────────────┘ └───────────────────────┘
           │ uses
@@ -417,12 +429,18 @@ data/
 empathySync/
 ├── src/                          # Application source code
 │   ├── app.py                   # Streamlit entry point
+│   ├── cli.py                   # CLI entry point (--mode web|cli)
 │   ├── config/
 │   │   └── settings.py          # Environment configuration
 │   ├── models/
-│   │   ├── ai_wellness_guide.py # Core conversation engine
+│   │   ├── ai_wellness_guide.py # Core conversation engine + streaming
 │   │   ├── risk_classifier.py   # Risk assessment
-│   │   └── llm_classifier.py    # LLM-based classification (Phase 9)
+│   │   ├── llm_classifier.py    # LLM-based classification (Phase 9)
+│   │   ├── conversation_session.py # Framework-agnostic session manager
+│   │   └── conversation_result.py  # Structured result dataclass
+│   ├── interfaces/              # Interface adapters (Phase 16)
+│   │   ├── adapter.py           # InterfaceAdapter protocol
+│   │   └── cli_adapter.py       # Terminal interface
 │   ├── prompts/
 │   │   └── wellness_prompts.py  # Dynamic prompt generation
 │   └── utils/
@@ -447,7 +465,7 @@ empathySync/
 │
 ├── data/                        # Local user data (JSON/SQLite)
 ├── logs/                        # Application logs
-├── tests/                       # Pytest test suite (140+ tests)
+├── tests/                       # Pytest test suite (360 tests)
 └── docs/                        # Documentation
 ```
 

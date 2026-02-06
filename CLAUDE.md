@@ -29,7 +29,7 @@ empathysync                 # Via CLI entry point (after pip install -e .)
 # Docker (app + Ollama together)
 docker compose up           # Starts both services
 
-# Run tests (323 tests covering all core components)
+# Run tests (360 tests covering all core components)
 pytest tests/
 
 # Run tests with coverage
@@ -111,7 +111,7 @@ empathySync/
 │   ├── responses/               # Fallbacks, safe alternatives, base prompt
 │   ├── transparency/            # Explanation templates
 │   └── wisdom/                  # Immunity building prompts
-├── tests/                       # Pytest test suite (323 tests)
+├── tests/                       # Pytest test suite (360 tests)
 ├── data/                        # Local user data (JSON files)
 ├── docs/                        # Documentation
 ├── logs/                        # Application logs
@@ -131,11 +131,11 @@ empathySync/
 - Session tracking, export, and policy action transparency
 
 **Models**:
-- [src/models/ai_wellness_guide.py](src/models/ai_wellness_guide.py) - `WellnessGuide` class: main conversation engine with 7-step safety pipeline, session state tracking, context persistence, and identity reminder injection
+- [src/models/ai_wellness_guide.py](src/models/ai_wellness_guide.py) - `WellnessGuide` class: main conversation engine with 7-step safety pipeline, session state tracking, context persistence, identity reminder injection, and **streaming support** via `generate_response_stream()`
 - [src/models/risk_classifier.py](src/models/risk_classifier.py) - `RiskClassifier` class: detects conversation domain (8 domains), measures emotional intensity (0-10), assesses dependency risk, intent detection, and provides domain-specific rules
 - [src/models/llm_classifier.py](src/models/llm_classifier.py) - `LLMClassifier` class: LLM-based intelligent classification with caching, used for context-aware domain detection when `LLM_CLASSIFICATION_ENABLED=true`
-- [src/models/conversation_session.py](src/models/conversation_session.py) - `ConversationSession` class: framework-agnostic session manager that orchestrates WellnessGuide, RiskClassifier, WellnessTracker, and TrustedNetwork. Single entry point: `process_message()` → `ConversationResult` (Phase 16)
-- [src/models/conversation_result.py](src/models/conversation_result.py) - `ConversationResult` dataclass: structured return type from `process_message()` containing response, risk assessment, policy actions, and UI hints
+- [src/models/conversation_session.py](src/models/conversation_session.py) - `ConversationSession` class: framework-agnostic session manager that orchestrates WellnessGuide, RiskClassifier, WellnessTracker, and TrustedNetwork. Entry points: `process_message()` → `ConversationResult` (blocking) or `process_message_stream()` + `finalize_stream()` (streaming)
+- [src/models/conversation_result.py](src/models/conversation_result.py) - `ConversationResult` dataclass: structured return type containing response (or `response_stream` iterator), risk assessment, policy actions, and UI hints
 
 **Interfaces** (Phase 16):
 - [src/interfaces/adapter.py](src/interfaces/adapter.py) - `InterfaceAdapter` protocol: minimal contract for UI adapters (render result, prompt interactions)
@@ -211,7 +211,8 @@ The LLM classifier distinguishes between:
 8. **Dependency Intervention**: Graduated responses if dependency score exceeds thresholds
 9. **Identity Reminder**: Injected every 6 turns (only in Reflective Mode)
 10. System prompt composed (base + style + mode-specific rules + post-crisis context if applicable), Ollama called locally
-11. Response safety-checked via `_contains_harmful_content()` before display
+11. **Response streams** in real-time via `generate_response_stream()` (tokens yielded as generated)
+12. Response safety-checked via `_contains_harmful_content()` before/during display
 
 ### Risk Assessment
 
@@ -365,12 +366,13 @@ When another device holds the lock (`ENABLE_DEVICE_LOCK=true`), all write operat
 
 ### Testing
 
-Tests are in [tests/test_wellness_guide.py](tests/test_wellness_guide.py) with 323 tests covering:
+Tests are in [tests/test_wellness_guide.py](tests/test_wellness_guide.py) with 360 tests covering:
 - `TestScenarioLoader`: YAML loading and caching
 - `TestRiskClassifier`: Domain detection, emotional intensity, dependency scoring
 - `TestWellnessPrompts`: Prompt composition and style modifiers
 - `TestWellnessGuide`: Response generation, safety pipeline, error handling
 - `TestHealthChecks`: Startup health checks (Ollama, data directory, SQLite)
+- `TestStreaming`: Token streaming, early returns for crisis/harmful, stream finalization (15 tests)
 
 ### Key Patterns
 
@@ -384,6 +386,7 @@ Tests are in [tests/test_wellness_guide.py](tests/test_wellness_guide.py) with 3
 - **Defense-in-Depth Write Protection**: UI disabling → write gate flag → storage method checks (Phase 11)
 - **Heartbeat-Based Lock**: Device lock uses timestamp heartbeats, not PIDs, for stale detection (Phase 11)
 - **Storage Backend Abstraction**: Unified interface for JSON/SQLite with automatic migration (Phase 11)
+- **Streaming Response**: `generate_response_stream()` yields tokens progressively for real-time display (Phase 16)
 
 ## Roadmap
 
@@ -403,4 +406,4 @@ See [ROADMAP.md](ROADMAP.md) for the phased implementation plan covering:
 - Phase 10: Advanced Detection (Long-term)
 - Phase 11: Persistence Hardening & Multi-Device Sync ✅ (Core)
 - Phase 12: Connection Building ✅ (signposts, first-contact templates for empty networks)
-- Phase 16: Core Decoupling & Interface Abstraction ✅ (ConversationSession, InterfaceAdapter, CLIAdapter)
+- Phase 16: Core Decoupling & Interface Abstraction ✅ (ConversationSession, InterfaceAdapter, CLIAdapter, Streaming)
