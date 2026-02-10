@@ -1083,7 +1083,392 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
-## Phase 17: Persistent Agent Daemon 🔜 PLANNED
+## Phase 16.5: Type Safety & Data Contracts 🔧 HARDENING
+**Goal**: Replace fragile dicts and string constants with typed structures throughout the codebase.
+
+**Why now**: Risk assessments, classification results, and session summaries are all passed around as plain dicts. A single misspelled key (`"emotinal_weight"` vs `"emotional_weight"`) silently produces `None` instead of crashing. Enums and dataclasses catch these at definition time, not at 2 AM in production.
+
+### 16.5.1 Enums for Domain Constants
+**Problem**: 100+ string comparisons like `domain == "logistics"`, `domain == "health"`, `intent == "processing"` scattered across all core files. Typos compile fine and fail silently.
+
+**Files affected**:
+- `src/models/risk_classifier.py` — domain comparisons throughout (`"logistics"`, `"health"`, `"crisis"`, `"harmful"`, `"emotional"`, etc.)
+- `src/models/ai_wellness_guide.py` — domain checks in mode selection, acknowledgment logic, context adjustment
+- `src/models/llm_classifier.py` — domain validation in `_validate_classification()`
+- `src/utils/wellness_tracker.py` — domain keys in usage stats, anti-engagement scoring
+- `src/utils/scenario_loader.py` — domain keys when loading YAML configs
+
+**Implementation**:
+- [ ] Create `src/models/enums.py` with:
+  - `Domain` enum: `LOGISTICS`, `HEALTH`, `CRISIS`, `HARMFUL`, `EMOTIONAL`, `RELATIONSHIPS`, `MONEY`, `SPIRITUALITY`
+  - `Intent` enum: `PRACTICAL`, `PROCESSING`, `CONNECTION_SEEKING`
+  - `EmotionalWeight` enum: `HIGH_WEIGHT`, `MEDIUM_WEIGHT`, `LOW_WEIGHT`, `REFLECTION_REDIRECT`
+  - `ClassificationMethod` enum: `LLM`, `KEYWORD`, `FAST_PATH`, `FALLBACK`
+  - `Action` enum: `BLUR`, `TAG`, `HIDE`, `PASS`
+- [ ] Replace all string literal comparisons with enum members
+- [ ] Update YAML loading to map string values → enum members at load time
+- [ ] Update all tests to use enum members
+
+### 16.5.2 Dataclasses for Structured State
+**Problem**: Risk assessments, classification results, and session summaries are dicts with 8-15 keys each. No IDE autocomplete, no type checking, no documentation of required vs optional fields.
+
+**Specific dict patterns to replace** (20+ instances):
+- `risk_classifier.py` — `classify()` returns dict with `domain`, `emotional_intensity`, `dependency_risk`, `risk_weight`, `is_personal_distress`, `emotional_weight`, `emotional_weight_score`, `is_practical_technique`, `classification_method`, `confidence`
+- `llm_classifier.py` — `classify()` returns dict with `domain`, `emotional_intensity`, `is_personal_distress`, `topic_summary`, `confidence`, `is_practical_technique`
+- `wellness_tracker.py` — session summaries as dicts with `session_id`, `start_time`, `end_time`, `turns`, `domains_visited`, `max_risk`, `handoffs`, `graduation_prompts`
+- `ai_wellness_guide.py` — transparency info dicts with `domain`, `mode`, `emotional_weight`, `policy_actions`, `word_limit`
+
+**Implementation**:
+- [ ] Create `src/models/data_contracts.py` with:
+  - `@dataclass RiskAssessment` — typed fields for all risk classifier output
+  - `@dataclass LLMClassification` — typed fields for LLM classifier output
+  - `@dataclass SessionSummary` — typed fields for session summary data
+  - `@dataclass TransparencyInfo` — typed fields for decision explanation
+- [ ] Replace `dict` returns with dataclass instances in `RiskClassifier.classify()`
+- [ ] Replace `dict` returns with dataclass instances in `LLMClassifier.classify()`
+- [ ] Update all consumers to use attribute access instead of `dict.get()`
+- [ ] Add `__post_init__` validation where appropriate (e.g., `confidence` must be 0.0-1.0)
+
+### 16.5.3 Type Annotations Audit
+- [ ] Add return type annotations to all public methods in core modules
+- [ ] Add parameter type annotations where missing
+- [ ] Run `mypy --strict` on `src/models/` and `src/utils/` and fix errors
+- [ ] Add `mypy` to CI pipeline (`pyproject.toml` and `.github/workflows/ci.yml`)
+
+---
+
+## Phase 16.6: Async I/O & Performance 🔧 HARDENING
+**Goal**: Eliminate synchronous blocking calls, pre-compile hot-path patterns, and optimize O(n²) algorithms.
+
+**Why now**: Every Ollama call currently blocks the main thread via synchronous `requests.post()`. In the Streamlit single-threaded model this freezes the entire UI. When Phase 17 adds a background daemon processing nudges and scheduled tasks, blocking I/O will be a hard blocker.
+
+### 16.6.1 Replace `requests` with `httpx` Async
+**Problem**: `requests.post()` blocks the event loop. Three call sites make synchronous HTTP calls to Ollama:
+- `src/models/ai_wellness_guide.py:914,949` — `_call_ollama()` and `_call_ollama_stream()`
+- `src/models/llm_classifier.py:308` — `_call_ollama()` for classification
+
+**Implementation**:
+- [ ] Add `httpx>=0.26.0` to dependencies in `pyproject.toml`
+- [ ] Create shared `httpx.AsyncClient` with connection pooling (single instance per session)
+- [ ] Convert `WellnessGuide._call_ollama()` to async with `httpx.AsyncClient.post()`
+- [ ] Convert `WellnessGuide._call_ollama_stream()` to async streaming
+- [ ] Convert `LLMClassifier._call_ollama()` to async
+- [ ] Add retry logic with exponential backoff (1 retry, 2s delay) for transient failures
+- [ ] Inject `http_client` parameter for testability (same pattern as IntentKeeper)
+- [ ] Remove `requests` from `requirements.txt` and `pyproject.toml`
+
+### 16.6.2 Pre-Compile Regular Expressions
+**Problem**: Regex patterns compiled inside hot-path methods — every classification call re-compiles the same patterns.
+
+**File**: `src/models/llm_classifier.py:195-206` — 6+ regex patterns compiled per call in `_extract_json_from_response()`
+
+**Implementation**:
+- [ ] Move all `re.compile()` calls to module-level constants
+- [ ] Create `_PATTERNS` dict at module level with pre-compiled patterns:
+  - JSON extraction patterns
+  - Whitespace normalization patterns
+  - Response cleanup patterns
+- [ ] Same treatment for `risk_classifier.py` trigger matching patterns
+- [ ] Benchmark before/after (expect ~10x speedup on pattern matching)
+
+### 16.6.3 Aho-Corasick for Trigger Matching
+**Problem**: Trigger detection iterates every trigger for every domain — O(n×m) where n = input tokens and m = total triggers across all domains. With 200+ triggers across 8 domains, this is measurably slow.
+
+**File**: `src/models/risk_classifier.py:241-248` — nested loops over domains and triggers
+
+**Implementation**:
+- [ ] Add `ahocorasick` or `pyahocorasick` to dependencies
+- [ ] Build Aho-Corasick automaton at `RiskClassifier.__init__()` from all domain triggers
+- [ ] Single-pass multi-pattern match: input → all matching triggers → group by domain
+- [ ] Falls back to current linear scan if `ahocorasick` not installed (optional dependency)
+- [ ] Cache automaton — rebuild only when scenario YAML is reloaded
+
+### 16.6.4 Batch Processing Optimization
+- [ ] `classify_batch()` in LLMClassifier should use `asyncio.gather()` (currently sequential)
+- [ ] Connection pool size configurable (default: 5 concurrent Ollama calls)
+- [ ] Backpressure: queue overflow → reject with clear error, don't OOM
+
+---
+
+## Phase 16.7: Security Hardening 🔧 HARDENING
+**Goal**: Fix race conditions, remove hardcoded secrets, close injection vectors, and add input validation.
+
+**Why now**: These are latent vulnerabilities. The lock file race condition can corrupt data under multi-device sync. The SQL injection vector in `storage_backend.py` is exploitable if user-controlled data ever reaches dynamic queries. Hardcoded secrets in `.env` will ship to forks.
+
+### 16.7.1 Atomic Lock File Operations
+**Problem**: `lockfile.py` uses a read-then-write pattern for lock acquisition — two processes can both read "unlocked" and both write their lock, causing a silent conflict.
+
+**File**: `src/utils/lockfile.py` — `acquire()` method
+
+**Implementation**:
+- [ ] Replace read-then-write with atomic `os.open()` using `O_CREAT | O_EXCL` flags (POSIX atomic create-or-fail)
+- [ ] On Windows, use `msvcrt.locking()` or `fcntl.flock()` equivalent
+- [ ] Add integration test: two threads race to acquire lock, exactly one succeeds
+- [ ] Heartbeat update also needs atomic write (write to temp + `os.replace()`)
+
+### 16.7.2 Remove Hardcoded Secrets
+**Problem**: `.env` file contains actual secret values that ship with the repository.
+
+**File**: `.env` — lines 10 and 35 contain hardcoded secret/key values
+
+**Implementation**:
+- [ ] `.env` must be in `.gitignore` (verify it is)
+- [ ] `.env.example` should have placeholder values only (`SECRET_KEY=change-me-to-a-random-string`)
+- [ ] Add startup validation: if `SECRET_KEY == "change-me-to-a-random-string"`, fail with clear error in production
+- [ ] Add `secrets.token_urlsafe(32)` as auto-generated default for development mode
+- [ ] Audit all settings for values that should never be committed
+
+### 16.7.3 SQL Injection Prevention
+**Problem**: `storage_backend.py` builds some queries with string formatting on column names. If any column name is derived from user input, this is exploitable.
+
+**File**: `src/utils/storage_backend.py` — dynamic query construction
+
+**Implementation**:
+- [ ] Audit every SQL query in `database.py` and `storage_backend.py` for string interpolation
+- [ ] Column names: validate against a whitelist of known columns before interpolation
+- [ ] Values: ensure ALL values go through parameterized queries (`?` placeholders), never f-strings
+- [ ] Add `_VALID_COLUMNS` frozenset per table, raise `ValueError` on unknown column names
+- [ ] Add SQL injection test: attempt to pass `"; DROP TABLE check_ins; --"` as a column name
+
+### 16.7.4 Rate Limiting
+**Problem**: No rate limiting on any API endpoint or Ollama call. A runaway loop or malicious client can overwhelm the local Ollama instance.
+
+**Implementation**:
+- [ ] Add per-session rate limit: max N classifications per minute (configurable, default: 20)
+- [ ] Add global rate limit for Ollama calls: max N concurrent calls (default: 3)
+- [ ] Token bucket or sliding window implementation (no external dependencies)
+- [ ] Rate limit exhaustion returns clear error message, not silent failure
+- [ ] Rate limit config in `settings.py`
+
+### 16.7.5 Input Length Validation
+**Problem**: No consistent input length limits. Very long messages can cause Ollama OOM or extremely slow classification.
+
+**Implementation**:
+- [ ] Define `MAX_INPUT_LENGTH` constant (e.g., 5000 characters)
+- [ ] Validate in `WellnessGuide.generate_response()` before any processing
+- [ ] Validate in `LLMClassifier.classify()` before Ollama call
+- [ ] Truncate gracefully with user notification (don't silently drop content)
+- [ ] Add to UI: character counter on input field
+
+---
+
+## Phase 16.8: God Class Decomposition 🔧 HARDENING
+**Goal**: Break the 5 largest classes into focused, single-responsibility components.
+
+**Why now**: The god classes are the single biggest barrier to contribution. A new contributor facing a 1646-line class with 40+ methods will bounce. Decomposition makes the codebase navigable, testable, and reviewable.
+
+### 16.8.1 Decompose WellnessTracker (1646 lines, 40+ methods)
+**File**: `src/utils/wellness_tracker.py`
+
+**Problem**: Tracks check-ins, task patterns, independence, handoffs, self-reports, anti-engagement scores, session metrics, and dashboard data — all in one class.
+
+**Implementation**:
+- [ ] Extract `TaskPatternTracker` — task category detection, graduation eligibility, independence logging
+- [ ] Extract `HandoffTracker` — handoff events, follow-ups, success metrics
+- [ ] Extract `AntiEngagementScorer` — sensitive usage stats, weekly comparison, reliance scoring
+- [ ] Extract `SessionMetrics` — session summaries, turn tracking, domain visit logging
+- [ ] Keep `WellnessTracker` as a thin facade delegating to the above
+- [ ] Each component gets its own file in `src/utils/tracking/`
+- [ ] Move shared types to `src/models/data_contracts.py`
+
+### 16.8.2 Decompose WellnessGuide (1478 lines, 30+ methods)
+**File**: `src/models/ai_wellness_guide.py`
+
+**Problem**: Handles Ollama communication, response generation, prompt building, context management, acknowledgment logic, safety pipeline, and streaming — all in one class.
+
+**Implementation**:
+- [ ] Extract `OllamaClient` — HTTP calls, retry logic, streaming, health check
+- [ ] Extract `ResponsePipeline` — pre-generation safety checks, post-generation adjustments, acknowledgment injection
+- [ ] Extract `ContextManager` — session emotional context, topic threading, context decay
+- [ ] Keep `WellnessGuide` as orchestrator calling the above
+- [ ] Each component gets its own file in `src/models/`
+
+### 16.8.3 Decompose ScenarioLoader (1375 lines, 25+ methods)
+**File**: `src/utils/scenario_loader.py`
+
+**Problem**: Loads domains, intents, graduation, handoff, emotional weight, metrics, transparency, connection building, and classification configs — all from one class.
+
+**Implementation**:
+- [ ] Extract `DomainLoader` — domain YAML loading, trigger indexing, risk weight lookup
+- [ ] Extract `ResponseLoader` — fallbacks, acknowledgments, handoff templates
+- [ ] Extract `ClassificationConfigLoader` — LLM classifier config, few-shot examples
+- [ ] Keep `ScenarioLoader` as a registry/facade
+- [ ] Use `@functools.lru_cache` on individual loaders (currently no caching at loader level)
+
+### 16.8.4 Decompose StorageBackend (1368 lines, 31+ methods)
+**File**: `src/utils/storage_backend.py`
+
+**Problem**: Unified interface for JSON and SQLite backends, handling check-ins, trusted people, reach-outs, handoff events, self-reports, independence, task patterns, and session intents.
+
+**Implementation**:
+- [ ] Extract interface `StorageProtocol` (Python Protocol class) defining the full contract
+- [ ] Extract `CheckInStorage` — check-in CRUD operations
+- [ ] Extract `TrustedNetworkStorage` — trusted people + reach-outs
+- [ ] Extract `MetricsStorage` — handoff events, self-reports, independence, task patterns
+- [ ] Each storage component has JSON and SQLite implementations
+- [ ] `StorageBackend` becomes a composite delegating to components
+
+### 16.8.5 Simplify RiskClassifier (778 lines)
+**File**: `src/models/risk_classifier.py`
+
+**Problem**: Handles domain detection, emotional weight assessment, dependency scoring, intent detection, task category detection, graduation info, and crisis/harmful fast-path — too many concerns.
+
+**Implementation**:
+- [ ] Extract `EmotionalWeightAssessor` — weight detection, score calculation
+- [ ] Extract `DependencyScorer` — dependency risk calculation, pattern analysis
+- [ ] Extract `TaskCategoryDetector` — task category detection, graduation eligibility
+- [ ] Keep `RiskClassifier` as orchestrator for the overall classification pipeline
+
+---
+
+## Phase 16.9: Test Coverage Expansion 🔧 HARDENING
+**Goal**: Cover the 6 untested files, add error injection tests, concurrency tests, and security tests.
+
+**Why now**: 292 tests is impressive, but zero coverage on `database.py`, `storage_backend.py`, `lockfile.py`, `write_gate.py`, `trusted_network.py`, and `helpers.py` means the persistence layer — the layer that owns user data — is completely unguarded. Any refactoring in Phase 16.8 without tests is playing with fire.
+
+### 16.9.1 Storage Layer Tests
+**Problem**: `database.py` (SQLite operations) and `storage_backend.py` (unified interface) have zero test coverage. These handle all user data persistence.
+
+**Implementation**:
+- [ ] Create `tests/test_database.py`:
+  - Schema creation and migration (v1→v2)
+  - CRUD operations for each table (check_ins, trusted_people, reach_outs, etc.)
+  - WAL mode verification
+  - Checkpoint behavior
+  - Transaction rollback on error
+  - Concurrent read/write behavior
+- [ ] Create `tests/test_storage_backend.py`:
+  - JSON backend: read, write, atomic save, corruption recovery
+  - SQLite backend: same operations via storage abstraction
+  - Backend switching (JSON → SQLite migration)
+  - Write gate integration (blocked writes raise `WriteBlockedError`)
+
+### 16.9.2 Lock File & Write Gate Tests
+**Problem**: `lockfile.py` and `write_gate.py` have zero coverage. These are the multi-device safety net.
+
+**Implementation**:
+- [ ] Create `tests/test_lockfile.py`:
+  - Lock acquisition and release
+  - Stale lock detection (mock time)
+  - Heartbeat update
+  - Concurrent acquisition (two threads, one wins)
+  - Lock re-entry from same device
+  - Force takeover behavior
+- [ ] Create `tests/test_write_gate.py`:
+  - Write allowed/blocked state transitions
+  - `WriteBlockedError` raised on blocked writes
+  - All 31 storage write methods respect the gate
+
+### 16.9.3 Trusted Network Tests
+**Problem**: `trusted_network.py` has zero direct test coverage. Handles the human connection features.
+
+**Implementation**:
+- [ ] Create `tests/test_trusted_network.py`:
+  - Add/remove trusted people
+  - Reach-out logging and history
+  - Context-aware handoff template selection
+  - Network empty detection
+  - Signpost and first-contact template retrieval
+  - Building network content generation
+
+### 16.9.4 Error Injection Tests
+**Problem**: No tests verify behavior under adverse conditions (disk full, Ollama crash mid-stream, corrupt JSON, database locked).
+
+**Implementation**:
+- [ ] Ollama errors: connection refused, timeout, malformed JSON, empty response, HTTP 500
+- [ ] Storage errors: disk full (mock `os.replace` raising `OSError`), corrupt JSON file, locked SQLite database
+- [ ] YAML errors: missing files, malformed YAML, missing required keys
+- [ ] All error paths should fail open (neutral/safe behavior, never crash)
+
+### 16.9.5 Concurrency Tests
+**Problem**: No tests verify thread safety of shared state (cache, session state, lock files).
+
+**Implementation**:
+- [ ] LLM classification cache: concurrent reads/writes don't corrupt
+- [ ] WellnessTracker: concurrent `_save_data()` calls produce valid JSON
+- [ ] Lock file: race condition test (two threads attempt simultaneous acquisition)
+- [ ] Session state: concurrent `process_message()` calls are serialized
+
+### 16.9.6 Security Tests
+- [ ] SQL injection attempts on all storage methods
+- [ ] Oversized input handling (10MB message)
+- [ ] Special characters in all user-facing inputs (Unicode, null bytes, control characters)
+- [ ] Lock file path traversal attempts
+
+---
+
+## Phase 16.10: Observability & Configuration 🔧 HARDENING
+**Goal**: Add structured logging, extract magic numbers to config, and validate configuration at startup.
+
+**Why now**: 50+ magic numbers are scattered as bare literals. When a contributor needs to tune the graduation threshold from 8 to 12, they have to `grep` for `8` across the entire codebase. Structured logging enables debugging production issues without adding print statements.
+
+### 16.10.1 Structured Logging
+**Problem**: Current logging is `print()` statements and Streamlit's built-in logger. No structured format, no log levels, no correlation IDs.
+
+**Implementation**:
+- [ ] Configure Python `logging` module with structured format (JSON or key=value)
+- [ ] Add log levels: DEBUG for classification details, INFO for session events, WARNING for degraded states, ERROR for failures
+- [ ] Add session correlation ID to all log entries (trace a full request through the pipeline)
+- [ ] Replace all `print()` and `st.write()` debug statements with proper `logger.debug()`/`.info()`
+- [ ] Log classification decisions with confidence, method, and timing
+- [ ] Log safety pipeline actions (crisis detection, cooldown trigger, redirect)
+
+### 16.10.2 Extract Magic Numbers to Configuration
+**Problem**: 50+ bare numeric literals scattered across core files. Examples:
+- Turn limits (various values in `ai_wellness_guide.py`)
+- Lookback windows (day counts in `wellness_tracker.py`)
+- Cache sizes (`max_entries=100` in `llm_classifier.py`)
+- Thresholds (emotional weight scores, dependency scores, anti-engagement factors)
+- Context decay turns (7 for reflection_redirect, 5 for high_weight in `ai_wellness_guide.py`)
+- Rate limits (max dismissals, max asks per session, follow-up delays)
+
+**Implementation**:
+- [ ] Create `scenarios/config/system_defaults.yaml` with all tunables organized by component:
+  ```yaml
+  classification:
+    cache_max_size: 100
+    cache_ttl_seconds: 3600
+    llm_timeout_seconds: 30
+    practical_timeout_seconds: 120
+  context:
+    reflection_redirect_decay_turns: 7
+    high_weight_decay_turns: 5
+    sensitive_domain_decay_turns: 4
+  graduation:
+    max_dismissals: 3
+  safety:
+    max_asks_per_session: 2
+    cooldown_turns: 3
+  ```
+- [ ] Load config at startup via `ScenarioLoader`
+- [ ] Replace all bare literals with config lookups
+- [ ] Document each setting with description and valid range
+
+### 16.10.3 Environment-Specific Configurations
+- [ ] Development mode: verbose logging, relaxed timeouts, no rate limits
+- [ ] Production mode: structured JSON logging, strict timeouts, rate limits enabled
+- [ ] Test mode: minimal logging, instant timeouts, mock-friendly defaults
+- [ ] Mode selected via `EMPATHYSYNC_ENV` environment variable (default: `development`)
+- [ ] Add to `.env.example` with explanations
+
+### 16.10.4 YAML Schema Validation
+**Problem**: YAML config files have no schema validation. A missing key or wrong type causes a runtime `KeyError` minutes into a session, not at startup.
+
+**Implementation**:
+- [ ] Define expected schema for each YAML config file (using `jsonschema` or simple manual validation)
+- [ ] Validate all YAML files at startup in `health_check.py`
+- [ ] Report specific errors: "scenarios/domains/health.yaml: missing required key 'triggers'"
+- [ ] Block startup on critical schema violations
+- [ ] Warn on deprecated/unknown keys (forward compatibility)
+
+### 16.10.5 Performance Metrics
+- [ ] Track and log classification latency (p50, p95, p99)
+- [ ] Track cache hit rate (LLM classification cache, domain trigger cache)
+- [ ] Track Ollama response time distribution
+- [ ] Expose via `/metrics` endpoint (or local file) for debugging
+- [ ] Optional: Prometheus-compatible format for users who want dashboards
+
+---
 **Goal**: empathySync runs as a background service with cross-session memory, scheduled check-ins, and self-governance — an agent that actively tries to make itself less needed.
 
 **Why this matters**: Currently empathySync only exists when the user opens it. A persistent daemon can do things a session-bound app cannot: remind you to check in with a friend, notice you haven't needed it in a week (and celebrate that), or go quiet when it detects over-reliance. The restraint philosophy extends to the agent's own behavior.
@@ -1274,17 +1659,33 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 | **14. Packaging & Distribution** | **High** | **Medium** | ✅ COMPLETE |
 | **15. CI/CD & Documentation** | **Medium** | **Low** | ✅ COMPLETE |
 | **16. Core Decoupling** | **High** | **Medium** | ✅ COMPLETE |
-| **17. Persistent Agent Daemon** | **High** | **High** | 🔵 Next |
+| **16.5 Type Safety & Data Contracts** | **High** | **Medium** | 🔴 Do First |
+| **16.6 Async I/O & Performance** | **High** | **Medium** | 🔴 Do First |
+| **16.7 Security Hardening** | **Critical** | **Medium** | 🔴 Do First |
+| **16.8 God Class Decomposition** | **High** | **High** | 🟠 Do Before 17 |
+| **16.9 Test Coverage Expansion** | **High** | **Medium** | 🟠 Do Before 17 |
+| **16.10 Observability & Configuration** | **Medium** | **Medium** | 🟠 Do Before 17 |
+| **17. Persistent Agent Daemon** | **High** | **High** | 🔵 After Hardening |
 | **18. Messaging Integration** | **Medium** | **High** | 🔵 After 17 |
 | 10. Advanced Detection | High | High | 🔵 Long-term |
 
 ---
 
-## Current Status (2026-02-06)
+## Current Status (2026-02-10)
 
 **Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, 12, 13, 14 (Core), 15, and 16
 
-**Next Up**: Phase 17 (Persistent Agent Daemon) or Phase 8.5/8.6 (AI Literacy)
+**Next Up**: Hardening Phases 16.5-16.10 (Type Safety → Async I/O → Security → God Class Decomposition → Test Coverage → Observability)
+
+**Why hardening before Phase 17?** The Persistent Agent Daemon (Phase 17) adds a long-running background process, cross-session memory, scheduled nudges, and self-governance. Building that on top of god classes, synchronous I/O, untested persistence, and 50+ magic numbers would compound every existing issue. Fix the foundation first, then build upward.
+
+**Recommended order**:
+1. Phase 16.9 (Test Coverage) — safety net before any refactoring
+2. Phase 16.5 (Type Safety) — enums and dataclasses make refactoring safer
+3. Phase 16.7 (Security) — fix race conditions and injection vectors
+4. Phase 16.6 (Async I/O) — unblock daemon architecture
+5. Phase 16.8 (God Class Decomposition) — clean architecture for Phase 17
+6. Phase 16.10 (Observability) — debug infrastructure for daemon development
 
 **Recent Bug Fixes**:
 - Fixed post-crisis apology bug: LLM no longer apologizes for crisis interventions
@@ -1362,20 +1763,28 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 
 **All Core Phases Complete!**
 
-**Distribution Readiness** (Priority):
-- Phase 13: Project Health & Stability (fix tests, Ollama health check, startup validation, .env)
-- Phase 14: Packaging & Distribution (pyproject.toml, install script, Docker, first release)
-- Phase 15: CI/CD & Documentation (GitHub Actions, troubleshooting guide, sync docs)
+**Distribution Readiness** (Complete):
+- Phase 13: Project Health & Stability ✅
+- Phase 14: Packaging & Distribution ✅
+- Phase 15: CI/CD & Documentation ✅
+- Phase 16: Core Decoupling ✅
 
-**Agent Evolution** (After distribution readiness):
-- Phase 16: Core Decoupling (ConversationSession extraction, InterfaceAdapter protocol)
+**Hardening** (Current — do before Phase 17):
+- Phase 16.5: Type Safety & Data Contracts (enums, dataclasses, type annotations)
+- Phase 16.6: Async I/O & Performance (httpx, regex pre-compile, Aho-Corasick triggers)
+- Phase 16.7: Security Hardening (atomic lock, secrets, SQL injection, rate limits, input validation)
+- Phase 16.8: God Class Decomposition (WellnessTracker, WellnessGuide, ScenarioLoader, StorageBackend, RiskClassifier)
+- Phase 16.9: Test Coverage Expansion (6 untested files, error injection, concurrency, security tests)
+- Phase 16.10: Observability & Configuration (structured logging, magic numbers → YAML, env configs, schema validation)
+
+**Agent Evolution** (After hardening):
 - Phase 17: Persistent Agent Daemon (background service, scheduled nudges, self-restriction)
 - Phase 18: Messaging Integration (WhatsApp, Signal, Slack adapters with safety parity)
 
 **Feature Backlog** (Lower Priority):
 - Phase 8.5: AI Literacy Moments (educational prompts, max 1/week)
 - Phase 8.6: "Spot the Pattern" Feature (manipulation pattern education)
-- Phase 10: Advanced Detection (semantic intent, conversation flow analysis - long-term)
+- Phase 10: Advanced Detection (semantic intent, conversation flow analysis — long-term)
 
 ---
 
@@ -1408,8 +1817,11 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 **v0.8.1** (Phase 12): Connection building (signposts, first-contact templates) ✅ COMPLETE
 **v0.8.2** (Phase 13): Test fixes, Ollama health check, startup validation, .env completion ✅ COMPLETE
 **v0.9-beta** (Phase 14): pyproject.toml, install script, Docker Compose, first tagged release ✅ COMPLETE
-**v0.9.5** (Phase 15): GitHub Actions CI, troubleshooting guide, sync documentation
+**v0.9.5** (Phase 15): GitHub Actions CI, troubleshooting guide, sync documentation ✅ COMPLETE
 **v1.0** (Phase 16): Core decoupling, InterfaceAdapter protocol, CLI adapter proof-of-concept ✅ COMPLETE
+**v1.1** (Phase 16.5-16.6): Type safety, data contracts, async I/O, performance optimization
+**v1.2** (Phase 16.7-16.8): Security hardening, god class decomposition
+**v1.3** (Phase 16.9-16.10): Test coverage expansion, observability, configuration extraction
 **v1.5** (Phase 17): Persistent agent daemon, cross-session memory, self-restriction engine
 **v2.0** (Phase 18): Messaging integration, safety parity across all interfaces
 
