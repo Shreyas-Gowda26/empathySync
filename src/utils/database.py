@@ -219,8 +219,7 @@ def _ensure_schema(conn: sqlite3.Connection):
 def _create_schema(conn: sqlite3.Connection):
     """Create the initial database schema (v1)."""
 
-    conn.executescript(
-        """
+    conn.executescript("""
         -- Schema version tracking
         CREATE TABLE IF NOT EXISTS schema_info (
             version INTEGER PRIMARY KEY,
@@ -340,8 +339,7 @@ def _create_schema(conn: sqlite3.Connection):
         -- Record initial schema version
         INSERT INTO schema_info (version, migrated_at, description)
         VALUES (1, datetime('now'), 'Initial schema');
-    """
-    )
+    """)
 
     conn.commit()
     logger.info("Database schema v1 created")
@@ -376,8 +374,7 @@ def _migrate_v1_to_v2(conn: sqlite3.Connection):
     """
     logger.info("Running migration v1 -> v2: Adding cascade delete to reach_outs")
 
-    conn.executescript(
-        """
+    conn.executescript("""
         -- Create new table with CASCADE constraint
         CREATE TABLE reach_outs_new (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -401,8 +398,7 @@ def _migrate_v1_to_v2(conn: sqlite3.Connection):
         -- Record migration
         INSERT INTO schema_info (version, migrated_at, description)
         VALUES (2, datetime('now'), 'Added ON DELETE CASCADE to reach_outs.person_id');
-    """
-    )
+    """)
 
     # Verify no FK violations after rebuild
     violations = conn.execute("PRAGMA foreign_key_check(reach_outs)").fetchall()
