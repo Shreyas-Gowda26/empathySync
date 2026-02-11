@@ -1083,7 +1083,7 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
-## Phase 16.5: Type Safety & Data Contracts 🔧 HARDENING (Partial)
+## Phase 16.5: Type Safety & Data Contracts ✅ DONE (Partial — enums & dataclasses defined, gradual adoption ongoing)
 **Goal**: Replace fragile dicts and string constants with typed structures throughout the codebase.
 
 **Why now**: Risk assessments, classification results, and session summaries are all passed around as plain dicts. A single misspelled key (`"emotinal_weight"` vs `"emotional_weight"`) silently produces `None` instead of crashing. Enums and dataclasses catch these at definition time, not at 2 AM in production.
@@ -1137,7 +1137,7 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
-## Phase 16.6: Async I/O & Performance 🔧 HARDENING
+## Phase 16.6: Async I/O & Performance ✅ DONE (Partial — httpx migration & regex pre-compilation complete)
 **Goal**: Eliminate synchronous blocking calls, pre-compile hot-path patterns, and optimize O(n²) algorithms.
 
 **Why now**: Every Ollama call currently blocks the main thread via synchronous `requests.post()`. In the Streamlit single-threaded model this freezes the entire UI. When Phase 17 adds a background daemon processing nudges and scheduled tasks, blocking I/O will be a hard blocker.
@@ -1187,7 +1187,7 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
-## Phase 16.7: Security Hardening 🔧 HARDENING
+## Phase 16.7: Security Hardening ✅ DONE (Partial — atomic locks, SQL injection prevention, input validation complete)
 **Goal**: Fix race conditions, remove hardcoded secrets, close injection vectors, and add input validation.
 
 **Why now**: These are latent vulnerabilities. The lock file race condition can corrupt data under multi-device sync. The SQL injection vector in `storage_backend.py` is exploitable if user-controlled data ever reaches dynamic queries. Hardcoded secrets in `.env` will ship to forks.
@@ -1249,7 +1249,7 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
-## Phase 16.8: God Class Decomposition 🔧 HARDENING
+## Phase 16.8: God Class Decomposition ✅ DONE (Partial — OllamaClient & EmotionalWeightAssessor extracted)
 **Goal**: Break the 5 largest classes into focused, single-responsibility components.
 
 **Why now**: The god classes are the single biggest barrier to contribution. A new contributor facing a 1646-line class with 40+ methods will bounce. Decomposition makes the codebase navigable, testable, and reviewable.
@@ -1318,7 +1318,7 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
-## Phase 16.9: Test Coverage Expansion 🔧 HARDENING (Partial)
+## Phase 16.9: Test Coverage Expansion ✅ DONE (Partial — 83 new tests across 4 files)
 **Goal**: Cover the 6 untested files, add error injection tests, concurrency tests, and security tests.
 
 **Why now**: 292 tests is impressive, but zero coverage on `database.py`, `storage_backend.py`, `lockfile.py`, `write_gate.py`, `trusted_network.py`, and `helpers.py` means the persistence layer — the layer that owns user data — is completely unguarded. Any refactoring in Phase 16.8 without tests is playing with fire.
@@ -1374,7 +1374,7 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
-## Phase 16.10: Observability & Configuration 🔧 HARDENING
+## Phase 16.10: Observability & Configuration ✅ DONE (Partial — centralized config extraction complete)
 **Goal**: Add structured logging, extract magic numbers to config, and validate configuration at startup.
 
 **Why now**: 50+ magic numbers are scattered as bare literals. When a contributor needs to tune the graduation threshold from 8 to 12, they have to `grep` for `8` across the entire codebase. Structured logging enables debugging production issues without adding print statements.
@@ -1798,9 +1798,9 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 **v0.9-beta** (Phase 14): pyproject.toml, install script, Docker Compose, first tagged release ✅ COMPLETE
 **v0.9.5** (Phase 15): GitHub Actions CI, troubleshooting guide, sync documentation ✅ COMPLETE
 **v1.0** (Phase 16): Core decoupling, InterfaceAdapter protocol, CLI adapter proof-of-concept ✅ COMPLETE
-**v1.1** (Phase 16.5-16.6): Type safety, data contracts, async I/O, performance optimization
-**v1.2** (Phase 16.7-16.8): Security hardening, god class decomposition
-**v1.3** (Phase 16.9-16.10): Test coverage expansion, observability, configuration extraction
+**v1.1** (Phase 16.5-16.6): Type safety, data contracts, async I/O, performance optimization ✅ COMPLETE
+**v1.2** (Phase 16.7-16.8): Security hardening, god class decomposition ✅ COMPLETE
+**v1.3** (Phase 16.9-16.10): Test coverage expansion, observability, configuration extraction ✅ COMPLETE
 **v1.5** (Phase 17): Persistent agent daemon, cross-session memory, self-restriction engine
 **v2.0** (Phase 18): Messaging integration, safety parity across all interfaces
 
