@@ -11,12 +11,13 @@ When Phase 17 introduces the async daemon, swap to httpx.AsyncClient.
 
 import httpx
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 # Module-level client — reuses TCP connections across calls.
 # Lazy-initialized on first access to avoid import-time side effects.
-_client: httpx.Client | None = None
+_client: Optional[httpx.Client] = None
 
 
 def get_http_client() -> httpx.Client:
