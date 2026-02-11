@@ -99,9 +99,10 @@ User Input
     ▼
 ┌─────────────────────────────────────────────┐
 │  6. TURN LIMIT CHECK                        │
-│     Each domain has max turns:              │
-│     logistics:20, money:8, health:8,        │
-│     relationships:10, spirituality:5        │
+│     Each domain has max turns (configurable │
+│     in system_defaults.yaml):               │
+│     logistics:30, money:15, health:15,      │
+│     relationships:15, spirituality:10       │
 └─────────────────────────────────────────────┘
     │ Pass
     ▼
@@ -176,31 +177,41 @@ Response to User (streamed in real-time)
 │ - Streaming API   │ │ - Policy log  │ │ - Reach-out history   │
 │ - Policy actions  │ │ - Dependency  │ │ - Message templates   │
 └─────────┬─────────┘ └───────────────┘ └───────────────────────┘
-          │ uses
-          ▼
-┌───────────────────────────────────────────────────────────────┐
-│                       RiskClassifier                           │
-│                                                                 │
-│   - Domain detection (8 domains)                                │
-│   - Emotional intensity (0-10)                                  │
-│   - Emotional weight (for practical tasks)                      │
-│   - Dependency risk scoring                                     │
-│   - Intent detection (practical/processing/emotional/connection)│
-│   - Intent shift detection                                      │
-│   - Connection-seeking detection                                │
-└─────────────────────────────┬─────────────────────────────────┘
-                              │ uses
-                              ▼
+          │ delegates to
+          ├──────────────────────────────┐
+          ▼                              ▼
+┌───────────────────┐    ┌───────────────────────────────────────┐
+│   OllamaClient    │    │          RiskClassifier                │
+│   (Phase 16.8)    │    │                                        │
+│                   │    │   - Domain detection (8 domains)       │
+│ - generate()      │    │   - Dependency risk scoring            │
+│ - generate_stream │    │   - Intent detection                   │
+│ - check_health()  │    │   - Connection-seeking detection       │
+│ - Uses httpx      │    └────────────────┬──────────────────────┘
+└─────────┬─────────┘                     │ delegates to
+          │ uses                           ▼
+          ▼                    ┌──────────────────────────┐
+┌───────────────────┐          │ EmotionalWeightAssessor  │
+│  http_client.py   │          │ (Phase 16.8)             │
+│  (Phase 16.6)     │          │                          │
+│                   │          │ - measure_intensity()    │
+│ - Shared httpx    │          │ - assess_weight()        │
+│   Client          │          │ - needs_reflection_      │
+│ - Connection pool │          │   redirect()             │
+│ - get_http_client │          │ - get_response_modifier()│
+└───────────────────┘          └──────────────────────────┘
+                                          │ uses
+                                          ▼
 ┌───────────────────────────────────────────────────────────────┐
 │                       ScenarioLoader                           │
 │                        (Singleton)                              │
 │                                                                 │
 │   - Loads YAML knowledge base                                   │
 │   - Caching with hot-reload support                             │
+│   - get_system_defaults() — centralized tunables (Phase 16.10) │
+│   - get_default(*keys, fallback=) — nested config lookup        │
 │   - Domain rules, triggers, responses                           │
-│   - Emotional markers                                           │
-│   - Intervention configurations                                 │
-│   - Intent indicators                                           │
+│   - Emotional markers, intervention configurations              │
 │   - Connection building signposts (Phase 12)                    │
 └─────────────────────────────┬─────────────────────────────────┘
                               │ reads
@@ -209,6 +220,7 @@ Response to User (streamed in real-time)
 │                     scenarios/                                  │
 │                  (YAML Knowledge Base)                          │
 │                                                                 │
+│   config/              - system_defaults.yaml (100+ tunables)  │
 │   domains/             - Risk domains and triggers              │
 │   emotional_markers/   - Intensity detection                    │
 │   connection_building/ - Signposts, first-contact (Phase 12)   │
@@ -434,8 +446,12 @@ empathySync/
 │   │   └── settings.py          # Environment configuration
 │   ├── models/
 │   │   ├── ai_wellness_guide.py # Core conversation engine + streaming
+│   │   ├── ollama_client.py     # HTTP layer for Ollama (Phase 16.8)
+│   │   ├── emotional_weight_assessor.py # Emotional weight logic (Phase 16.8)
 │   │   ├── risk_classifier.py   # Risk assessment
-│   │   ├── llm_classifier.py    # LLM-based classification (Phase 9)
+│   │   ├── llm_classifier.py    # LLM classification + pre-compiled regex (Phase 9, 16.6)
+│   │   ├── enums.py             # Type-safe enums (Phase 16.5)
+│   │   ├── data_contracts.py    # Dataclasses for structured state (Phase 16.5)
 │   │   ├── conversation_session.py # Framework-agnostic session manager
 │   │   └── conversation_result.py  # Structured result dataclass
 │   ├── interfaces/              # Interface adapters (Phase 16)
@@ -444,18 +460,20 @@ empathySync/
 │   ├── prompts/
 │   │   └── wellness_prompts.py  # Dynamic prompt generation
 │   └── utils/
+│       ├── http_client.py       # Shared httpx.Client with connection pooling (Phase 16.6)
 │       ├── helpers.py           # Logging and utilities
 │       ├── wellness_tracker.py  # Session/check-in tracking
 │       ├── trusted_network.py   # Human network management
-│       ├── scenario_loader.py   # YAML knowledge base loader
+│       ├── scenario_loader.py   # YAML loader + get_default() for tunables (Phase 16.10)
 │       ├── database.py          # SQLite layer (Phase 11)
-│       ├── storage_backend.py   # JSON/SQLite abstraction (Phase 11)
-│       ├── lockfile.py          # Multi-device lock (Phase 11)
+│       ├── storage_backend.py   # JSON/SQLite + SQL injection prevention (Phase 11, 16.7)
+│       ├── lockfile.py          # Atomic lock file with O_CREAT|O_EXCL (Phase 11, 16.7)
 │       └── write_gate.py        # Write permission control (Phase 11)
 │
 ├── scenarios/                    # Knowledge base (YAML)
 │   ├── domains/                 # 8 risk domains
 │   ├── emotional_markers/       # 4 intensity levels
+│   ├── config/                  # system_defaults.yaml — 100+ tunables (Phase 16.10)
 │   ├── classification/          # LLM classifier config (Phase 9)
 │   ├── connection_building/     # Signposts, first-contact (Phase 12)
 │   ├── interventions/           # Dependency, boundaries
@@ -465,7 +483,7 @@ empathySync/
 │
 ├── data/                        # Local user data (JSON/SQLite)
 ├── logs/                        # Application logs
-├── tests/                       # Pytest test suite (360 tests)
+├── tests/                       # Pytest test suite (443 tests)
 └── docs/                        # Documentation
 ```
 

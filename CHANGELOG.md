@@ -2,6 +2,59 @@
 
 All notable changes to empathySync are documented here.
 
+## v1.3 (2026-02-11) — Hardening Release
+
+**"The restraint is the feature."**
+
+Phases 16.5–16.10 complete. Type safety, performance optimization, security hardening, god class decomposition, expanded test coverage, and centralized configuration.
+
+### Type Safety (Phase 16.5)
+- **Type-safe enums**: `Domain`, `Intent`, `EmotionalWeight`, `ClassificationMethod` — `str, Enum` pattern for backward compatibility
+- **Dataclasses**: `RiskAssessment` and `LLMClassification` with dict-compatible access (`__getitem__`, `.get()`, `to_dict()`) and `__post_init__` validation
+
+### Performance (Phase 16.6)
+- **httpx migration**: Replaced `requests` with `httpx` — shared connection-pooling client via `get_http_client()`
+- **Pre-compiled regex**: Module-level `_RE_JSON_STRICT` and `_RE_JSON_PERMISSIVE` patterns for hot-path classification
+- **Injectable http_client**: All Ollama-calling code accepts `http_client` parameter for testability
+
+### Security Hardening (Phase 16.7)
+- **Atomic lock file**: `O_CREAT | O_EXCL` flags eliminate TOCTOU race condition in `lockfile.py`
+- **SQL injection prevention**: `_VALID_COLUMNS` frozenset whitelist in `storage_backend.py` validates column names before interpolation
+- **Input length validation**: `MAX_CLASSIFY_LENGTH = 5000` with graceful truncation in WellnessGuide and LLMClassifier
+- **Secrets cleanup**: `.env.example` sanitized with `SECRET_KEY=change-me-to-a-random-string` placeholder
+
+### Architecture (Phase 16.8)
+- **OllamaClient extracted**: HTTP layer pulled from WellnessGuide into `src/models/ollama_client.py` — `generate()`, `generate_stream()`, `check_health()`
+- **EmotionalWeightAssessor extracted**: Weight logic pulled from RiskClassifier into `src/models/emotional_weight_assessor.py`
+- Both parent classes delegate via facade pattern
+
+### Test Coverage (Phase 16.9)
+- **+83 new tests** across 4 new test files:
+  - `test_write_gate.py` (11 tests): state transitions, `@require_write` decorator
+  - `test_trusted_network.py` (57 tests): person management, reach-outs, prompts, handoff, error handling
+  - `test_helpers.py` (10 tests): logging, validation, formatting
+  - `test_llm_classifier.py` additions (5 tests): error injection — timeout, connection refused, malformed JSON, empty response, HTTP 500
+
+### Configuration (Phase 16.10)
+- **Centralized tunables**: `scenarios/config/system_defaults.yaml` with 100+ settings organized by component
+- **Config accessor**: `ScenarioLoader.get_default(*keys, fallback=)` for nested config lookup
+- **OllamaClient wired**: Timeout, token limits, and temperature loaded from config
+
+### CI Fixes
+- Python 3.9 compatibility: `Optional[httpx.Client]` instead of `httpx.Client | None` (PEP 604)
+- Black 25.9.0 pinning for consistent formatting across local and CI
+- Flake8 F811 fix: renamed shadowed `settings` variable
+
+### Stats
+- **443 tests passing** (up from 360)
+- CI green on Python 3.9, 3.10, 3.11, 3.12
+- `requests` dependency removed, replaced with `httpx>=0.26.0`
+
+### Breaking Changes
+- `requests` replaced by `httpx` — run `pip install -r requirements.txt` after upgrading
+
+---
+
 ## v1.0 (2026-02-06) — Core Decoupling & Streaming
 
 **"The soul as a library."**
