@@ -9,12 +9,13 @@ Validates that all dependencies are available before the app launches:
 """
 
 import logging
-import requests
+import httpx
 from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 
 from config.settings import settings
+from utils.http_client import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,8 @@ class HealthStatus:
 def check_ollama_server() -> HealthStatus:
     """Check if Ollama server is reachable."""
     try:
-        response = requests.get(f"{settings.OLLAMA_HOST}/api/tags", timeout=5)
+        client = get_http_client()
+        response = client.get(f"{settings.OLLAMA_HOST}/api/tags", timeout=5)
         if response.status_code == 200:
             return HealthStatus(name="Ollama Server", ok=True, message="Connected")
         else:
@@ -43,7 +45,7 @@ def check_ollama_server() -> HealthStatus:
                 message=f"Ollama returned status {response.status_code}",
                 details=f"URL: {settings.OLLAMA_HOST}",
             )
-    except requests.exceptions.ConnectionError:
+    except httpx.ConnectError:
         return HealthStatus(
             name="Ollama Server",
             ok=False,
@@ -56,7 +58,7 @@ def check_ollama_server() -> HealthStatus:
                 "3. Verify it's running: `curl http://localhost:11434/api/tags`"
             ),
         )
-    except requests.exceptions.Timeout:
+    except httpx.TimeoutException:
         return HealthStatus(
             name="Ollama Server",
             ok=False,
@@ -76,7 +78,8 @@ def check_ollama_model() -> HealthStatus:
     """Check if the configured model is available in Ollama."""
     model_name = settings.OLLAMA_MODEL
     try:
-        response = requests.get(f"{settings.OLLAMA_HOST}/api/tags", timeout=5)
+        client = get_http_client()
+        response = client.get(f"{settings.OLLAMA_HOST}/api/tags", timeout=5)
         if response.status_code != 200:
             return HealthStatus(
                 name="Ollama Model",
