@@ -11,6 +11,8 @@ from typing import List, Dict, Optional, Tuple
 import logging
 from utils.scenario_loader import get_scenario_loader, ScenarioLoader
 from config.settings import settings
+from models.enums import Domain, Intent, EmotionalWeight, ClassificationMethod
+from models.emotional_weight_assessor import EmotionalWeightAssessor
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +25,11 @@ except ImportError:
     LLM_CLASSIFIER_AVAILABLE = False
 
 
-# Intent types for shift detection
-INTENT_PRACTICAL = "practical"
-INTENT_PROCESSING = "processing"
-INTENT_EMOTIONAL = "emotional"
-INTENT_CONNECTION = "connection"
+# Intent types for shift detection — now backed by enum (backward-compatible aliases)
+INTENT_PRACTICAL = Intent.PRACTICAL
+INTENT_PROCESSING = Intent.PROCESSING
+INTENT_EMOTIONAL = Intent.EMOTIONAL
+INTENT_CONNECTION = Intent.CONNECTION
 
 
 class RiskClassifier:
@@ -59,7 +61,7 @@ class RiskClassifier:
         """
         self.loader = scenario_loader or get_scenario_loader()
         self._trigger_cache: Optional[Dict[str, str]] = None
-        self._weight_trigger_cache: Optional[Dict[str, str]] = None
+        self.emotional = EmotionalWeightAssessor(self.loader)
 
         # Determine LLM classification setting
         if use_llm is None:
@@ -273,92 +275,24 @@ class RiskClassifier:
         return max(domain_matches, key=domain_matches.get)
 
     def _measure_emotional_intensity(self, text: str) -> float:
-        """
-        Emotional intensity scale 0–10 based on markers from scenarios.
-        """
-        t = text.lower()
-        markers_by_level = self.loader.get_emotional_markers_by_level()
-
-        # Check in order of intensity (high first)
-        for level in ["high_intensity", "medium_intensity", "low_intensity"]:
-            if level in markers_by_level:
-                markers = markers_by_level[level]
-                if any(marker.lower() in t for marker in markers):
-                    return self.loader.get_emotional_score(level)
-
-        # Default neutral score
-        return self.loader.get_emotional_score("neutral")
+        """Delegate to EmotionalWeightAssessor.measure_intensity()."""
+        return self.emotional.measure_intensity(text)
 
     def _get_weight_triggers(self) -> Dict[str, str]:
-        """
-        Get cached emotional weight trigger -> level mapping.
-
-        Triggers are ordered by priority: reflection_redirect first, then high, medium.
-        This ensures more specific triggers (like "breakup message") are matched
-        before general ones (like "breakup").
-        """
-        if self._weight_trigger_cache is None:
-            weight_triggers = self.loader.get_emotional_weight_triggers()
-            self._weight_trigger_cache = {}
-
-            # Add in priority order: reflection_redirect > high > medium
-            # Longer/more specific triggers should match first
-            for level in ["reflection_redirect", "high_weight", "medium_weight"]:
-                triggers = weight_triggers.get(level, [])
-                # Sort by length descending so longer triggers match first
-                for trigger in sorted(triggers, key=len, reverse=True):
-                    trigger_lower = trigger.lower()
-                    # Only add if not already present (first match wins)
-                    if trigger_lower not in self._weight_trigger_cache:
-                        self._weight_trigger_cache[trigger_lower] = level
-        return self._weight_trigger_cache
+        """Delegate to EmotionalWeightAssessor.get_weight_triggers()."""
+        return self.emotional.get_weight_triggers()
 
     def _assess_emotional_weight(self, text: str) -> tuple:
-        """
-        Assess the emotional weight of a TASK (not the user's emotional state).
-
-        A resignation email is high-weight even if the user asks calmly.
-        A grocery list is low-weight even if the user is stressed.
-        A breakup message requires reflection, not drafting.
-
-        Returns:
-            tuple: (weight_level, weight_score)
-                   weight_level: 'reflection_redirect', 'high_weight', 'medium_weight', or 'low_weight'
-                   weight_score: float 0-10
-        """
-        t = text.lower()
-        weight_triggers = self._get_weight_triggers()
-
-        # Check triggers - longer/more specific ones checked first due to cache ordering
-        # Sort by length descending to match more specific phrases first
-        for trigger in sorted(weight_triggers.keys(), key=len, reverse=True):
-            if trigger in t:
-                level = weight_triggers[trigger]
-                score = self.loader.get_emotional_weight_score(level)
-                return (level, score)
-
-        # Default to low weight
-        return ("low_weight", self.loader.get_emotional_weight_score("low_weight"))
+        """Delegate to EmotionalWeightAssessor.assess_weight()."""
+        return self.emotional.assess_weight(text)
 
     def needs_reflection_redirect(self, text: str) -> bool:
-        """
-        Check if the input requires a reflection redirect rather than task completion.
-
-        These are personal messages that should come from the person, not AI:
-        - Breakup messages
-        - Personal apologies to loved ones
-        - Coming out messages
-        - Confrontation messages to partners/family
-
-        Returns:
-            True if the message should redirect to reflection instead of completion
-        """
-        weight_level, _ = self._assess_emotional_weight(text)
-        return weight_level == "reflection_redirect"
+        """Delegate to EmotionalWeightAssessor.needs_reflection_redirect()."""
+        return self.emotional.needs_reflection_redirect(text)
 
     def get_reflection_response(self) -> str:
-        """Get a reflection redirect response from scenarios."""
-        return self.loader.get_reflection_redirect_response()
+        """Delegate to EmotionalWeightAssessor.get_reflection_response()."""
+        return self.emotional.get_reflection_response()
 
     def _assess_dependency(self, history: List[Dict]) -> float:
         """
@@ -424,20 +358,14 @@ class RiskClassifier:
         return self.loader.get_domain_redirects(domain)
 
     def get_emotional_response_modifier(self, intensity: float) -> str:
-        """Get response modifier based on emotional intensity."""
-        if intensity >= 9.0:
-            return self.loader.get_emotional_response_modifier("high_intensity")
-        elif intensity >= 6.0:
-            return self.loader.get_emotional_response_modifier("medium_intensity")
-        elif intensity >= 4.0:
-            return self.loader.get_emotional_response_modifier("low_intensity")
-        return self.loader.get_emotional_response_modifier("neutral")
+        """Delegate to EmotionalWeightAssessor.get_response_modifier()."""
+        return self.emotional.get_response_modifier(intensity)
 
     def reload_scenarios(self) -> None:
         """Reload scenarios from disk (useful for hot-reloading)."""
         self.loader.reload()
         self._trigger_cache = None
-        self._weight_trigger_cache = None
+        self.emotional.invalidate_cache()
         # Reload LLM classifier config if available
         if self._llm_classifier:
             self._llm_classifier.reload_config()
@@ -642,7 +570,10 @@ class RiskClassifier:
             return None
 
         # Map intent transitions to shift types
-        shift_type = f"{initial_intent}_to_{current_intent}"
+        # Use .value for enum members, raw string otherwise (backward compat)
+        from_val = initial_intent.value if hasattr(initial_intent, "value") else initial_intent
+        to_val = current_intent.value if hasattr(current_intent, "value") else current_intent
+        shift_type = f"{from_val}_to_{to_val}"
 
         # Some shifts are concerning, others are natural
         concerning_shifts = {
