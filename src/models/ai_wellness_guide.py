@@ -9,15 +9,20 @@ Implements the empathySync vision:
 """
 
 import json
-import requests
+import httpx
 import logging
 from dataclasses import dataclass, field
 from typing import Generator, Iterator, List, Dict, Optional
 from config.settings import settings
 from prompts.wellness_prompts import WellnessPrompts
 from models.risk_classifier import RiskClassifier
+from models.ollama_client import OllamaClient
 
 logger = logging.getLogger(__name__)
+
+# Maximum allowed input length in characters. Prevents OOM on Ollama
+# and ensures classification latency stays bounded.
+MAX_INPUT_LENGTH = 5000
 
 
 @dataclass
@@ -36,19 +41,34 @@ class PreparedResponse:
     is_likely_practical: bool = False
 
 
-# Session limits by risk level (from vision document)
-# These are backstops — the primary restraint mechanism is response style
-# (brief, redirects to humans). Limits should be generous enough to allow
-# natural conversation drift without prematurely cutting off practical help.
-TURN_LIMITS = {
-    "logistics": 30,  # Low risk: generous limit
-    "money": 15,  # Moderate risk: enough room for practical finance help
-    "health": 15,  # Moderate risk: enough for practical health questions
-    "relationships": 15,  # Moderate risk: conversations naturally touch this
-    "spirituality": 10,  # Higher risk: still needs room for practical questions
-    "crisis": 1,  # Immediate stop
-    "harmful": 1,  # Immediate stop
+# Session limits by risk level — loaded from system_defaults.yaml if available,
+# otherwise uses these hardcoded defaults.
+_DEFAULT_TURN_LIMITS = {
+    "logistics": 30,
+    "money": 15,
+    "health": 15,
+    "relationships": 15,
+    "spirituality": 10,
+    "crisis": 1,
+    "harmful": 1,
 }
+
+
+def _load_turn_limits():
+    """Load turn limits from config, falling back to hardcoded defaults."""
+    try:
+        from utils.scenario_loader import get_scenario_loader
+
+        loader = get_scenario_loader()
+        configured = loader.get_default("session", "turn_limits", fallback=None)
+        if configured:
+            return {**_DEFAULT_TURN_LIMITS, **configured}
+    except Exception:
+        pass
+    return _DEFAULT_TURN_LIMITS
+
+
+TURN_LIMITS = _load_turn_limits()
 
 # Identity reminder frequency (every N turns)
 IDENTITY_REMINDER_FREQUENCY = 6
@@ -61,10 +81,11 @@ class WellnessGuide:
     Core principle: Optimize for exit, not engagement.
     """
 
-    def __init__(self):
-        self.ollama_url = f"{settings.OLLAMA_HOST}/api/generate"
-        self.model = settings.OLLAMA_MODEL
-        self.temperature = settings.OLLAMA_TEMPERATURE
+    def __init__(self, http_client: httpx.Client = None):
+        self.ollama_client = OllamaClient(http_client=http_client)
+        self.ollama_url = self.ollama_client.ollama_url
+        self.model = self.ollama_client.model
+        self.temperature = self.ollama_client.temperature
         self.prompts = WellnessPrompts()
         self.risk_classifier = RiskClassifier()
 
@@ -99,6 +120,11 @@ class WellnessGuide:
         # Used to prevent the LLM from apologizing for crisis redirects
         self.post_crisis_turn = None  # Turn number when crisis was triggered
 
+    @property
+    def http_client(self) -> httpx.Client:
+        """Delegate to OllamaClient for backward compatibility."""
+        return self.ollama_client.http_client
+
     def _prepare_response(
         self,
         user_input: str,
@@ -118,6 +144,11 @@ class WellnessGuide:
         """
         if conversation_history is None:
             conversation_history = []
+
+        # Truncate oversized input to prevent Ollama OOM / slow classification
+        if len(user_input) > MAX_INPUT_LENGTH:
+            logger.warning(f"Input truncated from {len(user_input)} to {MAX_INPUT_LENGTH} chars")
+            user_input = user_input[:MAX_INPUT_LENGTH]
 
         # Quick check if this looks like a practical request (for fallback purposes)
         practical_indicators = [
@@ -889,86 +920,14 @@ class WellnessGuide:
         logger.info(f"Policy fired: {policy_type} | {action}")
 
     def _call_ollama(self, prompt: str, is_practical: bool = False) -> str:
-        """Call Ollama API with error handling
-
-        Args:
-            prompt: The prompt to send
-            is_practical: If True, allows longer responses and timeout for practical tasks
-        """
-        # For practical tasks, allow much longer responses
-        # For sensitive/emotional topics, keep responses brief
-        max_tokens = 2000 if is_practical else 300
-
-        # Practical tasks need more time: model loading (~15s) + longer generation
-        # Reflective responses are brief and need less time
-        timeout_seconds = 120 if is_practical else 45
-
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": self.temperature, "top_p": 0.9, "num_predict": max_tokens},
-        }
-
-        try:
-            response = requests.post(self.ollama_url, json=payload, timeout=timeout_seconds)
-            response.raise_for_status()
-
-            result = response.json()
-            return result.get("response", "").strip()
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Ollama API error: {str(e)}")
-            raise Exception(
-                f"Unable to connect to Ollama. Please ensure it's running at {settings.OLLAMA_HOST}"
-            )
+        """Delegate to OllamaClient.generate()."""
+        return self.ollama_client.generate(prompt, is_practical=is_practical)
 
     def _call_ollama_stream(
         self, prompt: str, is_practical: bool = False
     ) -> Generator[str, None, None]:
-        """Stream tokens from Ollama API.
-
-        Args:
-            prompt: The prompt to send
-            is_practical: If True, allows longer responses and timeout for practical tasks
-
-        Yields:
-            Individual tokens as they arrive from the model.
-        """
-        max_tokens = 2000 if is_practical else 300
-        timeout_seconds = 120 if is_practical else 45
-
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "stream": True,
-            "options": {"temperature": self.temperature, "top_p": 0.9, "num_predict": max_tokens},
-        }
-
-        try:
-            response = requests.post(
-                self.ollama_url, json=payload, timeout=timeout_seconds, stream=True
-            )
-            response.raise_for_status()
-
-            for line in response.iter_lines(decode_unicode=True):
-                if not line:
-                    continue
-                try:
-                    chunk = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                token = chunk.get("response", "")
-                if token:
-                    yield token
-                if chunk.get("done"):
-                    break
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Ollama streaming API error: {str(e)}")
-            raise Exception(
-                f"Unable to connect to Ollama. Please ensure it's running at {settings.OLLAMA_HOST}"
-            )
+        """Delegate to OllamaClient.generate_stream()."""
+        return self.ollama_client.generate_stream(prompt, is_practical=is_practical)
 
     def _build_context(self, conversation_history: List[Dict]) -> str:
         """Build conversation context from history"""
@@ -1470,9 +1429,5 @@ class WellnessGuide:
         return False
 
     def check_health(self) -> bool:
-        """Check if Ollama connection is healthy"""
-        try:
-            test_response = self._call_ollama("Hello")
-            return bool(test_response)
-        except:
-            return False
+        """Delegate to OllamaClient.check_health()."""
+        return self.ollama_client.check_health()

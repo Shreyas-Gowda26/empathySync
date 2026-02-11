@@ -229,7 +229,11 @@ def check_lock_status() -> Dict:
 
 def acquire_lock(force: bool = False) -> bool:
     """
-    Attempt to acquire the lock.
+    Attempt to acquire the lock atomically.
+
+    Uses O_CREAT | O_EXCL for atomic create-or-fail on the lock file,
+    eliminating the read-then-write race condition where two processes
+    could both see "unlocked" and both write their lock.
 
     Args:
         force: If True, take over even if another device has an active lock.
@@ -240,17 +244,10 @@ def acquire_lock(force: bool = False) -> bool:
     """
     global _heartbeat_thread, _heartbeat_stop
 
-    status = check_lock_status()
+    lock_path = get_lock_path()
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # If another device has an active lock and we're not forcing, fail
-    if status["locked_by_other"] and not force:
-        logger.warning(
-            f"Lock held by another device: {status['hostname']} "
-            f"(last heartbeat: {status['age_seconds']:.0f}s ago)"
-        )
-        return False
-
-    # Create lock data
+    # Build lock data
     now = datetime.now().isoformat()
     lock_data = {
         "device_id": get_device_id(),
@@ -261,7 +258,38 @@ def acquire_lock(force: bool = False) -> bool:
     }
 
     try:
-        _write_lock(lock_data)
+        if not force:
+            # Atomic create: O_CREAT | O_EXCL fails if file already exists
+            try:
+                fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                try:
+                    content = json.dumps(lock_data, indent=2).encode()
+                    os.write(fd, content)
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
+            except FileExistsError:
+                # Lock file exists — check if it's stale or ours
+                existing = _read_lock()
+                if existing and _is_our_lock(existing):
+                    # Re-entry from same device (e.g., crash recovery)
+                    _write_lock(lock_data)
+                elif existing and _is_lock_stale(existing):
+                    # Stale lock — safe to take over
+                    _write_lock(lock_data)
+                else:
+                    # Active lock held by another device
+                    status = check_lock_status()
+                    age = status.get("age_seconds", 0) or 0
+                    logger.warning(
+                        f"Lock held by another device: {status.get('hostname')} "
+                        f"(last heartbeat: {age:.0f}s ago)"
+                    )
+                    return False
+        else:
+            # Force takeover — overwrite regardless
+            _write_lock(lock_data)
+
         logger.info(f"Lock acquired by {lock_data['hostname']}")
 
         # Start heartbeat thread
