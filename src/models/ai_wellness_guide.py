@@ -847,8 +847,8 @@ class WellnessGuide:
         loader = self.prompts.loader
 
         # Check if pause should be suggested (already checked weight in caller)
-        settings = loader.get_before_you_send_settings()
-        if not settings.get("enabled", True):
+        pause_settings = loader.get_before_you_send_settings()
+        if not pause_settings.get("enabled", True):
             return None
 
         # Detect the category for appropriate pause message
