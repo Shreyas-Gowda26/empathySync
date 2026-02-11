@@ -29,7 +29,7 @@ Before contributing, please embrace these principles:
 4. **Activate environment**: `source venv/bin/activate` (Linux/Mac) or `venv\Scripts\activate` (Windows)
 5. **Install dependencies**: `pip install -r requirements.txt`
 6. **Copy .env.example to .env** and configure your settings
-7. **Run tests**: `pytest tests/`
+7. **Run tests**: `pytest tests/` (443 tests, all must pass)
 
 ## Development Workflow
 

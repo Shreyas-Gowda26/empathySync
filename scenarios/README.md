@@ -6,6 +6,8 @@ This directory contains the structured knowledge base for empathySync's risk ass
 
 ```
 scenarios/
+├── config/               # System defaults and tunables (Phase 16.10)
+│   └── system_defaults.yaml  # 100+ centralized settings (timeouts, turn limits, thresholds)
 ├── classification/       # LLM classifier prompts and config (Phase 9, 9.1)
 ├── connection_building/  # Signposts and first-contact templates (Phase 12)
 ├── domains/              # 8 risk domains and their triggers

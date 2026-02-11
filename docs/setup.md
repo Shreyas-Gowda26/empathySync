@@ -4,8 +4,8 @@ This guide walks you through installing and configuring empathySync on your loca
 
 ## Prerequisites
 
-- **Python 3.10+**
-- **Ollama** - Local LLM runtime ([ollama.ai](https://ollama.ai))
+- **Python 3.9+**
+- **Ollama** - Local LLM runtime ([ollama.com](https://ollama.com))
 - **Git** (optional, for cloning)
 
 ## Step 1: Install Ollama
@@ -40,7 +40,7 @@ ollama pull llama3
 ## Step 2: Clone empathySync
 
 ```bash
-git clone https://github.com/your-username/empathySync.git
+git clone https://github.com/Olawoyin007/empathySync.git
 cd empathySync
 ```
 

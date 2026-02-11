@@ -153,11 +153,11 @@ Each topic has a conversation limit:
 
 | Domain | Max Turns |
 |--------|-----------|
-| Practical tasks | 20 |
-| Relationships | 10 |
-| Money | 8 |
-| Health | 8 |
-| Spirituality | 5 |
+| Practical tasks | 30 |
+| Relationships | 15 |
+| Money | 15 |
+| Health | 15 |
+| Spirituality | 10 |
 | Crisis | 1 |
 
 When you hit the limit, the conversation pauses. This is by design.

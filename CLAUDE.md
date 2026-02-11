@@ -29,7 +29,7 @@ empathysync                 # Via CLI entry point (after pip install -e .)
 # Docker (app + Ollama together)
 docker compose up           # Starts both services
 
-# Run tests (360 tests covering all core components)
+# Run tests (443 tests covering all core components)
 pytest tests/
 
 # Run tests with coverage
@@ -80,9 +80,13 @@ empathySync/
 │   ├── cli.py                   # CLI entry point: `empathysync` or `empathysync --mode cli` (Phase 14, 16)
 │   ├── config/settings.py       # Environment configuration
 │   ├── models/
-│   │   ├── ai_wellness_guide.py # Core conversation engine (~800 lines)
-│   │   ├── risk_classifier.py   # Risk assessment + intent detection (~600 lines)
-│   │   ├── llm_classifier.py    # LLM-based classification (Phase 9)
+│   │   ├── ai_wellness_guide.py # Core conversation engine — delegates to OllamaClient
+│   │   ├── ollama_client.py     # HTTP layer for Ollama API (extracted Phase 16.8)
+│   │   ├── emotional_weight_assessor.py # Emotional weight logic (extracted Phase 16.8)
+│   │   ├── risk_classifier.py   # Risk assessment + intent detection — delegates to EmotionalWeightAssessor
+│   │   ├── llm_classifier.py    # LLM-based classification with pre-compiled regex (Phase 9, 16.6)
+│   │   ├── enums.py             # Domain, Intent, EmotionalWeight, ClassificationMethod enums (Phase 16.5)
+│   │   ├── data_contracts.py    # RiskAssessment, LLMClassification dataclasses (Phase 16.5)
 │   │   ├── conversation_session.py # Framework-agnostic session manager (Phase 16)
 │   │   └── conversation_result.py  # Structured result dataclass (Phase 16)
 │   ├── interfaces/              # Interface adapters (Phase 16)
@@ -92,11 +96,17 @@ empathySync/
 │   │   └── wellness_prompts.py  # Dynamic prompt generation (~350 lines)
 │   └── utils/
 │       ├── helpers.py           # Logging and utilities
-│       ├── health_check.py      # Startup health checks (Ollama, data dir, SQLite) (Phase 13)
+│       ├── health_check.py      # Startup health checks — uses httpx (Phase 13, 16.6)
+│       ├── http_client.py       # Shared httpx.Client with connection pooling (Phase 16.6)
 │       ├── wellness_tracker.py  # Session/check-in/metrics tracking (~1400 lines)
 │       ├── trusted_network.py   # Human network management (~500 lines)
-│       └── scenario_loader.py   # YAML knowledge base loader (~1300 lines)
-├── scenarios/                    # Knowledge base (34 YAML files)
+│       ├── scenario_loader.py   # YAML knowledge base loader + get_default() for tunables (~1300 lines)
+│       ├── storage_backend.py   # Unified storage with _VALID_COLUMNS SQL injection prevention (Phase 11, 16.7)
+│       ├── lockfile.py          # Atomic lock file with O_CREAT|O_EXCL (Phase 11, 16.7)
+│       └── write_gate.py        # Centralized write permission control (Phase 11)
+├── scenarios/                    # Knowledge base (34+ YAML files)
+│   ├── config/                  # System defaults and tunables (Phase 16.10)
+│   │   └── system_defaults.yaml # 100+ centralized tunables
 │   ├── domains/                 # 8 risk domains (crisis, harmful, health, money, emotional, relationships, spirituality, logistics)
 │   ├── emotional_markers/       # 4 intensity levels
 │   ├── emotional_weight/        # Task weight detection (high/medium/low)
@@ -111,7 +121,7 @@ empathySync/
 │   ├── responses/               # Fallbacks, safe alternatives, base prompt
 │   ├── transparency/            # Explanation templates
 │   └── wisdom/                  # Immunity building prompts
-├── tests/                       # Pytest test suite (360 tests)
+├── tests/                       # Pytest test suite (443 tests)
 ├── data/                        # Local user data (JSON files)
 ├── docs/                        # Documentation
 ├── logs/                        # Application logs
@@ -131,11 +141,15 @@ empathySync/
 - Session tracking, export, and policy action transparency
 
 **Models**:
-- [src/models/ai_wellness_guide.py](src/models/ai_wellness_guide.py) - `WellnessGuide` class: main conversation engine with 7-step safety pipeline, session state tracking, context persistence, identity reminder injection, and **streaming support** via `generate_response_stream()`
-- [src/models/risk_classifier.py](src/models/risk_classifier.py) - `RiskClassifier` class: detects conversation domain (8 domains), measures emotional intensity (0-10), assesses dependency risk, intent detection, and provides domain-specific rules
-- [src/models/llm_classifier.py](src/models/llm_classifier.py) - `LLMClassifier` class: LLM-based intelligent classification with caching, used for context-aware domain detection when `LLM_CLASSIFICATION_ENABLED=true`
-- [src/models/conversation_session.py](src/models/conversation_session.py) - `ConversationSession` class: framework-agnostic session manager that orchestrates WellnessGuide, RiskClassifier, WellnessTracker, and TrustedNetwork. Entry points: `process_message()` → `ConversationResult` (blocking) or `process_message_stream()` + `finalize_stream()` (streaming)
-- [src/models/conversation_result.py](src/models/conversation_result.py) - `ConversationResult` dataclass: structured return type containing response (or `response_stream` iterator), risk assessment, policy actions, and UI hints
+- [src/models/ai_wellness_guide.py](src/models/ai_wellness_guide.py) - `WellnessGuide` class: main conversation engine with 7-step safety pipeline, delegates HTTP calls to `OllamaClient`, streaming via `generate_response_stream()`
+- [src/models/ollama_client.py](src/models/ollama_client.py) - `OllamaClient` class: extracted HTTP layer for Ollama API — `generate()`, `generate_stream()`, `check_health()`. Loads tunables from `system_defaults.yaml` (Phase 16.8)
+- [src/models/emotional_weight_assessor.py](src/models/emotional_weight_assessor.py) - `EmotionalWeightAssessor` class: extracted from RiskClassifier — `measure_intensity()`, `assess_weight()`, `needs_reflection_redirect()`, `get_response_modifier()` (Phase 16.8)
+- [src/models/risk_classifier.py](src/models/risk_classifier.py) - `RiskClassifier` class: detects conversation domain (8 domains), delegates emotional weight to `EmotionalWeightAssessor`, intent detection
+- [src/models/llm_classifier.py](src/models/llm_classifier.py) - `LLMClassifier` class: LLM-based classification with caching, pre-compiled regex patterns, injectable `http_client`, input truncation at 5000 chars (Phase 9, 16.6, 16.7)
+- [src/models/enums.py](src/models/enums.py) - Type-safe enums: `Domain`, `Intent`, `EmotionalWeight`, `ClassificationMethod` — `str, Enum` pattern for backward compatibility (Phase 16.5)
+- [src/models/data_contracts.py](src/models/data_contracts.py) - `RiskAssessment` and `LLMClassification` dataclasses with dict-compatible access (`__getitem__`, `.get()`, `to_dict()`) and `__post_init__` validation (Phase 16.5)
+- [src/models/conversation_session.py](src/models/conversation_session.py) - `ConversationSession` class: framework-agnostic session manager. Entry points: `process_message()` → `ConversationResult` or `process_message_stream()` + `finalize_stream()`
+- [src/models/conversation_result.py](src/models/conversation_result.py) - `ConversationResult` dataclass: structured return type containing response, risk assessment, policy actions, and UI hints
 
 **Interfaces** (Phase 16):
 - [src/interfaces/adapter.py](src/interfaces/adapter.py) - `InterfaceAdapter` protocol: minimal contract for UI adapters (render result, prompt interactions)
@@ -145,15 +159,16 @@ empathySync/
 - [src/prompts/wellness_prompts.py](src/prompts/wellness_prompts.py) - `WellnessPrompts` class: builds system prompts via 3-layer composition (base rules + style modifier + risk context)
 
 **Utils**:
+- [src/utils/http_client.py](src/utils/http_client.py) - Shared `httpx.Client` with connection pooling. All Ollama-calling code uses `get_http_client()` (Phase 16.6)
 - [src/utils/wellness_tracker.py](src/utils/wellness_tracker.py) - `WellnessTracker` class: tracks sessions, check-ins, policy events; calculates dependency signals; enforces cooldowns
 - [src/utils/trusted_network.py](src/utils/trusted_network.py) - `TrustedNetwork` class: manages trusted contacts, domain-specific suggestions, reach-out history, connection health metrics, signposts for finding connection, first-contact templates (Phase 12)
-- [src/utils/scenario_loader.py](src/utils/scenario_loader.py) - `ScenarioLoader` class: singleton loader for YAML knowledge base with caching and hot-reload support
+- [src/utils/scenario_loader.py](src/utils/scenario_loader.py) - `ScenarioLoader` class: singleton loader for YAML knowledge base with caching, hot-reload, `get_system_defaults()` and `get_default(*keys, fallback=)` for centralized config (Phase 16.10)
 - [src/utils/helpers.py](src/utils/helpers.py) - Logging setup and environment validation
 - [src/utils/database.py](src/utils/database.py) - SQLite database layer with WAL mode, transactions, schema migrations (Phase 11)
-- [src/utils/storage_backend.py](src/utils/storage_backend.py) - Unified storage abstraction for JSON/SQLite backends with write gate protection (Phase 11)
-- [src/utils/lockfile.py](src/utils/lockfile.py) - Heartbeat-based lock file for multi-device sync safety (Phase 11)
+- [src/utils/storage_backend.py](src/utils/storage_backend.py) - Unified storage with `_VALID_COLUMNS` whitelist for SQL injection prevention (Phase 11, 16.7)
+- [src/utils/lockfile.py](src/utils/lockfile.py) - Atomic lock file using `O_CREAT | O_EXCL` flags for race-free acquisition (Phase 11, 16.7)
 - [src/utils/write_gate.py](src/utils/write_gate.py) - Centralized write permission control for read-only mode (Phase 11)
-- [src/utils/health_check.py](src/utils/health_check.py) - Startup health checks: Ollama server/model availability, data directory, SQLite database (Phase 13)
+- [src/utils/health_check.py](src/utils/health_check.py) - Startup health checks using httpx: Ollama server/model availability, data directory, SQLite database (Phase 13, 16.6)
 
 **Config**:
 - [src/config/settings.py](src/config/settings.py) - `Settings` class: environment-based configuration with validation
@@ -201,12 +216,12 @@ The LLM classifier distinguishes between:
 4. **Risk Assessment**: `RiskClassifier.classify()` returns domain, emotional intensity, dependency risk, `is_practical_technique`, and combined risk weight
 5. **Mode Selection**: `logistics` domain OR `is_practical_technique=true` → Practical Mode, otherwise → Reflective Mode
 6. **Hard Stop Check**: Crisis/harmful domains trigger immediate intervention
-7. **Turn Limit Check**: Domain-specific turn limits enforced:
-   - `logistics`: 20 turns (practical tasks)
-   - `money`: 8 turns
-   - `health`: 8 turns
-   - `relationships`: 10 turns
-   - `spirituality`: 5 turns
+7. **Turn Limit Check**: Domain-specific turn limits enforced (configurable in `system_defaults.yaml`):
+   - `logistics`: 30 turns (practical tasks)
+   - `money`: 15 turns
+   - `health`: 15 turns
+   - `relationships`: 15 turns
+   - `spirituality`: 10 turns
    - `crisis/harmful`: 1 turn
 8. **Dependency Intervention**: Graduated responses if dependency score exceeds thresholds
 9. **Identity Reminder**: Injected every 6 turns (only in Reflective Mode)
@@ -366,44 +381,46 @@ When another device holds the lock (`ENABLE_DEVICE_LOCK=true`), all write operat
 
 ### Testing
 
-Tests are in [tests/test_wellness_guide.py](tests/test_wellness_guide.py) with 360 tests covering:
-- `TestScenarioLoader`: YAML loading and caching
-- `TestRiskClassifier`: Domain detection, emotional intensity, dependency scoring
-- `TestWellnessPrompts`: Prompt composition and style modifiers
-- `TestWellnessGuide`: Response generation, safety pipeline, error handling
-- `TestHealthChecks`: Startup health checks (Ollama, data directory, SQLite)
-- `TestStreaming`: Token streaming, early returns for crisis/harmful, stream finalization (15 tests)
+443 tests across multiple test files:
+- [tests/test_wellness_guide.py](tests/test_wellness_guide.py) - Core tests: ScenarioLoader, RiskClassifier, WellnessPrompts, WellnessGuide, HealthChecks, Streaming
+- [tests/test_llm_classifier.py](tests/test_llm_classifier.py) - LLM classification, httpx mocks, error injection (timeout, connection refused, malformed JSON)
+- [tests/test_persistence.py](tests/test_persistence.py) - Database, StorageBackend, LockFile modules
+- [tests/test_write_gate.py](tests/test_write_gate.py) - Write gate state transitions, `@require_write` decorator (11 tests, Phase 16.9)
+- [tests/test_trusted_network.py](tests/test_trusted_network.py) - Person management, reach-outs, prompts, connection building, handoff, error handling (57 tests, Phase 16.9)
+- [tests/test_helpers.py](tests/test_helpers.py) - Logging setup, environment validation, formatting utilities (10 tests, Phase 16.9)
 
 ### Key Patterns
 
 - **Singleton Pattern**: `ScenarioLoader` via `get_scenario_loader()`, `StorageBackend` via `get_storage_backend()`
+- **Facade Pattern**: `WellnessGuide` → `OllamaClient`, `RiskClassifier` → `EmotionalWeightAssessor` (Phase 16.8)
+- **Shared HTTP Client**: Module-level `httpx.Client` with connection pooling via `get_http_client()` (Phase 16.6)
 - **3-Layer Prompt Composition**: Base rules + style modifier + risk context
 - **Graduated Interventions**: 5 dependency levels (none, early_pattern, mild, concerning, high)
 - **Session State Tracking**: Turns, domains, max risk, last policy action, post-crisis turn
 - **Post-Crisis Protection**: Tracks when crisis intervention occurred, prevents LLM from apologizing for safety actions
 - **Hot Reload Support**: `loader.reload()` and `loader.clear_cache()`
+- **Centralized Tunables**: `scenarios/config/system_defaults.yaml` with `get_default(*keys, fallback=)` (Phase 16.10)
 - **Transparency Logging**: All policy decisions logged with reasons
 - **Defense-in-Depth Write Protection**: UI disabling → write gate flag → storage method checks (Phase 11)
-- **Heartbeat-Based Lock**: Device lock uses timestamp heartbeats, not PIDs, for stale detection (Phase 11)
+- **Atomic Lock File**: `O_CREAT | O_EXCL` for race-free lock acquisition (Phase 16.7)
+- **SQL Injection Prevention**: `_VALID_COLUMNS` whitelist validates column names before interpolation (Phase 16.7)
+- **Type-Safe Enums**: `str, Enum` pattern for backward-compatible domain/intent constants (Phase 16.5)
 - **Storage Backend Abstraction**: Unified interface for JSON/SQLite with automatic migration (Phase 11)
 - **Streaming Response**: `generate_response_stream()` yields tokens progressively for real-time display (Phase 16)
 
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for the phased implementation plan covering:
-- Phase 1: Foundation Fixes ✅
-- Phase 2: Emotional Weight Layer ✅
-- Phase 2.5: Robustness & Classification Fixes ✅
-- Phase 3: Competence Graduation ✅
-- Phase 4: "Why Are You Here?" Check-In ✅
-- Phase 5: Enhanced Human Handoff ✅
-- Phase 6: Transparency & Explainability ✅
-- Phase 6.5: Context Persistence ✅
-- Phase 7: Success Metrics (Local-First) ✅
-- Phase 8: Immunity Building & Wisdom Prompts ✅ (Core)
-- Phase 9: LLM-Based Intelligent Classification ✅
-- Phase 9.1: Practical Technique Detection ✅ (cross-domain "how to" vs "should I" distinction)
-- Phase 10: Advanced Detection (Long-term)
-- Phase 11: Persistence Hardening & Multi-Device Sync ✅ (Core)
-- Phase 12: Connection Building ✅ (signposts, first-contact templates for empty networks)
-- Phase 16: Core Decoupling & Interface Abstraction ✅ (ConversationSession, InterfaceAdapter, CLIAdapter, Streaming)
+- Phases 1-9.1: Core engine, safety pipeline, dual-mode, LLM classification ✅
+- Phase 11: Persistence Hardening & Multi-Device Sync ✅
+- Phase 12: Connection Building ✅
+- Phase 13-15: Health checks, distribution, CI ✅
+- Phase 16: Core Decoupling & Interface Abstraction ✅
+- Phase 16.5: Type-safe enums and dataclasses ✅ (Partial)
+- Phase 16.6: httpx migration and pre-compiled regex ✅ (Partial)
+- Phase 16.7: Security hardening — atomic locks, SQL injection prevention ✅ (Partial)
+- Phase 16.8: God class decomposition — OllamaClient, EmotionalWeightAssessor ✅ (Partial)
+- Phase 16.9: Test coverage expansion — 83 new tests ✅ (Partial)
+- Phase 16.10: Centralized configuration — system_defaults.yaml ✅ (Partial)
+- Phase 16.11: Conversation testing & voice tuning 🔧 NEXT
+- Phase 17: Persistent agent daemon 🔜 PLANNED

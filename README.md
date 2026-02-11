@@ -146,11 +146,11 @@ ENABLE_DEVICE_LOCK=false         # Multi-device sync safety
 
 ## Project Status
 
-**Core Complete.** 16 phases shipped — safety systems, dual-mode operation, dependency tracking, human handoff, transparency, LLM classification, persistence hardening, connection building, startup health checks, core decoupling, and streaming support.
+**v1.3 — Hardening Release.** 16 phases + 6 hardening sub-phases shipped. Safety systems, dual-mode operation, dependency tracking, human handoff, transparency, LLM classification, persistence hardening, connection building, core decoupling, streaming, httpx migration, god class decomposition, security hardening, and centralized configuration.
 
 **Distribution Ready.** Three installation methods plus CLI mode.
 
-**360 tests passing.**
+**443 tests passing** across Python 3.9, 3.10, 3.11, 3.12.
 
 See [ROADMAP.md](ROADMAP.md) for detailed implementation status.
 
