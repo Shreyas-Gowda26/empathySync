@@ -10,7 +10,7 @@ Part of Phase 9: LLM-Based Intelligent Classification
 import json
 import re
 import hashlib
-import requests
+import httpx
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -18,6 +18,13 @@ from collections import OrderedDict
 
 import logging
 import yaml
+
+# Pre-compiled regex patterns for JSON extraction from LLM responses.
+# These run on every classification call — compiling once avoids repeated work.
+_RE_JSON_STRICT = re.compile(r'\{[^{}]*"domain"[^{}]*\}', re.DOTALL)
+_RE_JSON_PERMISSIVE = re.compile(r'\{.*?"domain".*?\}', re.DOTALL)
+
+from models.enums import Domain
 
 from config.settings import settings
 
@@ -62,8 +69,15 @@ class LLMClassifier:
     - Fallback: returns None if classification fails (caller uses keyword matching)
     """
 
-    def __init__(self, config_path: Optional[str] = None):
-        """Initialize the LLM classifier with configuration"""
+    def __init__(self, config_path: Optional[str] = None, http_client: httpx.Client = None):
+        """Initialize the LLM classifier with configuration.
+
+        Args:
+            config_path: Path to YAML config (default: scenarios/classification/llm_classifier.yaml)
+            http_client: Injectable httpx.Client for testability and connection reuse.
+                         If None, uses the shared module-level client.
+        """
+        self._http_client = http_client
         self.config_path = (
             config_path
             or Path(__file__).parent.parent.parent
@@ -87,6 +101,15 @@ class LLMClassifier:
         else:
             model_note = f" (shared: {self.model})"
         logger.info(f"LLMClassifier initialized. Enabled: {self.is_enabled()}{model_note}")
+
+    @property
+    def http_client(self) -> httpx.Client:
+        """Lazy-resolved HTTP client — injected or shared singleton."""
+        if self._http_client is not None:
+            return self._http_client
+        from utils.http_client import get_http_client
+
+        return get_http_client()
 
     def _load_config(self) -> Dict:
         """Load classification configuration from YAML"""
@@ -191,14 +214,9 @@ class LLMClassifier:
             except json.JSONDecodeError:
                 pass
 
-            # Try to extract JSON from response
-            json_patterns = [
-                r'\{[^{}]*"domain"[^{}]*\}',  # Simple JSON object
-                r'\{.*?"domain".*?\}',  # More permissive
-            ]
-
-            for pattern in json_patterns:
-                match = re.search(pattern, response, re.DOTALL)
+            # Try to extract JSON from response using pre-compiled patterns
+            for pattern in (_RE_JSON_STRICT, _RE_JSON_PERMISSIVE):
+                match = pattern.search(response)
                 if match:
                     try:
                         return json.loads(match.group())
@@ -222,16 +240,7 @@ class LLMClassifier:
             return None
 
         # Normalize domain
-        valid_domains = {
-            "logistics",
-            "emotional",
-            "relationships",
-            "health",
-            "money",
-            "spirituality",
-            "crisis",
-            "harmful",
-        }
+        valid_domains = {d.value for d in Domain}
         domain = result.get("domain", "").lower()
         if domain not in valid_domains:
             # Try to map close matches
@@ -305,18 +314,20 @@ class LLMClassifier:
         }
 
         try:
-            response = requests.post(
-                self.ollama_url, json=payload, timeout=timeout_ms / 1000  # Convert to seconds
-            )
+            timeout_secs = timeout_ms / 1000
+            response = self.http_client.post(self.ollama_url, json=payload, timeout=timeout_secs)
             response.raise_for_status()
 
             result = response.json()
             return result.get("response", "").strip()
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             logger.warning("LLM classification timed out")
             return None
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPStatusError as e:
+            logger.error(f"LLM classification HTTP error: {e.response.status_code}")
+            return None
+        except httpx.HTTPError as e:
             logger.error(f"LLM classification API error: {e}")
             return None
 
@@ -341,6 +352,14 @@ class LLMClassifier:
 
         if not message or not message.strip():
             return None
+
+        # Truncate oversized input before classification
+        MAX_CLASSIFY_LENGTH = 5000
+        if len(message) > MAX_CLASSIFY_LENGTH:
+            logger.warning(
+                f"Truncating message from {len(message)} to {MAX_CLASSIFY_LENGTH} chars for classification"
+            )
+            message = message[:MAX_CLASSIFY_LENGTH]
 
         # Check fast-path first (safety-critical)
         fast_path_result = self._check_fast_path(message)

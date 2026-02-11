@@ -42,6 +42,7 @@ class TestDatabaseModule:
         """Get a test database connection."""
         # Need to reset module state for each test
         import utils.database as db_module
+
         db_module._connection = None
         db_module._db_path = None
 
@@ -56,6 +57,7 @@ class TestDatabaseModule:
     def test_get_db_creates_database(self, temp_data_dir):
         """Test that get_db creates the database file."""
         import utils.database as db_module
+
         db_module._connection = None
         db_module._db_path = None
 
@@ -71,15 +73,21 @@ class TestDatabaseModule:
 
     def test_get_db_creates_schema(self, db_connection, temp_data_dir):
         """Test that get_db creates all required tables."""
-        cursor = db_connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )
+        cursor = db_connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = {row[0] for row in cursor.fetchall()}
 
         expected_tables = {
-            "schema_info", "check_ins", "usage_sessions", "policy_events",
-            "session_intents", "independence_records", "handoff_events",
-            "self_reports", "task_patterns", "trusted_people", "reach_outs"
+            "schema_info",
+            "check_ins",
+            "usage_sessions",
+            "policy_events",
+            "session_intents",
+            "independence_records",
+            "handoff_events",
+            "self_reports",
+            "task_patterns",
+            "trusted_people",
+            "reach_outs",
         }
 
         assert expected_tables.issubset(tables)
@@ -94,6 +102,7 @@ class TestDatabaseModule:
     def test_checkpoint_for_sync(self, temp_data_dir):
         """Test that checkpoint consolidates WAL."""
         import utils.database as db_module
+
         db_module._connection = None
         db_module._db_path = None
 
@@ -115,17 +124,14 @@ class TestDatabaseModule:
     def test_insert_and_query_check_in(self, db_connection):
         """Test inserting and querying a check-in."""
         cursor = db_connection.execute(
-            "INSERT INTO check_ins (feeling_score, notes) VALUES (?, ?)",
-            (4, "Feeling good today")
+            "INSERT INTO check_ins (feeling_score, notes) VALUES (?, ?)", (4, "Feeling good today")
         )
         db_connection.commit()
 
         row_id = cursor.lastrowid
         assert row_id is not None
 
-        cursor = db_connection.execute(
-            "SELECT * FROM check_ins WHERE id = ?", (row_id,)
-        )
+        cursor = db_connection.execute("SELECT * FROM check_ins WHERE id = ?", (row_id,))
         row = cursor.fetchone()
 
         assert row is not None
@@ -140,7 +146,7 @@ class TestDatabaseModule:
             """INSERT INTO usage_sessions
                (duration_minutes, turn_count, domains_touched, max_risk_weight)
                VALUES (?, ?, ?, ?)""",
-            (15, 8, json.dumps(domains), 5.0)
+            (15, 8, json.dumps(domains), 5.0),
         )
         db_connection.commit()
 
@@ -158,23 +164,17 @@ class TestDatabaseModule:
         """Test that transaction context manager rolls back on error."""
         from utils.database import transaction
 
-        initial_count = db_connection.execute(
-            "SELECT COUNT(*) FROM check_ins"
-        ).fetchone()[0]
+        initial_count = db_connection.execute("SELECT COUNT(*) FROM check_ins").fetchone()[0]
 
         try:
             with transaction() as conn:
-                conn.execute(
-                    "INSERT INTO check_ins (feeling_score) VALUES (?)", (3,)
-                )
+                conn.execute("INSERT INTO check_ins (feeling_score) VALUES (?)", (3,))
                 # Force an error
                 raise ValueError("Test error")
         except ValueError:
             pass
 
-        final_count = db_connection.execute(
-            "SELECT COUNT(*) FROM check_ins"
-        ).fetchone()[0]
+        final_count = db_connection.execute("SELECT COUNT(*) FROM check_ins").fetchone()[0]
 
         assert final_count == initial_count  # Rollback should have occurred
 
@@ -318,10 +318,10 @@ class TestLockFileModule:
                 "hostname": "other-host",
                 "pid": 99999,
                 "started_at": old_time,
-                "heartbeat": old_time
+                "heartbeat": old_time,
             }
 
-            with open(lock_path, 'w') as f:
+            with open(lock_path, "w") as f:
                 json.dump(lock_data, f)
 
             status = lock_module.check_lock_status()
@@ -362,10 +362,10 @@ class TestLockFileModule:
                 "hostname": "other-host",
                 "pid": 99999,
                 "started_at": now,
-                "heartbeat": now
+                "heartbeat": now,
             }
 
-            with open(lock_path, 'w') as f:
+            with open(lock_path, "w") as f:
                 json.dump(lock_data, f)
 
             # Try to acquire without force (should fail)
@@ -394,7 +394,7 @@ class TestLockFileModule:
                 "locked_by_other": True,
                 "hostname": "my-macbook",
                 "started_at": datetime.now().isoformat(),
-                "age_seconds": 120
+                "age_seconds": 120,
             }
 
             warning = lock_module.format_lock_warning(status)
@@ -449,8 +449,10 @@ class TestStorageBackend:
         reset_storage_backend()
 
         # Also patch the database module settings
-        with patch("utils.storage_backend.settings") as mock_settings, \
-             patch("utils.database.settings") as db_settings:
+        with (
+            patch("utils.storage_backend.settings") as mock_settings,
+            patch("utils.database.settings") as db_settings,
+        ):
             mock_settings.DATA_DIR = temp_data_dir
             mock_settings.USE_SQLITE = True
             db_settings.DATA_DIR = temp_data_dir
@@ -495,7 +497,7 @@ class TestStorageBackend:
             name="Mom",
             relationship="parent",
             contact="555-1234",
-            domains=["relationships", "money"]
+            domains=["relationships", "money"],
         )
 
         assert result["name"] == "Mom"
@@ -516,7 +518,7 @@ class TestStorageBackend:
             duration_minutes=15,
             turn_count=8,
             domains_touched=["money", "health"],
-            max_risk_weight=6.0
+            max_risk_weight=6.0,
         )
 
         assert result["duration_minutes"] == 15
@@ -529,7 +531,7 @@ class TestStorageBackend:
             event_type="domain_redirect",
             domain="crisis",
             action_taken="Redirected to 988",
-            risk_weight=10.0
+            risk_weight=10.0,
         )
 
         assert result["event_type"] == "domain_redirect"
@@ -575,7 +577,7 @@ class TestStorageBackend:
             name="Mom",
             relationship="parent",
             contact="555-1234",
-            domains=["relationships", "money"]
+            domains=["relationships", "money"],
         )
 
         assert result["name"] == "Mom"
@@ -597,7 +599,7 @@ class TestStorageBackend:
             duration_minutes=15,
             turn_count=8,
             domains_touched=["money", "health"],
-            max_risk_weight=6.0
+            max_risk_weight=6.0,
         )
 
         assert result["duration_minutes"] == 15
@@ -654,6 +656,7 @@ class TestStorageBackend:
 
         # Verify reach-outs exist via direct query
         from utils.database import get_db
+
         db = get_db()
         cursor = db.execute("SELECT COUNT(*) FROM reach_outs WHERE person_id = ?", (person_id,))
         count_before = cursor.fetchone()[0]
@@ -686,8 +689,10 @@ class TestStorageIntegration:
         """Test WellnessTracker with JSON backend."""
         from utils.wellness_tracker import WellnessTracker
 
-        with patch("config.settings.settings") as mock_settings, \
-             patch("utils.wellness_tracker.settings") as tracker_settings:
+        with (
+            patch("config.settings.settings") as mock_settings,
+            patch("utils.wellness_tracker.settings") as tracker_settings,
+        ):
             mock_settings.DATA_DIR = temp_data_dir
             mock_settings.USE_SQLITE = False
             tracker_settings.DATA_DIR = temp_data_dir
@@ -707,8 +712,10 @@ class TestStorageIntegration:
         from utils.trusted_network import TrustedNetwork
         from utils.scenario_loader import get_scenario_loader
 
-        with patch("config.settings.settings") as mock_settings, \
-             patch("utils.trusted_network.settings") as network_settings:
+        with (
+            patch("config.settings.settings") as mock_settings,
+            patch("utils.trusted_network.settings") as network_settings,
+        ):
             mock_settings.DATA_DIR = temp_data_dir
             mock_settings.USE_SQLITE = False
             network_settings.DATA_DIR = temp_data_dir

@@ -795,6 +795,59 @@ class SQLiteBackend(StorageBackend):
     for concurrent access and partial updates.
     """
 
+    # Column whitelists per table — prevents SQL injection via dynamic column names
+    _VALID_COLUMNS = {
+        "task_patterns": frozenset(
+            {
+                "pattern_type",
+                "count",
+                "last_7_days",
+                "last_used",
+                "metadata",
+            }
+        ),
+        "handoff_events": frozenset(
+            {
+                "context",
+                "domain",
+                "person_name",
+                "message_preview",
+                "status",
+                "outcome",
+                "reached_out",
+                "outcome_date",
+                "follow_up_shown",
+                "follow_up_shown_date",
+                "completed",
+            }
+        ),
+        "trusted_people": frozenset(
+            {
+                "name",
+                "relationship",
+                "contact",
+                "notes",
+                "domains",
+                "last_contact",
+            }
+        ),
+    }
+
+    def _validate_columns(self, table: str, columns: dict) -> dict:
+        """
+        Validate column names against whitelist. Raises ValueError on unknown columns.
+        Returns the filtered dict (only valid columns).
+        """
+        valid = self._VALID_COLUMNS.get(table)
+        if valid is None:
+            raise ValueError(f"No column whitelist defined for table: {table}")
+        invalid = set(columns.keys()) - valid
+        if invalid:
+            raise ValueError(
+                f"Invalid column(s) for {table}: {invalid}. " f"Valid columns: {valid}"
+            )
+        return columns
+
     def __init__(self):
         # Import here to avoid circular imports
         from utils.database import get_db, close_db, migrate_from_json
@@ -1081,6 +1134,7 @@ class SQLiteBackend(StorageBackend):
 
     def update_task_pattern(self, pattern_type: str, updates: Dict) -> None:
         self._ensure_write_allowed()
+        self._validate_columns("task_patterns", updates)
         # Build update query dynamically
         set_parts = []
         values = []
@@ -1177,6 +1231,7 @@ class SQLiteBackend(StorageBackend):
 
     def update_handoff_event(self, event_id: int, updates: Dict) -> Optional[Dict]:
         self._ensure_write_allowed()
+        self._validate_columns("handoff_events", updates)
         # Build update query
         set_parts = []
         values = []
@@ -1269,6 +1324,7 @@ class SQLiteBackend(StorageBackend):
 
     def update_trusted_person(self, person_id: int, updates: Dict) -> Optional[Dict]:
         self._ensure_write_allowed()
+        self._validate_columns("trusted_people", updates)
         set_parts = []
         values = []
         for key, value in updates.items():

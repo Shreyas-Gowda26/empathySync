@@ -1083,7 +1083,7 @@ LOCK_STALE_TIMEOUT=300
 
 ---
 
-## Phase 16.5: Type Safety & Data Contracts 🔧 HARDENING
+## Phase 16.5: Type Safety & Data Contracts 🔧 HARDENING (Partial)
 **Goal**: Replace fragile dicts and string constants with typed structures throughout the codebase.
 
 **Why now**: Risk assessments, classification results, and session summaries are all passed around as plain dicts. A single misspelled key (`"emotinal_weight"` vs `"emotional_weight"`) silently produces `None` instead of crashing. Enums and dataclasses catch these at definition time, not at 2 AM in production.
@@ -1099,12 +1099,11 @@ LOCK_STALE_TIMEOUT=300
 - `src/utils/scenario_loader.py` — domain keys when loading YAML configs
 
 **Implementation**:
-- [ ] Create `src/models/enums.py` with:
+- [x] Create `src/models/enums.py` with:
   - `Domain` enum: `LOGISTICS`, `HEALTH`, `CRISIS`, `HARMFUL`, `EMOTIONAL`, `RELATIONSHIPS`, `MONEY`, `SPIRITUALITY`
-  - `Intent` enum: `PRACTICAL`, `PROCESSING`, `CONNECTION_SEEKING`
+  - `Intent` enum: `PRACTICAL`, `PROCESSING`, `EMOTIONAL`, `CONNECTION`
   - `EmotionalWeight` enum: `HIGH_WEIGHT`, `MEDIUM_WEIGHT`, `LOW_WEIGHT`, `REFLECTION_REDIRECT`
   - `ClassificationMethod` enum: `LLM`, `KEYWORD`, `FAST_PATH`, `FALLBACK`
-  - `Action` enum: `BLUR`, `TAG`, `HIDE`, `PASS`
 - [ ] Replace all string literal comparisons with enum members
 - [ ] Update YAML loading to map string values → enum members at load time
 - [ ] Update all tests to use enum members
@@ -1119,15 +1118,16 @@ LOCK_STALE_TIMEOUT=300
 - `ai_wellness_guide.py` — transparency info dicts with `domain`, `mode`, `emotional_weight`, `policy_actions`, `word_limit`
 
 **Implementation**:
-- [ ] Create `src/models/data_contracts.py` with:
-  - `@dataclass RiskAssessment` — typed fields for all risk classifier output
+- [x] Create `src/models/data_contracts.py` with:
+  - `@dataclass RiskAssessment` — typed fields for all risk classifier output, with `__post_init__` validation
   - `@dataclass LLMClassification` — typed fields for LLM classifier output
-  - `@dataclass SessionSummary` — typed fields for session summary data
-  - `@dataclass TransparencyInfo` — typed fields for decision explanation
+  - Dict-compatible access via `__getitem__`, `.get()`, `to_dict()`, `from_dict()`
+  - `__post_init__` validation (confidence clamped 0.0-1.0, intensity clamped 0.0-10.0)
+- [ ] Add `@dataclass SessionSummary` — typed fields for session summary data
+- [ ] Add `@dataclass TransparencyInfo` — typed fields for decision explanation
 - [ ] Replace `dict` returns with dataclass instances in `RiskClassifier.classify()`
 - [ ] Replace `dict` returns with dataclass instances in `LLMClassifier.classify()`
 - [ ] Update all consumers to use attribute access instead of `dict.get()`
-- [ ] Add `__post_init__` validation where appropriate (e.g., `confidence` must be 0.0-1.0)
 
 ### 16.5.3 Type Annotations Audit
 - [ ] Add return type annotations to all public methods in core modules
@@ -1148,14 +1148,14 @@ LOCK_STALE_TIMEOUT=300
 - `src/models/llm_classifier.py:308` — `_call_ollama()` for classification
 
 **Implementation**:
-- [ ] Add `httpx>=0.26.0` to dependencies in `pyproject.toml`
-- [ ] Create shared `httpx.AsyncClient` with connection pooling (single instance per session)
-- [ ] Convert `WellnessGuide._call_ollama()` to async with `httpx.AsyncClient.post()`
-- [ ] Convert `WellnessGuide._call_ollama_stream()` to async streaming
-- [ ] Convert `LLMClassifier._call_ollama()` to async
+- [x] Add `httpx>=0.26.0` to dependencies in `pyproject.toml`
+- [x] Create shared `httpx.Client` with connection pooling (`utils/http_client.py`, sync — Streamlit is single-threaded)
+- [x] Convert `WellnessGuide._call_ollama()` to use shared httpx client
+- [x] Convert `WellnessGuide._call_ollama_stream()` to httpx streaming (`client.stream()`)
+- [x] Convert `LLMClassifier._call_ollama()` to use shared httpx client
 - [ ] Add retry logic with exponential backoff (1 retry, 2s delay) for transient failures
-- [ ] Inject `http_client` parameter for testability (same pattern as IntentKeeper)
-- [ ] Remove `requests` from `requirements.txt` and `pyproject.toml`
+- [x] Inject `http_client` parameter for testability (same pattern as IntentKeeper)
+- [x] Remove `requests` from `pyproject.toml` (replaced with `httpx>=0.26.0`)
 
 ### 16.6.2 Pre-Compile Regular Expressions
 **Problem**: Regex patterns compiled inside hot-path methods — every classification call re-compiles the same patterns.
@@ -1163,12 +1163,9 @@ LOCK_STALE_TIMEOUT=300
 **File**: `src/models/llm_classifier.py:195-206` — 6+ regex patterns compiled per call in `_extract_json_from_response()`
 
 **Implementation**:
-- [ ] Move all `re.compile()` calls to module-level constants
-- [ ] Create `_PATTERNS` dict at module level with pre-compiled patterns:
-  - JSON extraction patterns
-  - Whitespace normalization patterns
-  - Response cleanup patterns
-- [ ] Same treatment for `risk_classifier.py` trigger matching patterns
+- [x] Move all `re.compile()` calls to module-level constants (`_RE_JSON_STRICT`, `_RE_JSON_PERMISSIVE`)
+- [x] Pre-compiled patterns used in `_parse_response()` hot path
+- [x] `risk_classifier.py` reviewed — uses string `in` checks, not regex (no pre-compilation needed)
 - [ ] Benchmark before/after (expect ~10x speedup on pattern matching)
 
 ### 16.6.3 Aho-Corasick for Trigger Matching
@@ -1201,7 +1198,7 @@ LOCK_STALE_TIMEOUT=300
 **File**: `src/utils/lockfile.py` — `acquire()` method
 
 **Implementation**:
-- [ ] Replace read-then-write with atomic `os.open()` using `O_CREAT | O_EXCL` flags (POSIX atomic create-or-fail)
+- [x] Replace read-then-write with atomic `os.open()` using `O_CREAT | O_EXCL` flags (POSIX atomic create-or-fail)
 - [ ] On Windows, use `msvcrt.locking()` or `fcntl.flock()` equivalent
 - [ ] Add integration test: two threads race to acquire lock, exactly one succeeds
 - [ ] Heartbeat update also needs atomic write (write to temp + `os.replace()`)
@@ -1212,11 +1209,11 @@ LOCK_STALE_TIMEOUT=300
 **File**: `.env` — lines 10 and 35 contain hardcoded secret/key values
 
 **Implementation**:
-- [ ] `.env` must be in `.gitignore` (verify it is)
-- [ ] `.env.example` should have placeholder values only (`SECRET_KEY=change-me-to-a-random-string`)
+- [x] `.env` must be in `.gitignore` (verify it is)
+- [x] `.env.example` should have placeholder values only (`SECRET_KEY=change-me-to-a-random-string`)
 - [ ] Add startup validation: if `SECRET_KEY == "change-me-to-a-random-string"`, fail with clear error in production
 - [ ] Add `secrets.token_urlsafe(32)` as auto-generated default for development mode
-- [ ] Audit all settings for values that should never be committed
+- [x] Audit all settings for values that should never be committed
 
 ### 16.7.3 SQL Injection Prevention
 **Problem**: `storage_backend.py` builds some queries with string formatting on column names. If any column name is derived from user input, this is exploitable.
@@ -1224,10 +1221,10 @@ LOCK_STALE_TIMEOUT=300
 **File**: `src/utils/storage_backend.py` — dynamic query construction
 
 **Implementation**:
-- [ ] Audit every SQL query in `database.py` and `storage_backend.py` for string interpolation
-- [ ] Column names: validate against a whitelist of known columns before interpolation
-- [ ] Values: ensure ALL values go through parameterized queries (`?` placeholders), never f-strings
-- [ ] Add `_VALID_COLUMNS` frozenset per table, raise `ValueError` on unknown column names
+- [x] Audit every SQL query in `database.py` and `storage_backend.py` for string interpolation
+- [x] Column names: validate against a whitelist of known columns before interpolation
+- [x] Values: ensure ALL values go through parameterized queries (`?` placeholders), never f-strings
+- [x] Add `_VALID_COLUMNS` frozenset per table, raise `ValueError` on unknown column names
 - [ ] Add SQL injection test: attempt to pass `"; DROP TABLE check_ins; --"` as a column name
 
 ### 16.7.4 Rate Limiting
@@ -1244,10 +1241,10 @@ LOCK_STALE_TIMEOUT=300
 **Problem**: No consistent input length limits. Very long messages can cause Ollama OOM or extremely slow classification.
 
 **Implementation**:
-- [ ] Define `MAX_INPUT_LENGTH` constant (e.g., 5000 characters)
-- [ ] Validate in `WellnessGuide.generate_response()` before any processing
-- [ ] Validate in `LLMClassifier.classify()` before Ollama call
-- [ ] Truncate gracefully with user notification (don't silently drop content)
+- [x] Define `MAX_INPUT_LENGTH` constant (e.g., 5000 characters)
+- [x] Validate in `WellnessGuide.generate_response()` before any processing
+- [x] Validate in `LLMClassifier.classify()` before Ollama call
+- [x] Truncate gracefully with user notification (don't silently drop content)
 - [ ] Add to UI: character counter on input field
 
 ---
@@ -1277,11 +1274,11 @@ LOCK_STALE_TIMEOUT=300
 **Problem**: Handles Ollama communication, response generation, prompt building, context management, acknowledgment logic, safety pipeline, and streaming — all in one class.
 
 **Implementation**:
-- [ ] Extract `OllamaClient` — HTTP calls, retry logic, streaming, health check
+- [x] Extract `OllamaClient` — HTTP calls, streaming, health check (`src/models/ollama_client.py`)
 - [ ] Extract `ResponsePipeline` — pre-generation safety checks, post-generation adjustments, acknowledgment injection
-- [ ] Extract `ContextManager` — session emotional context, topic threading, context decay
-- [ ] Keep `WellnessGuide` as orchestrator calling the above
-- [ ] Each component gets its own file in `src/models/`
+- [ ] Extract `ContextManager` — session emotional context, topic threading, context decay (deferred — too tightly coupled to session state)
+- [x] Keep `WellnessGuide` as orchestrator delegating to `OllamaClient`
+- [x] Each component gets its own file in `src/models/`
 
 ### 16.8.3 Decompose ScenarioLoader (1375 lines, 25+ methods)
 **File**: `src/utils/scenario_loader.py`
@@ -1314,71 +1311,51 @@ LOCK_STALE_TIMEOUT=300
 **Problem**: Handles domain detection, emotional weight assessment, dependency scoring, intent detection, task category detection, graduation info, and crisis/harmful fast-path — too many concerns.
 
 **Implementation**:
-- [ ] Extract `EmotionalWeightAssessor` — weight detection, score calculation
+- [x] Extract `EmotionalWeightAssessor` — weight detection, intensity, score calculation (`src/models/emotional_weight_assessor.py`)
 - [ ] Extract `DependencyScorer` — dependency risk calculation, pattern analysis
 - [ ] Extract `TaskCategoryDetector` — task category detection, graduation eligibility
-- [ ] Keep `RiskClassifier` as orchestrator for the overall classification pipeline
+- [x] Keep `RiskClassifier` as orchestrator delegating to `EmotionalWeightAssessor`
 
 ---
 
-## Phase 16.9: Test Coverage Expansion 🔧 HARDENING
+## Phase 16.9: Test Coverage Expansion 🔧 HARDENING (Partial)
 **Goal**: Cover the 6 untested files, add error injection tests, concurrency tests, and security tests.
 
 **Why now**: 292 tests is impressive, but zero coverage on `database.py`, `storage_backend.py`, `lockfile.py`, `write_gate.py`, `trusted_network.py`, and `helpers.py` means the persistence layer — the layer that owns user data — is completely unguarded. Any refactoring in Phase 16.8 without tests is playing with fire.
 
-### 16.9.1 Storage Layer Tests
-**Problem**: `database.py` (SQLite operations) and `storage_backend.py` (unified interface) have zero test coverage. These handle all user data persistence.
+### 16.9.1 Storage Layer Tests ✅ ALREADY COVERED
+**Note**: `tests/test_persistence.py` (801 lines) already covers `database.py`, `storage_backend.py`, and `lockfile.py` with `TestDatabaseModule`, `TestStorageBackend`, and `TestLockFileModule` classes.
 
-**Implementation**:
-- [ ] Create `tests/test_database.py`:
-  - Schema creation and migration (v1→v2)
-  - CRUD operations for each table (check_ins, trusted_people, reach_outs, etc.)
-  - WAL mode verification
-  - Checkpoint behavior
-  - Transaction rollback on error
-  - Concurrent read/write behavior
-- [ ] Create `tests/test_storage_backend.py`:
-  - JSON backend: read, write, atomic save, corruption recovery
-  - SQLite backend: same operations via storage abstraction
-  - Backend switching (JSON → SQLite migration)
-  - Write gate integration (blocked writes raise `WriteBlockedError`)
-
-### 16.9.2 Lock File & Write Gate Tests
-**Problem**: `lockfile.py` and `write_gate.py` have zero coverage. These are the multi-device safety net.
-
-**Implementation**:
-- [ ] Create `tests/test_lockfile.py`:
-  - Lock acquisition and release
-  - Stale lock detection (mock time)
-  - Heartbeat update
-  - Concurrent acquisition (two threads, one wins)
-  - Lock re-entry from same device
-  - Force takeover behavior
-- [ ] Create `tests/test_write_gate.py`:
+### 16.9.2 Write Gate Tests ✅ DONE
+- [x] Create `tests/test_write_gate.py` (11 tests):
   - Write allowed/blocked state transitions
-  - `WriteBlockedError` raised on blocked writes
-  - All 31 storage write methods respect the gate
+  - `@require_write` decorator allows/blocks execution
+  - `@require_write` preserves function metadata via `@wraps`
+  - `check_write_permission()` passes/raises correctly
+  - Error messages contain function name and "Close empathySync"
 
-### 16.9.3 Trusted Network Tests
-**Problem**: `trusted_network.py` has zero direct test coverage. Handles the human connection features.
+### 16.9.3 Trusted Network Tests ✅ DONE
+- [x] Create `tests/test_trusted_network.py` (57 tests):
+  - `TestPersonManagement` (18 tests): add/get/update/remove people, case-insensitive search, domain filtering
+  - `TestReachOuts` (6 tests): log, count, recent, neglected contacts
+  - `TestPrompts` (10 tests): setup/reflection/domain prompts, reach-out templates, exit celebrations
+  - `TestConnectionBuilding` (8 tests): network empty, signposts, first-contact templates
+  - `TestHandoff` (9 tests): contextual handoff, log/record outcome, follow-ups, stats
+  - `TestConnectionHealth` (2 tests): empty and active network metrics
+  - `TestErrorHandling` (4 tests): corrupted JSON recovery, backup creation, schema migration, persistence
 
-**Implementation**:
-- [ ] Create `tests/test_trusted_network.py`:
-  - Add/remove trusted people
-  - Reach-out logging and history
-  - Context-aware handoff template selection
-  - Network empty detection
-  - Signpost and first-contact template retrieval
-  - Building network content generation
+### 16.9.3b Helpers Tests ✅ DONE
+- [x] Create `tests/test_helpers.py` (10 tests):
+  - `setup_logging()` creates directory, sets log level
+  - `validate_environment()` delegates to settings
+  - `format_wellness_tip()` formatting
+  - `create_progress_summary()` edge cases (zero, one day, multiple days, zero-division)
 
-### 16.9.4 Error Injection Tests
-**Problem**: No tests verify behavior under adverse conditions (disk full, Ollama crash mid-stream, corrupt JSON, database locked).
-
-**Implementation**:
-- [ ] Ollama errors: connection refused, timeout, malformed JSON, empty response, HTTP 500
-- [ ] Storage errors: disk full (mock `os.replace` raising `OSError`), corrupt JSON file, locked SQLite database
+### 16.9.4 Error Injection Tests ✅ DONE (Partial)
+- [x] Ollama errors in `tests/test_llm_classifier.py` `TestErrorInjection` (5 tests):
+  - Connection refused, timeout, malformed JSON, empty response, HTTP 500
+- [ ] Storage errors: disk full (mock `os.replace` raising `OSError`), locked SQLite database
 - [ ] YAML errors: missing files, malformed YAML, missing required keys
-- [ ] All error paths should fail open (neutral/safe behavior, never crash)
 
 ### 16.9.5 Concurrency Tests
 **Problem**: No tests verify thread safety of shared state (cache, session state, lock files).
@@ -1423,7 +1400,7 @@ LOCK_STALE_TIMEOUT=300
 - Rate limits (max dismissals, max asks per session, follow-up delays)
 
 **Implementation**:
-- [ ] Create `scenarios/config/system_defaults.yaml` with all tunables organized by component:
+- [x] Create `scenarios/config/system_defaults.yaml` with all tunables organized by component:
   ```yaml
   classification:
     cache_max_size: 100
@@ -1440,9 +1417,9 @@ LOCK_STALE_TIMEOUT=300
     max_asks_per_session: 2
     cooldown_turns: 3
   ```
-- [ ] Load config at startup via `ScenarioLoader`
-- [ ] Replace all bare literals with config lookups
-- [ ] Document each setting with description and valid range
+- [x] Load config at startup via `ScenarioLoader.get_system_defaults()` and `get_default()` helper
+- [ ] Replace remaining bare literals with config lookups (OllamaClient and turn limits wired; wellness_tracker pending)
+- [x] Document each setting with description and valid range (inline YAML comments)
 
 ### 16.10.3 Environment-Specific Configurations
 - [ ] Development mode: verbose logging, relaxed timeouts, no rate limits
@@ -1675,7 +1652,9 @@ Each agent evolution phase must maintain these cross-cutting guarantees:
 
 **Completed**: Phases 1, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 8 (Core), 9, 9.1, 9.5, 11.1-11.7, 12, 13, 14 (Core), 15, and 16
 
-**Next Up**: Hardening Phases 16.5-16.10 (Type Safety → Async I/O → Security → God Class Decomposition → Test Coverage → Observability)
+**In Progress**: Hardening Phases 16.5-16.10
+- Phase 16.9 Test Coverage: ✅ 83 new tests (443 total, all passing)
+- Phase 16.5 Type Safety: ✅ Enums and dataclasses defined (gradual adoption next)
 
 **Why hardening before Phase 17?** The Persistent Agent Daemon (Phase 17) adds a long-running background process, cross-session memory, scheduled nudges, and self-governance. Building that on top of god classes, synchronous I/O, untested persistence, and 50+ magic numbers would compound every existing issue. Fix the foundation first, then build upward.
 

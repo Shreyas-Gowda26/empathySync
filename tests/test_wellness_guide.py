@@ -7,17 +7,22 @@ from unittest.mock import Mock, patch
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from utils.scenario_loader import ScenarioLoader, reset_scenario_loader
 from models.risk_classifier import (
-    RiskClassifier, INTENT_PRACTICAL, INTENT_PROCESSING,
-    INTENT_EMOTIONAL, INTENT_CONNECTION
+    RiskClassifier,
+    INTENT_PRACTICAL,
+    INTENT_PROCESSING,
+    INTENT_EMOTIONAL,
+    INTENT_CONNECTION,
 )
 from prompts.wellness_prompts import WellnessPrompts
 from utils.wellness_tracker import (
-    WellnessTracker, INTENT_PRACTICAL as TRACKER_PRACTICAL,
-    INTENT_CONNECTION as TRACKER_CONNECTION
+    WellnessTracker,
+    INTENT_PRACTICAL as TRACKER_PRACTICAL,
+    INTENT_CONNECTION as TRACKER_CONNECTION,
 )
 
 
@@ -153,7 +158,9 @@ class TestRiskClassifier:
 
     def test_dependency_repetition_increases_risk(self, classifier):
         # Unique messages
-        unique_history = [{"role": "user", "content": f"Unique message number {i}"} for i in range(4)]
+        unique_history = [
+            {"role": "user", "content": f"Unique message number {i}"} for i in range(4)
+        ]
 
         # Repeated messages
         repeated_history = [{"role": "user", "content": "Same message repeated"} for _ in range(4)]
@@ -231,7 +238,7 @@ class TestWellnessPrompts:
             "domain": "money",
             "emotional_intensity": 6.0,
             "dependency_risk": 3.0,
-            "risk_weight": 5.0
+            "risk_weight": 5.0,
         }
         prompt = prompts.get_system_prompt("Balanced", risk_context)
         assert "RISK-AWARE" in prompt
@@ -242,7 +249,7 @@ class TestWellnessPrompts:
             "domain": "crisis",
             "emotional_intensity": 9.0,
             "dependency_risk": 0.0,
-            "risk_weight": 10.0
+            "risk_weight": 10.0,
         }
         prompt = prompts.get_system_prompt("Balanced", risk_context)
         assert "crisis" in prompt.lower() or "988" in prompt
@@ -262,6 +269,7 @@ class TestWellnessGuide:
     @pytest.fixture
     def guide(self, mock_settings):
         from models.ai_wellness_guide import WellnessGuide
+
         return WellnessGuide()
 
     def test_build_context_empty_history(self, guide):
@@ -271,7 +279,7 @@ class TestWellnessGuide:
     def test_build_context_with_history(self, guide):
         history = [
             {"role": "user", "content": "Hello"},
-            {"role": "assistant", "content": "Hi there"}
+            {"role": "assistant", "content": "Hi there"},
         ]
         context = guide._build_context(history)
         assert "User: Hello" in context
@@ -328,36 +336,46 @@ class TestWellnessGuide:
         assert len(response) > 30
         # Should be helpful/supportive — any of the safe alternative responses
         response_lower = response.lower()
-        assert any(word in response_lower for word in ["helpful", "need", "supportive", "wellbeing"])
+        assert any(
+            word in response_lower for word in ["helpful", "need", "supportive", "wellbeing"]
+        )
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_generate_response_calls_ollama(self, mock_post, guide):
-        mock_post.return_value.json.return_value = {
+    @patch("utils.http_client.get_http_client")
+    def test_generate_response_calls_ollama(self, mock_get_client, guide):
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.post.return_value.json.return_value = {
             "response": "This is a thoughtful response about AI wellness."
         }
-        mock_post.return_value.raise_for_status = Mock()
+        mock_client.post.return_value.raise_for_status = Mock()
 
         result = guide.generate_response("How do I use AI mindfully?")
 
-        assert mock_post.called
+        assert mock_client.post.called
         assert "thoughtful response" in result
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_generate_response_handles_api_error(self, mock_post, guide):
-        import requests
-        mock_post.side_effect = requests.exceptions.ConnectionError()
+    @patch("utils.http_client.get_http_client")
+    def test_generate_response_handles_api_error(self, mock_get_client, guide):
+        import httpx
+
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.post.side_effect = httpx.ConnectError("Connection refused")
 
         result = guide.generate_response("Test input")
 
         # Should return a fallback response (one of the general fallbacks or hardcoded)
         result_lower = result.lower()
-        assert any(phrase in result_lower for phrase in [
-            "help you develop",
-            "step by step",
-            "what's on your mind",
-            "having trouble",
-            "main thing",
-        ])
+        assert any(
+            phrase in result_lower
+            for phrase in [
+                "help you develop",
+                "step by step",
+                "what's on your mind",
+                "having trouble",
+                "main thing",
+            ]
+        )
 
 
 class TestIntentDetection:
@@ -384,7 +402,9 @@ class TestIntentDetection:
         assert confidence >= 0.6
 
     def test_detect_intent_processing_decision(self, classifier):
-        intent, confidence = classifier.detect_intent("I'm trying to decide if I should quit my job")
+        intent, confidence = classifier.detect_intent(
+            "I'm trying to decide if I should quit my job"
+        )
         assert intent == INTENT_PROCESSING
         assert confidence >= 0.7
 
@@ -449,12 +469,10 @@ class TestIntentDetection:
         history = [
             {"role": "user", "content": "Write me a resignation email"},
             {"role": "assistant", "content": "Here's a template..."},
-            {"role": "user", "content": "Thanks. I'm just so scared about what will happen next"}
+            {"role": "user", "content": "Thanks. I'm just so scared about what will happen next"},
         ]
         shift = classifier.detect_intent_shift(
-            history,
-            INTENT_PRACTICAL,
-            "I'm scared about what will happen"
+            history, INTENT_PRACTICAL, "I'm scared about what will happen"
         )
         assert shift is not None
         assert shift["from_intent"] == INTENT_PRACTICAL
@@ -465,22 +483,16 @@ class TestIntentDetection:
         history = [
             {"role": "user", "content": "Write me an email"},
             {"role": "assistant", "content": "Here's a template..."},
-            {"role": "user", "content": "Now help me write another email"}
+            {"role": "user", "content": "Now help me write another email"},
         ]
         shift = classifier.detect_intent_shift(
-            history,
-            INTENT_PRACTICAL,
-            "Now help me write another email"
+            history, INTENT_PRACTICAL, "Now help me write another email"
         )
         assert shift is None
 
     def test_no_shift_on_first_message(self, classifier):
         history = [{"role": "user", "content": "I'm feeling overwhelmed"}]
-        shift = classifier.detect_intent_shift(
-            history,
-            INTENT_PRACTICAL,
-            "I'm feeling overwhelmed"
-        )
+        shift = classifier.detect_intent_shift(history, INTENT_PRACTICAL, "I'm feeling overwhelmed")
         assert shift is None  # Too early to detect shift
 
 
@@ -499,6 +511,7 @@ class TestSessionIntentTracking:
         """Create a WellnessTracker with temp data directory."""
         # Patch settings.DATA_DIR
         from config import settings as cfg
+
         monkeypatch.setattr(cfg.settings, "DATA_DIR", temp_data_dir)
         return WellnessTracker()
 
@@ -538,7 +551,7 @@ class TestSessionIntentTracking:
         assert freq["total_sessions"] == 3
         assert freq["connection_seeking"] == 1
         assert freq["practical"] == 2
-        assert freq["connection_ratio"] == round(1/3, 2)
+        assert freq["connection_ratio"] == round(1 / 3, 2)
         assert freq["is_concerning"] is False  # Not above threshold
 
     def test_connection_seeking_concerning_when_high(self, tracker):
@@ -585,6 +598,7 @@ class TestScenarioLoaderIntents:
 
 # ==================== PHASE 3: GRADUATION TESTS ====================
 
+
 class TestTaskCategoryDetection:
     """Tests for Phase 3 task category detection in RiskClassifier"""
 
@@ -603,7 +617,9 @@ class TestTaskCategoryDetection:
         assert confidence >= 0.6
 
     def test_detect_code_help(self, classifier):
-        category, confidence = classifier.detect_task_category("Write me a function that sorts numbers")
+        category, confidence = classifier.detect_task_category(
+            "Write me a function that sorts numbers"
+        )
         assert category == "code_help"
         assert confidence >= 0.8
 
@@ -634,7 +650,9 @@ class TestTaskCategoryDetection:
 
     def test_email_excluded_from_general_writing(self, classifier):
         # Should match email_drafting, not writing_general
-        category, confidence = classifier.detect_task_category("Write me an email about the project")
+        category, confidence = classifier.detect_task_category(
+            "Write me an email about the project"
+        )
         assert category == "email_drafting"
 
     def test_no_category_for_unmatched(self, classifier):
@@ -704,6 +722,7 @@ class TestWellnessTrackerGraduation:
     def tracker(self, tmp_path):
         """Create a WellnessTracker with temporary data directory."""
         from config.settings import settings
+
         original_data_dir = settings.DATA_DIR
         settings.DATA_DIR = tmp_path
         tracker = WellnessTracker()
@@ -878,30 +897,22 @@ class TestScenarioLoaderHandoff:
 
     def test_detect_handoff_context_high_weight(self, scenario_loader):
         """Test context detection for high emotional weight task."""
-        context = scenario_loader.detect_handoff_context(
-            emotional_weight="high_weight"
-        )
+        context = scenario_loader.detect_handoff_context(emotional_weight="high_weight")
         assert context == "after_difficult_task"
 
     def test_detect_handoff_context_processing(self, scenario_loader):
         """Test context detection for processing intent."""
-        context = scenario_loader.detect_handoff_context(
-            session_intent="processing"
-        )
+        context = scenario_loader.detect_handoff_context(session_intent="processing")
         assert context == "processing_decision"
 
     def test_detect_handoff_context_domain(self, scenario_loader):
         """Test context detection for sensitive domain."""
-        context = scenario_loader.detect_handoff_context(
-            domain="relationships"
-        )
+        context = scenario_loader.detect_handoff_context(domain="relationships")
         assert context == "after_sensitive_topic"
 
     def test_detect_handoff_context_high_usage(self, scenario_loader):
         """Test context detection for high usage pattern."""
-        context = scenario_loader.detect_handoff_context(
-            sessions_today=5
-        )
+        context = scenario_loader.detect_handoff_context(sessions_today=5)
         assert context == "high_usage_pattern"
 
     def test_detect_handoff_context_general(self, scenario_loader):
@@ -933,23 +944,19 @@ class TestTrustedNetworkHandoff:
         """Create a TrustedNetwork with temp data file."""
         from utils.trusted_network import TrustedNetwork
         from config.settings import settings
+
         settings.DATA_DIR = tmp_path
         return TrustedNetwork()
 
     def test_get_contextual_handoff(self, network):
         """Test getting context-aware handoff."""
-        handoff = network.get_contextual_handoff(
-            emotional_weight="high_weight",
-            domain="logistics"
-        )
+        handoff = network.get_contextual_handoff(emotional_weight="high_weight", domain="logistics")
         assert handoff["context"] == "after_difficult_task"
         assert handoff.get("intro_prompt") is not None
 
     def test_get_contextual_handoff_processing(self, network):
         """Test contextual handoff for processing intent."""
-        handoff = network.get_contextual_handoff(
-            session_intent="processing"
-        )
+        handoff = network.get_contextual_handoff(session_intent="processing")
         assert handoff["context"] == "processing_decision"
 
     def test_log_handoff_initiated(self, network):
@@ -958,7 +965,7 @@ class TestTrustedNetworkHandoff:
             context="after_difficult_task",
             domain="logistics",
             person_name="Mom",
-            message_sent="Hey, I just drafted a hard email..."
+            message_sent="Hey, I just drafted a hard email...",
         )
         assert handoff["context"] == "after_difficult_task"
         assert handoff["status"] == "initiated"
@@ -967,16 +974,11 @@ class TestTrustedNetworkHandoff:
     def test_record_handoff_outcome(self, network):
         """Test recording handoff outcome."""
         # First initiate
-        handoff = network.log_handoff_initiated(
-            context="general",
-            person_name="Friend"
-        )
+        handoff = network.log_handoff_initiated(context="general", person_name="Friend")
 
         # Then record outcome
         updated = network.record_handoff_outcome(
-            handoff_id=handoff["id"],
-            reached_out=True,
-            outcome="very_helpful"
+            handoff_id=handoff["id"], reached_out=True, outcome="very_helpful"
         )
 
         assert updated["status"] == "completed"
@@ -1009,15 +1011,14 @@ class TestWellnessTrackerHandoff:
     def tracker(self, tmp_path):
         """Create a WellnessTracker with temp data file."""
         from config.settings import settings
+
         settings.DATA_DIR = tmp_path
         return WellnessTracker()
 
     def test_log_handoff_event(self, tracker):
         """Test logging handoff events."""
         event = tracker.log_handoff_event(
-            event_type="initiated",
-            context="after_difficult_task",
-            domain="logistics"
+            event_type="initiated", context="after_difficult_task", domain="logistics"
         )
         assert event["event_type"] == "initiated"
         assert event["context"] == "after_difficult_task"
@@ -1025,9 +1026,7 @@ class TestWellnessTrackerHandoff:
     def test_log_handoff_reached_out(self, tracker):
         """Test logging reached out event."""
         event = tracker.log_handoff_event(
-            event_type="reached_out",
-            context="general",
-            outcome="very_helpful"
+            event_type="reached_out", context="general", outcome="very_helpful"
         )
         assert event["event_type"] == "reached_out"
         assert event["outcome"] == "very_helpful"
@@ -1237,9 +1236,7 @@ class TestReflectionRedirect:
 
     def test_detect_breakup_text_redirect(self, classifier):
         """Test that breakup text triggers reflection redirect."""
-        weight, score = classifier._assess_emotional_weight(
-            "Help me write a break up text"
-        )
+        weight, score = classifier._assess_emotional_weight("Help me write a break up text")
         assert weight == "reflection_redirect"
 
     def test_detect_cheating_context_redirect(self, classifier):
@@ -1273,9 +1270,7 @@ class TestReflectionRedirect:
 
     def test_professional_apology_not_redirected(self, classifier):
         """Test that professional apology is high_weight, not reflection_redirect."""
-        weight, score = classifier._assess_emotional_weight(
-            "Write an apology email to my coworker"
-        )
+        weight, score = classifier._assess_emotional_weight("Write an apology email to my coworker")
         assert weight == "high_weight"
         assert weight != "reflection_redirect"
 
@@ -1299,7 +1294,9 @@ class TestReflectionRedirect:
         assert response is not None
         assert len(response) > 20
         # Should encourage reflection or human conversation
-        assert any(word in response.lower() for word in ["you", "yourself", "talk", "words", "feeling"])
+        assert any(
+            word in response.lower() for word in ["you", "yourself", "talk", "words", "feeling"]
+        )
 
 
 class TestScenarioLoaderReflectionRedirect:
@@ -1341,8 +1338,7 @@ class TestTransparencyIntegration:
     def test_risk_assessment_has_transparency_data(self, classifier):
         """Test that risk assessment provides all data needed for transparency."""
         result = classifier.classify(
-            user_input="Help me write an email to my boss",
-            conversation_history=[]
+            user_input="Help me write an email to my boss", conversation_history=[]
         )
 
         # Should have domain
@@ -1358,19 +1354,19 @@ class TestTransparencyIntegration:
     def test_practical_task_assessment(self, classifier):
         """Test practical task assessment for transparency."""
         result = classifier.classify(
-            user_input="Write me a resignation email",
-            conversation_history=[]
+            user_input="Write me a resignation email", conversation_history=[]
         )
 
         assert result["domain"] == "logistics"
         assert result["emotional_weight"] == "high_weight"  # Resignation is high weight
-        assert result["risk_weight"] <= 3.0  # Logistics is low risk (may include emotional weight factor)
+        assert (
+            result["risk_weight"] <= 3.0
+        )  # Logistics is low risk (may include emotional weight factor)
 
     def test_sensitive_topic_assessment(self, classifier):
         """Test sensitive topic assessment for transparency."""
         result = classifier.classify(
-            user_input="I'm worried about my debt and financial future",
-            conversation_history=[]
+            user_input="I'm worried about my debt and financial future", conversation_history=[]
         )
 
         assert result["domain"] == "money"
@@ -1380,8 +1376,7 @@ class TestTransparencyIntegration:
         """Test complete explanation chain from assessment to explanations."""
         # Classify a message
         result = classifier.classify(
-            user_input="Help me code a function in Python",
-            conversation_history=[]
+            user_input="Help me code a function in Python", conversation_history=[]
         )
 
         # Get explanations
@@ -1419,6 +1414,7 @@ class TestContextPersistence:
     @pytest.fixture
     def guide(self, mock_settings):
         from models.ai_wellness_guide import WellnessGuide
+
         return WellnessGuide()
 
     # Test context extraction
@@ -1457,7 +1453,10 @@ class TestContextPersistence:
 
     def test_is_continuation_brainstorm_phrase(self, guide):
         """Test that 'let's brainstorm' is detected as continuation."""
-        context = {"topic_hint": ["breakup", "boyfriend"], "emotional_weight": "reflection_redirect"}
+        context = {
+            "topic_hint": ["breakup", "boyfriend"],
+            "emotional_weight": "reflection_redirect",
+        }
         assert guide._is_continuation_message("let's brainstorm", context) is True
         assert guide._is_continuation_message("lets think about it", context) is True
 
@@ -1470,22 +1469,25 @@ class TestContextPersistence:
 
     def test_is_continuation_topic_hint_match(self, guide):
         """Test that topic hint matches are detected as continuation."""
-        context = {"topic_hint": ["boyfriend", "breakup"], "emotional_weight": "reflection_redirect"}
+        context = {
+            "topic_hint": ["boyfriend", "breakup"],
+            "emotional_weight": "reflection_redirect",
+        }
         assert guide._is_continuation_message("I need to tell my boyfriend", context) is True
 
     def test_not_continuation_new_topic(self, guide):
         """Test that new topics are not detected as continuation."""
-        context = {"topic_hint": ["boyfriend", "breakup"], "emotional_weight": "reflection_redirect"}
+        context = {
+            "topic_hint": ["boyfriend", "breakup"],
+            "emotional_weight": "reflection_redirect",
+        }
         # A completely different request
         assert guide._is_continuation_message("Write me python code for sorting", context) is False
 
     # Test context updating
     def test_update_session_context_sets_context_for_high_weight(self, guide):
         """Test that high weight messages set session context."""
-        risk_assessment = {
-            "emotional_weight": "high_weight",
-            "domain": "logistics"
-        }
+        risk_assessment = {"emotional_weight": "high_weight", "domain": "logistics"}
         guide.session_turn_count = 1
         guide._update_session_context("Write me a resignation email", risk_assessment)
 
@@ -1495,10 +1497,7 @@ class TestContextPersistence:
 
     def test_update_session_context_sets_context_for_reflection_redirect(self, guide):
         """Test that reflection_redirect messages set longer decay context."""
-        risk_assessment = {
-            "emotional_weight": "reflection_redirect",
-            "domain": "logistics"
-        }
+        risk_assessment = {"emotional_weight": "reflection_redirect", "domain": "logistics"}
         guide.session_turn_count = 1
         guide._update_session_context("Write me a breakup message", risk_assessment)
 
@@ -1507,10 +1506,7 @@ class TestContextPersistence:
 
     def test_update_session_context_sets_context_for_sensitive_domain(self, guide):
         """Test that sensitive domains set session context."""
-        risk_assessment = {
-            "emotional_weight": "low_weight",
-            "domain": "relationships"
-        }
+        risk_assessment = {"emotional_weight": "low_weight", "domain": "relationships"}
         guide.session_turn_count = 1
         guide._update_session_context("My partner and I had a fight", risk_assessment)
 
@@ -1519,12 +1515,11 @@ class TestContextPersistence:
 
     def test_update_session_context_extracts_topic_hints(self, guide):
         """Test that topic hints are extracted when context is set."""
-        risk_assessment = {
-            "emotional_weight": "reflection_redirect",
-            "domain": "logistics"
-        }
+        risk_assessment = {"emotional_weight": "reflection_redirect", "domain": "logistics"}
         guide.session_turn_count = 1
-        guide._update_session_context("Write a breakup message about my boyfriend cheating", risk_assessment)
+        guide._update_session_context(
+            "Write a breakup message about my boyfriend cheating", risk_assessment
+        )
 
         hints = guide.session_emotional_context["topic_hint"]
         assert "boyfriend" in hints
@@ -1532,10 +1527,7 @@ class TestContextPersistence:
 
     def test_no_context_update_for_low_weight_logistics(self, guide):
         """Test that low weight logistics doesn't set context."""
-        risk_assessment = {
-            "emotional_weight": "low_weight",
-            "domain": "logistics"
-        }
+        risk_assessment = {"emotional_weight": "low_weight", "domain": "logistics"}
         guide.session_turn_count = 1
         guide._update_session_context("Write me a grocery list", risk_assessment)
 
@@ -1551,7 +1543,7 @@ class TestContextPersistence:
             "domain": "logistics",
             "topic_hint": ["breakup", "boyfriend"],
             "turn_set": 1,
-            "decay_turns": 7
+            "decay_turns": 7,
         }
         guide.session_turn_count = 2  # Second turn
 
@@ -1559,7 +1551,7 @@ class TestContextPersistence:
         risk_assessment = {
             "emotional_weight": "low_weight",
             "domain": "logistics",
-            "risk_weight": 1.0
+            "risk_weight": 1.0,
         }
 
         adjusted = guide._get_context_adjusted_assessment("let's brainstorm", risk_assessment)
@@ -1576,14 +1568,14 @@ class TestContextPersistence:
             "domain": "logistics",
             "topic_hint": ["breakup"],
             "turn_set": 1,
-            "decay_turns": 5
+            "decay_turns": 5,
         }
         guide.session_turn_count = 8  # 7 turns later (past decay)
 
         risk_assessment = {
             "emotional_weight": "low_weight",
             "domain": "logistics",
-            "risk_weight": 1.0
+            "risk_weight": 1.0,
         }
 
         adjusted = guide._get_context_adjusted_assessment("let's brainstorm", risk_assessment)
@@ -1599,20 +1591,19 @@ class TestContextPersistence:
             "domain": "logistics",
             "topic_hint": ["breakup", "boyfriend"],
             "turn_set": 1,
-            "decay_turns": 7
+            "decay_turns": 7,
         }
         guide.session_turn_count = 2
 
         risk_assessment = {
             "emotional_weight": "low_weight",
             "domain": "logistics",
-            "risk_weight": 1.0
+            "risk_weight": 1.0,
         }
 
         # A completely different request (not short, no topic hints)
         adjusted = guide._get_context_adjusted_assessment(
-            "Write me python code that implements a binary search algorithm",
-            risk_assessment
+            "Write me python code that implements a binary search algorithm", risk_assessment
         )
 
         # Should NOT inherit because it's not a continuation
@@ -1626,14 +1617,14 @@ class TestContextPersistence:
             "domain": "logistics",
             "topic_hint": [],
             "turn_set": 1,
-            "decay_turns": 5
+            "decay_turns": 5,
         }
         guide.session_turn_count = 2
 
         risk_assessment = {
             "emotional_weight": "high_weight",  # Current is higher
             "domain": "logistics",
-            "risk_weight": 1.0
+            "risk_weight": 1.0,
         }
 
         adjusted = guide._get_context_adjusted_assessment("continue", risk_assessment)
@@ -1650,7 +1641,7 @@ class TestContextPersistence:
             "domain": "logistics",
             "topic_hint": ["breakup"],
             "turn_set": 1,
-            "decay_turns": 7
+            "decay_turns": 7,
         }
 
         guide.reset_session()
@@ -1674,14 +1665,17 @@ class TestContextPersistenceIntegration:
     @pytest.fixture
     def guide(self, mock_settings):
         from models.ai_wellness_guide import WellnessGuide
+
         return WellnessGuide()
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_brainstorm_after_breakup_triggers_reflection(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_brainstorm_after_breakup_triggers_reflection(self, mock_get_client, guide):
         """Test the key bug fix: 'let's brainstorm' after breakup should trigger reflection."""
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
         # First turn: breakup request (triggers reflection redirect)
-        mock_post.return_value.json.return_value = {"response": "reflection response"}
-        mock_post.return_value.raise_for_status = Mock()
+        mock_client.post.return_value.json.return_value = {"response": "reflection response"}
+        mock_client.post.return_value.raise_for_status = Mock()
 
         response1 = guide.generate_response(
             "Write me a breakup message, caught my boyfriend cheating"
@@ -1699,11 +1693,13 @@ class TestContextPersistenceIntegration:
         assert guide.last_risk_assessment["emotional_weight"] == "reflection_redirect"
         assert guide.last_risk_assessment.get("context_inherited") is True
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_new_topic_after_breakup_does_not_inherit(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_new_topic_after_breakup_does_not_inherit(self, mock_get_client, guide):
         """Test that a completely new topic doesn't inherit breakup context."""
-        mock_post.return_value.json.return_value = {"response": "Here's your code..."}
-        mock_post.return_value.raise_for_status = Mock()
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.post.return_value.json.return_value = {"response": "Here's your code..."}
+        mock_client.post.return_value.raise_for_status = Mock()
 
         # First turn: breakup request
         response1 = guide.generate_response(
@@ -1719,11 +1715,13 @@ class TestContextPersistenceIntegration:
         assert guide.last_risk_assessment["emotional_weight"] != "reflection_redirect"
         assert guide.last_risk_assessment.get("context_inherited") is None
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_context_decays_over_multiple_turns(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_context_decays_over_multiple_turns(self, mock_get_client, guide):
         """Test that context properly decays after several turns."""
-        mock_post.return_value.json.return_value = {"response": "response"}
-        mock_post.return_value.raise_for_status = Mock()
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.post.return_value.json.return_value = {"response": "response"}
+        mock_client.post.return_value.raise_for_status = Mock()
 
         # Turn 1: High weight request
         guide.generate_response("Write me a resignation email")
@@ -1768,7 +1766,10 @@ class TestScenarioLoaderWisdom:
         prompt = scenario_loader.get_friend_mode_flip_prompt()
         # Prompt may use "friend" or equivalent phrasing like "someone you care about"
         prompt_lower = prompt.lower()
-        assert any(phrase in prompt_lower for phrase in ["friend", "someone you care about", "someone you trust"])
+        assert any(
+            phrase in prompt_lower
+            for phrase in ["friend", "someone you care about", "someone you trust"]
+        )
         assert len(prompt) > 20
 
     def test_get_friend_mode_triggers(self, scenario_loader):
@@ -1779,19 +1780,23 @@ class TestScenarioLoaderWisdom:
 
     def test_should_trigger_friend_mode_on_what_should_i_do(self, scenario_loader):
         """Test friend mode triggers on 'what should I do' phrases."""
-        assert scenario_loader.should_trigger_friend_mode(
-            "What should I do about my relationship?",
-            intent="processing",
-            domain="relationships"
-        ) is True
+        assert (
+            scenario_loader.should_trigger_friend_mode(
+                "What should I do about my relationship?",
+                intent="processing",
+                domain="relationships",
+            )
+            is True
+        )
 
     def test_should_not_trigger_friend_mode_on_practical(self, scenario_loader):
         """Test friend mode doesn't trigger on practical requests."""
-        assert scenario_loader.should_trigger_friend_mode(
-            "What should I do to fix this code?",
-            intent="practical",
-            domain="logistics"
-        ) is False
+        assert (
+            scenario_loader.should_trigger_friend_mode(
+                "What should I do to fix this code?", intent="practical", domain="logistics"
+            )
+            is False
+        )
 
     def test_get_before_you_send_config(self, scenario_loader):
         """Test loading before you send configuration."""
@@ -1804,12 +1809,20 @@ class TestScenarioLoaderWisdom:
         """Test getting pause prompt for resignation."""
         prompt = scenario_loader.get_pause_prompt("resignation")
         # Should suggest pausing before sending
-        assert any(word in prompt.lower() for word in ["resignation", "sleep", "wait", "before", "send", "consider"])
+        assert any(
+            word in prompt.lower()
+            for word in ["resignation", "sleep", "wait", "before", "send", "consider"]
+        )
 
     def test_detect_pause_category(self, scenario_loader):
         """Test pause category detection."""
-        assert scenario_loader.detect_pause_category("Write me a resignation email") == "resignation"
-        assert scenario_loader.detect_pause_category("Write me a breakup message") == "relationship_endings"
+        assert (
+            scenario_loader.detect_pause_category("Write me a resignation email") == "resignation"
+        )
+        assert (
+            scenario_loader.detect_pause_category("Write me a breakup message")
+            == "relationship_endings"
+        )
         assert scenario_loader.detect_pause_category("Write an apology to my mom") == "apologies"
         assert scenario_loader.detect_pause_category("Write a hello email") == "default"
 
@@ -1859,18 +1872,20 @@ class TestScenarioLoaderWisdom:
     def test_should_trigger_human_gate(self, scenario_loader):
         """Test human gate triggering logic."""
         # Should trigger for sensitive domains
-        assert scenario_loader.should_trigger_human_gate(
-            domain="relationships",
-            emotional_weight="high_weight",
-            gate_count=0
-        ) is True
+        assert (
+            scenario_loader.should_trigger_human_gate(
+                domain="relationships", emotional_weight="high_weight", gate_count=0
+            )
+            is True
+        )
 
         # Should not trigger if already asked twice
-        assert scenario_loader.should_trigger_human_gate(
-            domain="relationships",
-            emotional_weight="high_weight",
-            gate_count=2
-        ) is False
+        assert (
+            scenario_loader.should_trigger_human_gate(
+                domain="relationships", emotional_weight="high_weight", gate_count=2
+            )
+            is False
+        )
 
     def test_get_ai_literacy_config(self, scenario_loader):
         """Test loading AI literacy configuration."""
@@ -1900,14 +1915,15 @@ class TestWellnessGuideWisdom:
     @pytest.fixture
     def guide(self, mock_settings):
         from models.ai_wellness_guide import WellnessGuide
+
         return WellnessGuide()
 
     def test_guide_has_wisdom_state(self, guide):
         """Test that guide has Phase 8 state variables."""
-        assert hasattr(guide, 'human_gate_count')
-        assert hasattr(guide, 'friend_mode_active')
-        assert hasattr(guide, 'friend_mode_turn')
-        assert hasattr(guide, 'pending_friend_response')
+        assert hasattr(guide, "human_gate_count")
+        assert hasattr(guide, "friend_mode_active")
+        assert hasattr(guide, "friend_mode_turn")
+        assert hasattr(guide, "pending_friend_response")
 
     def test_reset_session_resets_wisdom_state(self, guide):
         """Test that reset_session clears wisdom state."""
@@ -1937,32 +1953,30 @@ class TestWellnessGuideWisdom:
         risk_assessment = {
             "domain": "relationships",
             "emotional_weight": "medium_weight",
-            "risk_weight": 5.0
+            "risk_weight": 5.0,
         }
 
         response = guide._check_friend_mode(
-            "What should I do about my relationship problems?",
-            risk_assessment,
-            "relationships"
+            "What should I do about my relationship problems?", risk_assessment, "relationships"
         )
 
         assert response is not None
         # Should mention friend OR someone you care about (different prompt variants)
-        assert "friend" in response.lower() or "someone" in response.lower() or "advice" in response.lower()
+        assert (
+            "friend" in response.lower()
+            or "someone" in response.lower()
+            or "advice" in response.lower()
+        )
 
     def test_check_friend_mode_does_not_trigger_on_short_messages(self, guide):
         """Test friend mode doesn't trigger on very short messages."""
         risk_assessment = {
             "domain": "relationships",
             "emotional_weight": "medium_weight",
-            "risk_weight": 5.0
+            "risk_weight": 5.0,
         }
 
-        response = guide._check_friend_mode(
-            "help",  # Too short
-            risk_assessment,
-            "relationships"
-        )
+        response = guide._check_friend_mode("help", risk_assessment, "relationships")  # Too short
 
         assert response is None
 
@@ -1973,14 +1987,14 @@ class TestWellnessGuideWisdom:
         assert pause is not None
         assert len(pause) > 20
         # Should mention waiting/pausing/considering before sending
-        assert any(word in pause.lower() for word in ["wait", "sleep", "tomorrow", "consider", "before", "send"])
+        assert any(
+            word in pause.lower()
+            for word in ["wait", "sleep", "tomorrow", "consider", "before", "send"]
+        )
 
     def test_check_human_gate(self, guide):
         """Test human gate check."""
-        response = guide._check_human_gate(
-            domain="relationships",
-            emotional_weight="high_weight"
-        )
+        response = guide._check_human_gate(domain="relationships", emotional_weight="high_weight")
 
         assert response is not None
         assert "talk" in response.lower() or "someone" in response.lower()
@@ -1990,10 +2004,7 @@ class TestWellnessGuideWisdom:
         """Test human gate respects max asks per session."""
         guide.human_gate_count = 2  # Already asked twice
 
-        response = guide._check_human_gate(
-            domain="relationships",
-            emotional_weight="high_weight"
-        )
+        response = guide._check_human_gate(domain="relationships", emotional_weight="high_weight")
 
         assert response is None  # Should not ask again
 
@@ -2020,13 +2031,16 @@ class TestWisdomIntegration:
     @pytest.fixture
     def guide(self, mock_settings):
         from models.ai_wellness_guide import WellnessGuide
+
         return WellnessGuide()
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_reflection_redirect_includes_journaling(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_reflection_redirect_includes_journaling(self, mock_get_client, guide):
         """Test that reflection redirect response includes journaling option."""
-        mock_post.return_value.json.return_value = {"response": "test"}
-        mock_post.return_value.raise_for_status = Mock()
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.post.return_value.json.return_value = {"response": "test"}
+        mock_client.post.return_value.raise_for_status = Mock()
 
         response = guide.generate_response(
             "Write me a breakup message, caught my boyfriend cheating"
@@ -2035,20 +2049,22 @@ class TestWisdomIntegration:
         # Should include journaling prompts
         assert "?" in response  # Should have questions for reflection
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_high_weight_task_includes_pause(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_high_weight_task_includes_pause(self, mock_get_client, guide):
         """Test that high-weight tasks include 'Before You Send' pause."""
-        mock_post.return_value.json.return_value = {
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.post.return_value.json.return_value = {
             "response": "Here is your resignation email:\n\nDear Manager,\n\nI am writing to inform you..."
         }
-        mock_post.return_value.raise_for_status = Mock()
+        mock_client.post.return_value.raise_for_status = Mock()
 
-        response = guide.generate_response(
-            "Write me a resignation email to my boss"
-        )
+        response = guide.generate_response("Write me a resignation email to my boss")
 
         # Should include pause suggestion
-        assert any(word in response.lower() for word in ["sleep", "wait", "tomorrow", "consider", "before"])
+        assert any(
+            word in response.lower() for word in ["sleep", "wait", "tomorrow", "consider", "before"]
+        )
 
 
 # ==================== PHASE 7: SUCCESS METRICS ====================
@@ -2060,6 +2076,7 @@ class TestSuccessMetricsConfig:
     @pytest.fixture
     def loader(self):
         from utils.scenario_loader import get_scenario_loader, reset_scenario_loader
+
         reset_scenario_loader()
         return get_scenario_loader()
 
@@ -2145,6 +2162,7 @@ class TestSensitiveUsageTracking:
     @pytest.fixture
     def tracker(self, tmp_path):
         from utils.wellness_tracker import WellnessTracker
+
         with patch("utils.wellness_tracker.settings") as mock_settings:
             mock_settings.DATA_DIR = tmp_path
             mock_settings.USE_SQLITE = False
@@ -2208,6 +2226,7 @@ class TestAntiEngagementScore:
     @pytest.fixture
     def tracker(self, tmp_path):
         from utils.wellness_tracker import WellnessTracker
+
         with patch("utils.wellness_tracker.settings") as mock_settings:
             mock_settings.DATA_DIR = tmp_path
             mock_settings.USE_SQLITE = False
@@ -2227,7 +2246,9 @@ class TestAntiEngagementScore:
         """Test anti-engagement score increases with sensitive usage."""
         # Log several sensitive domain events
         for _ in range(5):
-            tracker.log_policy_event("high_risk_response", "relationships", 6.0, "Response generated")
+            tracker.log_policy_event(
+                "high_risk_response", "relationships", 6.0, "Response generated"
+            )
 
         score = tracker.calculate_anti_engagement_score()
 
@@ -2264,6 +2285,7 @@ class TestMyPatternsDashboard:
     @pytest.fixture
     def tracker(self, tmp_path):
         from utils.wellness_tracker import WellnessTracker
+
         with patch("utils.wellness_tracker.settings") as mock_settings:
             mock_settings.DATA_DIR = tmp_path
             mock_settings.USE_SQLITE = False
@@ -2318,6 +2340,7 @@ class TestSelfReportTracking:
     @pytest.fixture
     def tracker(self, tmp_path):
         from utils.wellness_tracker import WellnessTracker
+
         with patch("utils.wellness_tracker.settings") as mock_settings:
             mock_settings.DATA_DIR = tmp_path
             mock_settings.USE_SQLITE = False
@@ -2330,7 +2353,7 @@ class TestSelfReportTracking:
         report = tracker.record_self_report(
             report_type="usage_reflection",
             response="too_much",
-            details={"context": "high usage week"}
+            details={"context": "high usage week"},
         )
 
         assert report["type"] == "usage_reflection"
@@ -2365,6 +2388,7 @@ class TestTrendIndicators:
     @pytest.fixture
     def tracker(self, tmp_path):
         from utils.wellness_tracker import WellnessTracker
+
         with patch("utils.wellness_tracker.settings") as mock_settings:
             mock_settings.DATA_DIR = tmp_path
             mock_settings.USE_SQLITE = False
@@ -2409,6 +2433,7 @@ class TestHealthChecks:
     def test_check_data_directory(self, tmp_path):
         """Test data directory check with valid directory."""
         from utils.health_check import check_data_directory
+
         with patch("utils.health_check.settings") as mock_settings:
             mock_settings.DATA_DIR = tmp_path
             result = check_data_directory()
@@ -2418,6 +2443,7 @@ class TestHealthChecks:
     def test_check_data_directory_no_permission(self, tmp_path):
         """Test data directory check with unwritable directory."""
         from utils.health_check import check_data_directory
+
         with patch("utils.health_check.settings") as mock_settings:
             mock_settings.DATA_DIR = Path("/root/no_access_dir_test")
             result = check_data_directory()
@@ -2427,6 +2453,7 @@ class TestHealthChecks:
     def test_check_ollama_server_unreachable(self):
         """Test Ollama check when server is not running."""
         from utils.health_check import check_ollama_server
+
         with patch("utils.health_check.settings") as mock_settings:
             mock_settings.OLLAMA_HOST = "http://localhost:99999"
             result = check_ollama_server()
@@ -2434,21 +2461,27 @@ class TestHealthChecks:
             assert "Cannot connect" in result.message or "Unexpected" in result.message
             assert result.details is not None
 
-    @patch("utils.health_check.requests.get")
-    def test_check_ollama_server_success(self, mock_get):
+    @patch("utils.health_check.get_http_client")
+    def test_check_ollama_server_success(self, mock_get_client):
         """Test Ollama check when server is running."""
         from utils.health_check import check_ollama_server
-        mock_get.return_value.status_code = 200
+
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.get.return_value.status_code = 200
         result = check_ollama_server()
         assert result.ok is True
         assert result.message == "Connected"
 
-    @patch("utils.health_check.requests.get")
-    def test_check_ollama_model_found(self, mock_get):
+    @patch("utils.health_check.get_http_client")
+    def test_check_ollama_model_found(self, mock_get_client):
         """Test model check when model is available."""
         from utils.health_check import check_ollama_model
-        mock_get.return_value.status_code = 200
-        mock_get.return_value.json.return_value = {
+
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.get.return_value.status_code = 200
+        mock_client.get.return_value.json.return_value = {
             "models": [{"name": "llama2:latest"}, {"name": "mistral:7b"}]
         }
         with patch("utils.health_check.settings") as mock_settings:
@@ -2457,14 +2490,15 @@ class TestHealthChecks:
             result = check_ollama_model()
             assert result.ok is True
 
-    @patch("utils.health_check.requests.get")
-    def test_check_ollama_model_not_found(self, mock_get):
+    @patch("utils.health_check.get_http_client")
+    def test_check_ollama_model_not_found(self, mock_get_client):
         """Test model check when model is missing."""
         from utils.health_check import check_ollama_model
-        mock_get.return_value.status_code = 200
-        mock_get.return_value.json.return_value = {
-            "models": [{"name": "mistral:7b"}]
-        }
+
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.get.return_value.status_code = 200
+        mock_client.get.return_value.json.return_value = {"models": [{"name": "mistral:7b"}]}
         with patch("utils.health_check.settings") as mock_settings:
             mock_settings.OLLAMA_HOST = "http://localhost:11434"
             mock_settings.OLLAMA_MODEL = "llama2"
@@ -2492,6 +2526,7 @@ class TestHealthChecks:
     def test_check_sqlite_not_enabled(self):
         """Test SQLite check when not enabled."""
         from utils.health_check import check_sqlite_database
+
         with patch("utils.health_check.settings") as mock_settings:
             mock_settings.USE_SQLITE = False
             result = check_sqlite_database()
@@ -2501,6 +2536,7 @@ class TestHealthChecks:
     def test_check_sqlite_enabled(self, tmp_path):
         """Test SQLite check when enabled and accessible."""
         from utils.health_check import check_sqlite_database
+
         with patch("utils.health_check.settings") as mock_settings:
             mock_settings.USE_SQLITE = True
             mock_settings.DATA_DIR = tmp_path
@@ -2529,6 +2565,7 @@ class TestDomainStability:
     @pytest.fixture
     def guide(self, mock_settings):
         from models.ai_wellness_guide import WellnessGuide
+
         return WellnessGuide()
 
     def _simulate_turns(self, guide, domain, count):
@@ -2644,9 +2681,7 @@ class TestDomainStability:
             "original_domain": "health",
             "emotional_intensity": 5.0,
         }
-        result = guide._get_emotional_coloring_acknowledgment(
-            "I'm nervous about this", assessment
-        )
+        result = guide._get_emotional_coloring_acknowledgment("I'm nervous about this", assessment)
         assert result is not None
         assert len(result) > 10  # Not empty/trivial
 
@@ -2698,15 +2733,17 @@ class TestDomainStability:
         result2 = guide._get_emotional_coloring_acknowledgment(msg, assessment)
         assert result1 == result2
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_full_pipeline_dampens_and_acknowledges(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_full_pipeline_dampens_and_acknowledges(self, mock_get_client, guide):
         """Full generate_response pipeline: after 3+ logistics turns,
         an emotional message stays in logistics with acknowledgment prepended."""
         # Set up Ollama mock
-        mock_post.return_value.json.return_value = {
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.post.return_value.json.return_value = {
             "response": "Here are the next steps for your preparation."
         }
-        mock_post.return_value.raise_for_status = Mock()
+        mock_client.post.return_value.raise_for_status = Mock()
 
         # Simulate 4 prior logistics turns
         self._simulate_turns(guide, "logistics", 4)
@@ -2734,9 +2771,11 @@ class TestDomainStability:
         # Response should contain acknowledgment + practical response
         assert "next steps" in result.lower()
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_full_pipeline_crisis_not_dampened(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_full_pipeline_crisis_not_dampened(self, mock_get_client, guide):
         """Crisis messages are never dampened, even after long logistics streak."""
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
         self._simulate_turns(guide, "logistics", 10)
 
         with patch.object(guide.risk_classifier, "classify") as mock_classify:
@@ -2822,9 +2861,12 @@ class TestClassificationSkip:
 
     def test_long_message_not_continuation(self, classifier):
         """Messages over 40 chars are never treated as continuations."""
-        assert classifier._is_short_continuation(
-            "I have been feeling really anxious about my job interview"
-        ) is False
+        assert (
+            classifier._is_short_continuation(
+                "I have been feeling really anxious about my job interview"
+            )
+            is False
+        )
 
     def test_substantive_short_message_not_continuation(self, classifier):
         """Short but substantive messages are not continuations."""
@@ -2853,14 +2895,16 @@ class TestStreaming:
     @pytest.fixture
     def guide(self, mock_settings):
         from models.ai_wellness_guide import WellnessGuide
+
         return WellnessGuide()
 
     # --- _call_ollama_stream tests ---
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_call_ollama_stream_yields_tokens(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_call_ollama_stream_yields_tokens(self, mock_get_client, guide):
         """_call_ollama_stream should yield individual tokens from Ollama."""
         import json as json_mod
+
         lines = [
             json_mod.dumps({"response": "Hello", "done": False}),
             json_mod.dumps({"response": " world", "done": False}),
@@ -2869,15 +2913,19 @@ class TestStreaming:
         mock_response = Mock()
         mock_response.iter_lines.return_value = iter(lines)
         mock_response.raise_for_status = Mock()
-        mock_post.return_value = mock_response
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.stream.return_value.__enter__ = Mock(return_value=mock_response)
+        mock_client.stream.return_value.__exit__ = Mock(return_value=False)
 
         tokens = list(guide._call_ollama_stream("test prompt"))
         assert tokens == ["Hello", " world", "!"]
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_call_ollama_stream_stops_on_done(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_call_ollama_stream_stops_on_done(self, mock_get_client, guide):
         """Stream stops when done=True is received."""
         import json as json_mod
+
         lines = [
             json_mod.dumps({"response": "Hi", "done": True}),
             json_mod.dumps({"response": "extra", "done": False}),  # Should not be yielded
@@ -2885,15 +2933,19 @@ class TestStreaming:
         mock_response = Mock()
         mock_response.iter_lines.return_value = iter(lines)
         mock_response.raise_for_status = Mock()
-        mock_post.return_value = mock_response
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.stream.return_value.__enter__ = Mock(return_value=mock_response)
+        mock_client.stream.return_value.__exit__ = Mock(return_value=False)
 
         tokens = list(guide._call_ollama_stream("test prompt"))
         assert tokens == ["Hi"]
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_call_ollama_stream_skips_empty_tokens(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_call_ollama_stream_skips_empty_tokens(self, mock_get_client, guide):
         """Empty response tokens are not yielded."""
         import json as json_mod
+
         lines = [
             json_mod.dumps({"response": "Hi", "done": False}),
             json_mod.dumps({"response": "", "done": False}),
@@ -2902,60 +2954,75 @@ class TestStreaming:
         mock_response = Mock()
         mock_response.iter_lines.return_value = iter(lines)
         mock_response.raise_for_status = Mock()
-        mock_post.return_value = mock_response
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.stream.return_value.__enter__ = Mock(return_value=mock_response)
+        mock_client.stream.return_value.__exit__ = Mock(return_value=False)
 
         tokens = list(guide._call_ollama_stream("test prompt"))
         assert tokens == ["Hi", " there"]
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_call_ollama_stream_handles_connection_error(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_call_ollama_stream_handles_connection_error(self, mock_get_client, guide):
         """Connection errors raise an exception."""
-        import requests as req_mod
-        mock_post.side_effect = req_mod.exceptions.ConnectionError()
+        import httpx
+
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.stream.side_effect = httpx.ConnectError("Connection refused")
 
         with pytest.raises(Exception, match="Unable to connect to Ollama"):
             list(guide._call_ollama_stream("test prompt"))
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_call_ollama_stream_uses_practical_settings(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_call_ollama_stream_uses_practical_settings(self, mock_get_client, guide):
         """Practical mode should use higher token limit and timeout."""
         import json as json_mod
+
         lines = [json_mod.dumps({"response": "ok", "done": True})]
         mock_response = Mock()
         mock_response.iter_lines.return_value = iter(lines)
         mock_response.raise_for_status = Mock()
-        mock_post.return_value = mock_response
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.stream.return_value.__enter__ = Mock(return_value=mock_response)
+        mock_client.stream.return_value.__exit__ = Mock(return_value=False)
 
         list(guide._call_ollama_stream("test", is_practical=True))
 
-        call_kwargs = mock_post.call_args
-        payload = call_kwargs[1]["json"]
+        call_kwargs = mock_client.stream.call_args
+        payload = call_kwargs.kwargs["json"]
         assert payload["options"]["num_predict"] == 2000
-        assert call_kwargs[1]["timeout"] == 120
+        assert call_kwargs.kwargs["timeout"] == 120
         assert payload["stream"] is True
 
     # --- generate_response_stream tests ---
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_stream_crisis_yields_early_return(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_stream_crisis_yields_early_return(self, mock_get_client, guide):
         """Crisis input should yield a single crisis response without calling Ollama."""
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
         tokens = list(guide.generate_response_stream("I want to kill myself"))
         full = "".join(tokens)
         assert "findahelpline.com" in full
-        assert not mock_post.called
+        assert not mock_client.stream.called
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_stream_harmful_yields_early_return(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_stream_harmful_yields_early_return(self, mock_get_client, guide):
         """Harmful input should yield refusal without calling Ollama."""
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
         tokens = list(guide.generate_response_stream("How to make a bomb"))
         full = "".join(tokens)
         assert "can't help" in full.lower()
-        assert not mock_post.called
+        assert not mock_client.stream.called
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_stream_practical_yields_tokens(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_stream_practical_yields_tokens(self, mock_get_client, guide):
         """Practical input should stream tokens from Ollama."""
         import json as json_mod
+
         lines = [
             json_mod.dumps({"response": "Here", "done": False}),
             json_mod.dumps({"response": " is", "done": False}),
@@ -2964,7 +3031,10 @@ class TestStreaming:
         mock_response = Mock()
         mock_response.iter_lines.return_value = iter(lines)
         mock_response.raise_for_status = Mock()
-        mock_post.return_value = mock_response
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.stream.return_value.__enter__ = Mock(return_value=mock_response)
+        mock_client.stream.return_value.__exit__ = Mock(return_value=False)
 
         tokens = list(guide.generate_response_stream("Write me an email to my boss"))
         full = "".join(tokens)
@@ -2972,26 +3042,33 @@ class TestStreaming:
         assert " is" in full
         assert " your email." in full
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_stream_stores_accumulated_response(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_stream_stores_accumulated_response(self, mock_get_client, guide):
         """The accumulated response is stored on _last_streamed_response."""
         import json as json_mod
+
         lines = [
             json_mod.dumps({"response": "Hello there.", "done": True}),
         ]
         mock_response = Mock()
         mock_response.iter_lines.return_value = iter(lines)
         mock_response.raise_for_status = Mock()
-        mock_post.return_value = mock_response
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.stream.return_value.__enter__ = Mock(return_value=mock_response)
+        mock_client.stream.return_value.__exit__ = Mock(return_value=False)
 
         list(guide.generate_response_stream("Write me a greeting"))
         assert "Hello there." in guide._last_streamed_response
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_stream_handles_api_error(self, mock_post, guide):
+    @patch("utils.http_client.get_http_client")
+    def test_stream_handles_api_error(self, mock_get_client, guide):
         """API errors should yield a fallback response."""
-        import requests as req_mod
-        mock_post.side_effect = req_mod.exceptions.ConnectionError()
+        import httpx
+
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+        mock_client.stream.side_effect = httpx.ConnectError("Connection refused")
 
         tokens = list(guide.generate_response_stream("Write me an email"))
         full = "".join(tokens)
@@ -3026,23 +3103,20 @@ class TestStreaming:
 
     # --- _prepare_response tests ---
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_prepare_response_returns_early_for_crisis(self, mock_post, guide):
+    def test_prepare_response_returns_early_for_crisis(self, guide):
         """_prepare_response should set early_return for crisis input."""
         prepared = guide._prepare_response("I want to kill myself")
         assert prepared.early_return is not None
         assert "findahelpline.com" in prepared.early_return
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_prepare_response_builds_prompt_for_practical(self, mock_post, guide):
+    def test_prepare_response_builds_prompt_for_practical(self, guide):
         """_prepare_response should build a full prompt for practical input."""
         prepared = guide._prepare_response("Write me an email")
         assert prepared.early_return is None
         assert len(prepared.full_prompt) > 0
         assert prepared.is_practical is True
 
-    @patch("models.ai_wellness_guide.requests.post")
-    def test_prepare_response_cooldown(self, mock_post, guide):
+    def test_prepare_response_cooldown(self, guide):
         """_prepare_response should return cooldown message when enforced."""
         mock_tracker = Mock()
         mock_tracker.should_enforce_cooldown.return_value = (True, "Take a break.")

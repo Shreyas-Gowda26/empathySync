@@ -11,7 +11,7 @@ import sys
 import os
 
 # Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from models.llm_classifier import LLMClassifier, LRUCache, get_llm_classifier
 
@@ -144,7 +144,7 @@ class TestClassificationValidation:
             "domain": "logistics",
             "emotional_intensity": 3,
             "is_personal_distress": False,
-            "confidence": 0.85
+            "confidence": 0.85,
         }
         validated = classifier._validate_classification(result)
         assert validated is not None
@@ -157,7 +157,7 @@ class TestClassificationValidation:
             "domain": "practical",  # Should map to logistics
             "emotional_intensity": 2,
             "is_personal_distress": False,
-            "confidence": 0.8
+            "confidence": 0.8,
         }
         validated = classifier._validate_classification(result)
         assert validated["domain"] == "logistics"
@@ -168,17 +168,14 @@ class TestClassificationValidation:
             "domain": "logistics",
             "emotional_intensity": 15,  # Should be clamped to 10
             "is_personal_distress": False,
-            "confidence": 0.8
+            "confidence": 0.8,
         }
         validated = classifier._validate_classification(result)
         assert validated["emotional_intensity"] == 10
 
     def test_validate_missing_domain_returns_none(self):
         classifier = LLMClassifier()
-        result = {
-            "emotional_intensity": 3,
-            "is_personal_distress": False
-        }
+        result = {"emotional_intensity": 3, "is_personal_distress": False}
         validated = classifier._validate_classification(result)
         assert validated is None
 
@@ -188,7 +185,7 @@ class TestClassificationValidation:
             "domain": "emotional",
             "emotional_intensity": 8,
             "is_personal_distress": "true",  # String instead of bool
-            "confidence": 0.9
+            "confidence": 0.9,
         }
         validated = classifier._validate_classification(result)
         assert validated["is_personal_distress"] is True
@@ -234,6 +231,7 @@ class TestIntegration:
     def test_risk_classifier_with_llm_disabled(self):
         """Test that RiskClassifier works with LLM disabled"""
         from models.risk_classifier import RiskClassifier
+
         classifier = RiskClassifier(use_llm=False)
         result = classifier.classify("Help me write an email", [])
         assert "domain" in result
@@ -242,6 +240,7 @@ class TestIntegration:
     def test_risk_classifier_classification_method_field(self):
         """Test that classification_method field is present"""
         from models.risk_classifier import RiskClassifier
+
         classifier = RiskClassifier(use_llm=False)
         result = classifier.classify("I feel sad today", [])
         assert "classification_method" in result
@@ -249,6 +248,7 @@ class TestIntegration:
     def test_risk_classifier_llm_toggle(self):
         """Test enabling/disabling LLM classification at runtime"""
         from models.risk_classifier import RiskClassifier
+
         classifier = RiskClassifier(use_llm=False)
         assert classifier.is_llm_classification_enabled() is False
         # Note: This test would need Ollama running to fully test enabling
@@ -271,6 +271,62 @@ class TestEdgeCases:
         classifier = LLMClassifier()
         classifier.config["enabled"] = False
         result = classifier.classify("Test message", [])
+        assert result is None
+
+
+class TestErrorInjection:
+    """Tests for Ollama error scenarios — classifier should fail gracefully."""
+
+    def test_connection_refused(self):
+        """Connection refused should return None, not crash."""
+        import httpx
+
+        classifier = LLMClassifier()
+        mock_client = Mock()
+        mock_client.post.side_effect = httpx.ConnectError("Connection refused")
+        with patch("utils.http_client.get_http_client", return_value=mock_client):
+            result = classifier._call_ollama("test prompt")
+        assert result is None
+
+    def test_timeout(self):
+        """Timeout should return None, not crash."""
+        import httpx
+
+        classifier = LLMClassifier()
+        mock_client = Mock()
+        mock_client.post.side_effect = httpx.TimeoutException("Request timed out")
+        with patch("utils.http_client.get_http_client", return_value=mock_client):
+            result = classifier._call_ollama("test prompt")
+        assert result is None
+
+    def test_malformed_json_response(self):
+        """Non-JSON response should not crash classify()."""
+        classifier = LLMClassifier()
+        with patch.object(classifier, "_call_ollama", return_value="not valid json at all"):
+            result = classifier.classify("How do I budget my money?", [])
+        # Should return None since JSON parsing fails
+        assert result is None
+
+    def test_empty_response(self):
+        """Empty response from Ollama should return None."""
+        classifier = LLMClassifier()
+        with patch.object(classifier, "_call_ollama", return_value=""):
+            result = classifier.classify("Tell me about investing", [])
+        assert result is None
+
+    def test_http_500_error(self):
+        """HTTP 500 from Ollama should return None."""
+        import httpx
+
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "500 Server Error", request=Mock(), response=Mock()
+        )
+        classifier = LLMClassifier()
+        mock_client = Mock()
+        mock_client.post.return_value = mock_response
+        with patch("utils.http_client.get_http_client", return_value=mock_client):
+            result = classifier._call_ollama("test prompt")
         assert result is None
 
 
