@@ -1347,6 +1347,47 @@ class ScenarioLoader:
                     flat[word_lower] = domain
         return flat
 
+    # ==================== SYSTEM DEFAULTS ====================
+
+    def get_system_defaults(self) -> Dict:
+        """Load system_defaults.yaml — the central tunables config.
+
+        Returns the full dict from scenarios/config/system_defaults.yaml,
+        or an empty dict if the file doesn't exist (all code falls back
+        to hardcoded defaults).
+        """
+        cache_key = "system_defaults"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        config_file = self.scenarios_path / "config" / "system_defaults.yaml"
+        if config_file.exists():
+            result = self._load_yaml(config_file)
+        else:
+            result = {}
+
+        self._cache[cache_key] = result
+        return result
+
+    def get_default(self, *keys, fallback=None):
+        """Lookup a nested value from system_defaults.yaml.
+
+        Usage:
+            loader.get_default("session", "turn_limits", "logistics", fallback=30)
+            loader.get_default("ollama", "max_input_length", fallback=5000)
+
+        Returns fallback if any key in the chain is missing.
+        """
+        data = self.get_system_defaults()
+        for key in keys:
+            if isinstance(data, dict):
+                data = data.get(key)
+            else:
+                return fallback
+            if data is None:
+                return fallback
+        return data
+
 
 # Singleton instance for convenience
 _loader_instance: Optional[ScenarioLoader] = None

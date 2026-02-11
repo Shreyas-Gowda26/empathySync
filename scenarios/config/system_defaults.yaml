@@ -1,0 +1,127 @@
+# system_defaults.yaml — Central configuration for all tunables in empathySync.
+#
+# Every bare numeric literal that a contributor might want to adjust lives here.
+# Code loads these via ScenarioLoader.get_system_defaults() and falls back to
+# hardcoded values if this file is missing (backward compatibility).
+#
+# Each section corresponds to a component in src/.
+
+# --- Ollama / LLM ---
+ollama:
+  practical_max_tokens: 2000      # Token limit for practical tasks (emails, code, etc.)
+  reflective_max_tokens: 300      # Token limit for emotional/reflective responses
+  practical_timeout_seconds: 120  # Timeout for practical generation
+  reflective_timeout_seconds: 45  # Timeout for reflective generation
+  max_input_length: 5000          # Truncate user input beyond this length (prevents OOM)
+
+classification:
+  cache_max_entries: 100          # LRU cache size for LLM classification results
+  few_shot_examples: 3            # Number of few-shot examples in classification prompt
+  confidence_threshold: 0.6       # Minimum LLM confidence to accept classification
+  context_lookback_messages: 10   # Recent messages included in classification context
+
+# --- Session & Turn Limits ---
+session:
+  turn_limits:
+    logistics: 30
+    money: 15
+    health: 15
+    relationships: 15
+    spirituality: 10
+    crisis: 1
+    harmful: 1
+  identity_reminder_frequency: 6  # Remind user "I'm an AI" every N turns
+  post_crisis_clear_after: 3      # Clear post-crisis state after N turns
+
+# --- Context Persistence (Phase 6.5) ---
+context:
+  decay_turns:
+    reflection_redirect: 7        # Longest persistence (most sensitive)
+    high_weight: 5
+    crisis: 6
+    relationships: 6
+    default: 4
+  domain_stability_streak: 3      # Consecutive turns before domain is "established"
+  domain_shift_intensity: 7       # Intensity >= this allows domain shift
+  continuation_max_length: 30     # Messages shorter than this may be continuations
+  topic_hints_limit: 5            # Max extracted topic hints per message
+  emotional_coloring_min_intensity: 3  # Minimum intensity for emotional acknowledgment
+
+# --- Response Processing ---
+response:
+  min_valid_length: 10            # Responses shorter than this are treated as failures
+  brevity_risk_threshold: 7       # Risk weight >= this triggers word count enforcement
+  brevity_max_words: 60           # Max words before truncation at high risk
+  brevity_truncate_to: 50         # Truncate to this many words
+  high_risk_log_threshold: 5      # Risk weight >= this triggers detailed logging
+
+# --- Risk Scoring ---
+risk:
+  intensity_weight: 0.3           # Weight of emotional intensity in risk calculation
+  dependency_weight: 0.2          # Weight of dependency risk in risk calculation
+  dependency_intervention_threshold: 5  # Combined dependency score triggering intervention
+
+# --- Dependency Detection ---
+dependency:
+  base_factor: 0.7                # Multiplier for message count in dependency calculation
+  base_cap: 6.0                   # Maximum base dependency score
+  repetition_boost_max: 4.0       # Maximum boost from message repetition
+  lookback_messages: 12           # Messages to examine for dependency patterns
+  prefix_length: 60               # Character prefix length for repetition detection
+
+# --- Domain Detection ---
+domain:
+  short_continuation_max_length: 40  # Max length for short continuation bypass
+  established_streak: 2              # Domain streak before skipping LLM for same domain
+  shift_min_triggers: 2              # Minimum triggers required to shift established domain
+
+# --- Anti-Engagement Scoring ---
+anti_engagement:
+  weights:
+    sensitive_sessions: 0.35
+    connection_seeking: 0.25
+    late_night: 0.20
+    escalation: 0.20
+  late_night_hours:
+    start: 22                     # 10 PM
+    end: 6                        # 6 AM
+  thresholds:
+    sessions_high: 7              # 7+ sessions/day = high concern
+    sessions_moderate: 5
+    sessions_low: 3
+    minutes_high: 120             # 2+ hours/day
+    minutes_moderate: 60          # 1+ hour/day
+    late_night_sessions: 3        # 3+ late-night sessions
+    dependency_cooldown: 8        # Score triggering cooldown
+    break_suggestion: 5           # Score suggesting a break
+  escalation_lookback_days: 14    # Two-week window for trend detection
+  escalation_threshold: 1.5       # 50% increase triggers concern
+  health_score_levels:
+    excellent: 2
+    good: 4
+    moderate: 6
+    concerning: 8
+
+# --- Wisdom Features (Phase 8) ---
+wisdom:
+  friend_mode_min_length: 20      # Minimum message length to trigger friend mode
+  journaling_prompts_limit: 3     # Max journaling prompts shown
+  self_report_frequency_days: 5   # Minimum days between self-report prompts
+  intent_check_in:
+    min_sessions_between: 3       # Sessions before showing intent check-in
+    max_days_between: 7           # Days before forcing intent check-in
+
+# --- Connection Seeking ---
+connection:
+  lookback_days: 30               # Default lookback for connection frequency
+  concerning_ratio: 0.3           # Connection-seeking ratio threshold
+  concerning_min_count: 3         # Minimum count for concern flag
+  high_usage_week_sessions: 5     # Sessions/week threshold for high usage flag
+
+# --- Data Retention ---
+retention:
+  max_handoff_events: 200
+  max_self_reports: 100
+  max_task_pattern_uses: 100
+  max_policy_events: 1000
+  historical_days: 3650           # ~10 years for full history queries
