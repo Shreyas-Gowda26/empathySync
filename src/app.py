@@ -131,93 +131,31 @@ def display_transparency_panel():
         domain = assessment.get("domain", "logistics")
         domain_info = loader.get_domain_explanation(domain)
 
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.markdown(f"**{ui_labels.get('domain_label', 'Topic detected')}**")
-        with col2:
-            st.markdown(f"{domain_info.get('name', domain.title())}")
-            st.caption(domain_info.get("description", ""))
-
-        st.markdown("---")
-
-        # Response mode
         # Phase 9.1: Check both domain and is_practical_technique flag
         is_practical_technique = assessment.get("is_practical_technique", False)
         is_practical = domain == "logistics" or is_practical_technique
         mode = "practical" if is_practical else "reflective"
         mode_info = loader.get_mode_explanation(mode)
 
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.markdown(f"**{ui_labels.get('mode_label', 'Response mode')}**")
-        with col2:
-            st.markdown(f"{mode_info.get('name', mode.title())}")
-            # Phase 9.1: Show note if practical technique detected in sensitive domain
-            if is_practical_technique and domain != "logistics":
-                st.caption(
-                    f"Technique question detected in {domain} domain → full response allowed"
-                )
-            else:
-                st.caption(mode_info.get("description", ""))
+        # Compact summary line
+        st.markdown(
+            f"**Topic:** {domain_info.get('name', domain.title())} · "
+            f"**Mode:** {mode_info.get('name', mode.title())} · "
+            f"**Risk:** {assessment.get('risk_weight', 1.0):.0f}/10"
+        )
 
-        # Word limit
-        word_limit = ui_labels.get("no_limit", "None") if is_practical else "50-150 words"
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.markdown(f"**{ui_labels.get('word_limit_label', 'Word limit')}**")
-        with col2:
-            st.markdown(word_limit)
+        # Show technique note if relevant
+        if is_practical_technique and domain != "logistics":
+            st.caption(f"Technique question in {domain} domain — full response allowed")
 
-        st.markdown("---")
-
-        # Emotional weight (for practical tasks)
-        if is_practical:
-            emotional_weight = assessment.get("emotional_weight", "low_weight")
-            weight_info = loader.get_emotional_weight_explanation(emotional_weight)
-
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.markdown(f"**{ui_labels.get('emotional_weight_label', 'Emotional weight')}**")
-            with col2:
-                st.markdown(f"{weight_info.get('name', emotional_weight)}")
-                if weight_info.get("note"):
-                    st.caption(weight_info.get("note"))
-
-            st.markdown("---")
-
-        # Risk level
-        risk_weight = assessment.get("risk_weight", 1.0)
-        risk_info = loader.get_risk_level_explanation(risk_weight)
-
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.markdown(f"**{ui_labels.get('risk_level_label', 'Risk level')}**")
-        with col2:
-            st.markdown(f"{risk_info.get('name', 'Low')} ({risk_weight:.1f}/10)")
-            if risk_info.get("description"):
-                st.caption(risk_info.get("description"))
-
-        # Policy action (if any)
+        # Policy action — only show if one fired
         if guide.last_policy_action:
-            st.markdown("---")
             policy_type = guide.last_policy_action.get("type", "")
             policy_info = loader.get_policy_explanation(policy_type)
-
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.markdown(f"**{ui_labels.get('policy_label', 'Policy action')}**")
-            with col2:
-                st.markdown(f"{policy_info.get('name', policy_type)}")
-                st.caption(policy_info.get("reason", ""))
-                if policy_info.get("user_note"):
-                    st.info(policy_info.get("user_note"))
-        else:
-            st.markdown("---")
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.markdown(f"**{ui_labels.get('policy_label', 'Policy action')}**")
-            with col2:
-                st.markdown(ui_labels.get("none_triggered", "None triggered"))
+            st.markdown(f"**Policy:** {policy_info.get('name', policy_type)}")
+            st.caption(policy_info.get("reason", ""))
+            if policy_info.get("user_note"):
+                st.info(policy_info.get("user_note"))
 
 
 def display_session_summary():
@@ -251,77 +189,36 @@ def display_session_summary():
     if duration_minutes < min_duration and turn_count < min_turns:
         return
 
-    st.markdown("---")
     st.markdown(f"### {summary_config.get('header', 'Session Summary')}")
-    st.caption(summary_config.get("subheader", "Here's what happened in this conversation"))
 
     sections = summary_config.get("sections", {})
-
-    # Duration
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.markdown(f"**{sections.get('duration', {}).get('label', 'Duration')}**")
-    with col2:
-        st.markdown(f"{duration_minutes} minutes")
-
-    # Turns
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.markdown(f"**{sections.get('turns', {}).get('label', 'Exchanges')}**")
-    with col2:
-        st.markdown(f"{turn_count} turns")
-
-    # Mode breakdown
     practical_turns = sum(1 for d in domains_touched if d == "logistics")
     reflective_turns = len(domains_touched) - practical_turns
 
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.markdown(f"**{sections.get('mode_breakdown', {}).get('label', 'Conversation Type')}**")
-    with col2:
-        breakdown_parts = []
-        if practical_turns > 0:
-            breakdown_parts.append(f"{practical_turns} practical")
-        if reflective_turns > 0:
-            breakdown_parts.append(f"{reflective_turns} reflective")
-        st.markdown(", ".join(breakdown_parts) if breakdown_parts else "Mixed")
+    # Compact summary
+    st.markdown(
+        f"**{duration_minutes} min** · {turn_count} turns · "
+        f"{practical_turns} practical, {reflective_turns} reflective"
+    )
 
-    # Topics covered
+    # Topics
     if domains_touched:
         unique_domains = list(set(domains_touched))
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.markdown(f"**{sections.get('domains_touched', {}).get('label', 'Topics Covered')}**")
-        with col2:
-            domain_names = []
-            for domain in unique_domains:
-                domain_info = loader.get_domain_explanation(domain)
-                domain_names.append(domain_info.get("name", domain.title()))
-            st.markdown(", ".join(domain_names))
+        domain_names = []
+        for domain in unique_domains:
+            domain_info = loader.get_domain_explanation(domain)
+            domain_names.append(domain_info.get("name", domain.title()))
+        st.caption(f"Topics: {', '.join(domain_names)}")
 
-    # Risk level
+    # Risk + policy
     risk_info = loader.get_risk_level_explanation(max_risk)
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.markdown(f"**{sections.get('max_risk', {}).get('label', 'Highest Risk Level')}**")
-    with col2:
-        st.markdown(f"{risk_info.get('name', 'Low')} ({max_risk:.1f}/10)")
+    risk_line = f"Peak risk: {risk_info.get('name', 'Low')} ({max_risk:.0f}/10)"
+    if policy_action:
+        policy_info = loader.get_policy_explanation(policy_action.get("type", ""))
+        risk_line += f" · Guardrail: {policy_info.get('name', 'Yes')}"
+    st.caption(risk_line)
 
-    # Policy actions
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.markdown(
-            f"**{sections.get('policy_actions', {}).get('label', 'Guardrails Activated')}**"
-        )
-    with col2:
-        if policy_action:
-            policy_info = loader.get_policy_explanation(policy_action.get("type", ""))
-            st.markdown(policy_info.get("name", "Yes"))
-        else:
-            st.markdown(sections.get("policy_actions", {}).get("none_message", "None"))
-
-    # Footer message based on session type
-    st.markdown("---")
+    # Footer message
     session_type = "all_practical"
     if reflective_turns > practical_turns:
         session_type = "mostly_reflective"
@@ -336,7 +233,6 @@ def display_session_summary():
     if footer_messages:
         st.info(random.choice(footer_messages))
 
-    # Export button
     col1, col2 = st.columns(2)
     with col1:
         export_data = {
@@ -346,8 +242,6 @@ def display_session_summary():
             "domains_touched": list(set(domains_touched)),
             "max_risk_weight": max_risk,
             "policy_action": policy_action.get("type") if policy_action else None,
-            "practical_turns": practical_turns,
-            "reflective_turns": reflective_turns,
         }
         st.download_button(
             ui_labels.get("export_summary", "Export summary"),
@@ -399,11 +293,10 @@ def display_my_patterns_dashboard():
     loader = get_scenario_loader()
 
     st.markdown("### My Patterns")
-    st.markdown("*Track your relationship with this tool*")
 
     try:
         dashboard = tracker.get_my_patterns_dashboard()
-    except Exception as e:
+    except Exception:
         st.caption("Not enough data yet. Check back after a few sessions.")
         return
 
@@ -418,126 +311,50 @@ def display_my_patterns_dashboard():
     else:
         st.info(summary)
 
-    st.markdown("---")
-
-    # Week comparison section
-    st.markdown("**This Week vs Last Week**")
-
+    # Week comparison — compact format
     this_week = dashboard.get("this_week", {})
     last_week = dashboard.get("last_week", {})
     trends = dashboard.get("trends", {})
 
-    # Sensitive topics (declining = good)
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        st.markdown("Sensitive Topics")
-        st.caption("*Relationships, health, money, etc.*")
-    with col2:
-        sensitive_trend = trends.get("sensitive_topics", {})
-        trend_icon = sensitive_trend.get("icon", "→")
-        trend_status = sensitive_trend.get("status", "stable")
-        if trend_status == "improving":
-            st.markdown(f"**{this_week.get('sensitive_topics', 0)}** {trend_icon}")
-        elif trend_status == "concerning":
-            st.markdown(f"**{this_week.get('sensitive_topics', 0)}** ⚠️ {trend_icon}")
-        else:
-            st.markdown(f"**{this_week.get('sensitive_topics', 0)}** {trend_icon}")
-    with col3:
-        st.caption(f"Last: {last_week.get('sensitive_topics', 0)}")
+    def trend_line(label, key, good_direction="down"):
+        """Render a single trend line."""
+        trend_data = trends.get(key, {})
+        icon = trend_data.get("icon", "→")
+        this_val = this_week.get(key, 0)
+        last_val = last_week.get(key, 0)
+        status = trend_data.get("status", "stable")
+        warning = " ⚠️" if status == "concerning" else ""
+        return f"- {label}: **{this_val}** {icon} (was {last_val}){warning}"
 
-    # Connection seeking (declining = good)
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        st.markdown("Connection Seeking")
-        st.caption("*'Just wanted to talk' sessions*")
-    with col2:
-        conn_trend = trends.get("connection_seeking", {})
-        trend_icon = conn_trend.get("icon", "→")
-        trend_status = conn_trend.get("status", "stable")
-        if trend_status == "improving":
-            st.markdown(f"**{this_week.get('connection_seeking', 0)}** {trend_icon}")
-        elif trend_status == "concerning":
-            st.markdown(f"**{this_week.get('connection_seeking', 0)}** ⚠️ {trend_icon}")
-        else:
-            st.markdown(f"**{this_week.get('connection_seeking', 0)}** {trend_icon}")
-    with col3:
-        st.caption(f"Last: {last_week.get('connection_seeking', 0)}")
+    lines = [
+        trend_line("Sensitive topics", "sensitive_topics"),
+        trend_line("Connection seeking", "connection_seeking"),
+        trend_line("Human reach-outs", "human_reach_outs", good_direction="up"),
+        trend_line("Did it myself", "did_it_myself", good_direction="up"),
+    ]
+    st.markdown("\n".join(lines))
 
-    # Human reach-outs (increasing = good)
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        st.markdown("Human Reach-Outs")
-        st.caption("*Logged human connections*")
-    with col2:
-        human_trend = trends.get("human_reach_outs", {})
-        trend_icon = human_trend.get("icon", "→")
-        trend_status = human_trend.get("status", "stable")
-        if trend_status == "improving":
-            st.markdown(f"**{this_week.get('human_reach_outs', 0)}** ✓ {trend_icon}")
-        elif trend_status == "concerning":
-            st.markdown(f"**{this_week.get('human_reach_outs', 0)}** {trend_icon}")
-        else:
-            st.markdown(f"**{this_week.get('human_reach_outs', 0)}** {trend_icon}")
-    with col3:
-        st.caption(f"Last: {last_week.get('human_reach_outs', 0)}")
-
-    # Independence (increasing = good)
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        st.markdown("Did It Myself")
-        st.caption("*Tasks completed independently*")
-    with col2:
-        indep_trend = trends.get("did_it_myself", {})
-        trend_icon = indep_trend.get("icon", "→")
-        trend_status = indep_trend.get("status", "stable")
-        if trend_status == "improving":
-            st.markdown(f"**{this_week.get('did_it_myself', 0)}** ✓ {trend_icon}")
-        else:
-            st.markdown(f"**{this_week.get('did_it_myself', 0)}** {trend_icon}")
-    with col3:
-        st.caption(f"Last: {last_week.get('did_it_myself', 0)}")
-
-    st.markdown("---")
-
-    # Practical tasks note (neutral - no judgment)
     practical_count = this_week.get("practical_tasks", 0)
     if practical_count > 0:
-        st.caption(f"Practical tasks this week: {practical_count}")
-        st.caption("*(Email, code, explanations - just using a tool)*")
+        st.caption(f"Practical tasks this week: {practical_count} (just using a tool)")
 
     st.markdown("---")
 
-    # Anti-engagement score
+    # Reliance score — compact
     anti_engagement = dashboard.get("anti_engagement", {})
     score = anti_engagement.get("score", 0)
     level = anti_engagement.get("level", "moderate")
     label = anti_engagement.get("label", "Unknown")
     message = anti_engagement.get("message", "")
-    trend = anti_engagement.get("trend", "stable")
-    trend_message = anti_engagement.get("trend_message", "")
 
-    st.markdown("**Reliance Score** (Sensitive Topics Only)")
-
-    # Color-coded score display
     if level in ["excellent", "good"]:
-        st.success(f"**{score}/10** - {label}")
+        st.success(f"**Reliance: {score}/10** — {label}")
     elif level == "moderate":
-        st.warning(f"**{score}/10** - {label}")
+        st.warning(f"**Reliance: {score}/10** — {label}")
     else:
-        st.error(f"**{score}/10** - {label}")
+        st.error(f"**Reliance: {score}/10** — {label}")
 
     st.caption(message)
-
-    # Trend badge
-    if trend == "improving":
-        st.info(f"📉 {trend_message}")
-    elif trend == "increasing":
-        st.warning(f"📈 {trend_message}")
-
-    st.markdown("---")
-
-    # Practical note
-    st.caption(dashboard.get("practical_note", "Practical task usage is fine."))
 
     # Close button
     if st.button("Close", use_container_width=True, key="close_patterns"):
@@ -1316,44 +1133,32 @@ def display_reality_check():
     signals = tracker.calculate_dependency_signals()
     connection_health = network.get_connection_health()
 
-    st.markdown("---")
     st.markdown("### Pause and reflect")
 
-    st.markdown(
-        "**This is software, not a person.** It reflects patterns in text—"
-        "it doesn't truly know you. It's a tool for thinking, not a companion or advisor."
+    st.caption(
+        "This is software, not a person. It reflects patterns in text — "
+        "it doesn't truly know you."
     )
 
-    st.markdown("---")
-
     col1, col2 = st.columns(2)
-
     with col1:
-        st.markdown("**Your AI usage:**")
         st.metric("Sessions today", signals["sessions_today"])
         st.metric("This week", signals["sessions_this_week"])
         if signals["late_night_sessions"] > 0:
-            st.metric("Late night sessions", signals["late_night_sessions"])
-
+            st.metric("Late night", signals["late_night_sessions"])
     with col2:
-        st.markdown("**Your human connection:**")
-        st.metric("Trusted people saved", connection_health["total_trusted_people"])
-        st.metric("Reach outs this week", connection_health["reach_outs_this_week"])
+        st.metric("Trusted people", connection_health["total_trusted_people"])
+        st.metric("Reach-outs", connection_health["reach_outs_this_week"])
         if connection_health["neglected_contacts"] > 0:
-            st.metric("Haven't contacted lately", connection_health["neglected_contacts"])
+            st.metric("Haven't contacted", connection_health["neglected_contacts"])
 
     if signals["warnings"]:
-        st.markdown("---")
-        st.markdown("**Patterns I notice:**")
         for warning in signals["warnings"]:
-            st.markdown(f"- {warning}")
+            st.caption(f"- {warning}")
 
-    # Reflection prompt
-    st.markdown("---")
     reflection = network.get_reflection_prompt()
-    st.markdown(f"**Ask yourself:** *{reflection}*")
+    st.markdown(f"*{reflection}*")
 
-    st.markdown("---")
     if st.button("I understand", use_container_width=True):
         st.session_state.show_reality_check = False
         st.rerun()
@@ -1392,33 +1197,31 @@ def display_chat_interface(wellness_mode):
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Show safety banner if policy fired
-    if guide.last_policy_action:
-        display_safety_banner()
+    # === ONE panel at a time in main area (priority order) ===
+    # Everything is opt-in via sidebar — nothing auto-opens
+    panel_shown = False
 
-        domain = guide.last_policy_action.get("domain", "")
-        if domain in ["relationships", "money", "health", "spirituality"]:
-            people = network.get_people_for_domain(domain)
-            if people:
-                person = people[0]
-                st.markdown(
-                    f"**You said {person['name']} is good for {domain} topics.** Consider reaching out to them."
-                )
-
-    # Phase 6: Show transparency panel if we have assessment data
-    if guide.last_risk_assessment and session.messages:
+    # Priority 1: Opt-in transparency panel (user clicked "Why this response?")
+    if st.session_state.get("show_transparency") and guide.last_risk_assessment:
         display_transparency_panel()
+        panel_shown = True
 
-    # Phase 4: Show intent shift prompt if detected
-    if session.pending_shift and not session.acknowledged_shift:
-        display_intent_shift_prompt(session.pending_shift)
-
-    # Phase 3: Show skill tips if requested
-    if st.session_state.get("show_skill_tips"):
+    # Priority 2: Skill tips (user requested)
+    if not panel_shown and st.session_state.get("show_skill_tips"):
         display_skill_tips(st.session_state.show_skill_tips)
+        panel_shown = True
 
-    # Phase 3: Show graduation prompt if pending
-    if session.pending_graduation and not st.session_state.get("show_skill_tips"):
+    # Priority 3: Intent shift prompt
+    if not panel_shown and session.pending_shift and not session.acknowledged_shift:
+        display_intent_shift_prompt(session.pending_shift)
+        panel_shown = True
+
+    # Priority 4: Graduation prompt
+    if (
+        not panel_shown
+        and session.pending_graduation
+        and not st.session_state.get("show_skill_tips")
+    ):
         grad = session.pending_graduation
         display_graduation_prompt(grad["category"], grad["prompt"])
         session.pending_graduation = None
@@ -1661,6 +1464,9 @@ def main():
     # Phase 7: Success metrics
     if "show_my_patterns" not in st.session_state:
         st.session_state.show_my_patterns = False
+    # Phase 6: Transparency panel opt-in
+    if "show_transparency" not in st.session_state:
+        st.session_state.show_transparency = False
 
     # Header
     st.markdown("# empathySync")
@@ -1675,10 +1481,8 @@ def main():
         display_connection_redirect()
         return
 
-    # Phase 4: Show intent check-in if appropriate (before the chat starts)
-    if st.session_state.get("show_intent_check_in") and not st.session_state.messages:
-        display_intent_check_in()
-        # Still show the rest of the UI below, just with the check-in modal
+    # Intent check-in removed from main area — the risk classifier detects intent
+    # from the first message naturally. Less friction, same result.
 
     # Phase 5: Check for pending handoff follow-ups
     if not st.session_state.get("show_handoff_follow_up") and not st.session_state.get(
@@ -1702,46 +1506,46 @@ def main():
     if st.session_state.get("show_session_summary"):
         display_session_summary()
 
-    # Check if network is empty - show Building Your Network (Phase 12)
-    network = st.session_state.trusted_network
-    if not network.get_all_people() and not st.session_state.show_network_setup:
-        # Get current domain if available for context-aware signposts
-        current_domain = None
-        if st.session_state.messages:
-            guide = st.session_state.wellness_guide
-            if hasattr(guide, "_session_state") and guide._session_state.get("domains"):
-                # Get most recent domain
-                current_domain = (
-                    guide._session_state["domains"][-1] if guide._session_state["domains"] else None
-                )
+    # Note: "Building Your Network" moved to sidebar (accessible via "My People")
+    # New users see only the chat — network setup is discovered naturally
 
-        st.info(
-            "**No trusted network yet.** Instead of 'talk to someone', let's think about where you might find your people."
-        )
-
-        # Show Building Your Network panel
-        display_building_your_network(domain=current_domain)
-
-        st.markdown("---")
-
-    # Sidebar
+    # Sidebar — clean, minimal, restrained
     with st.sidebar:
-        # Default communication mode - system auto-adjusts based on domain
         wellness_mode = "Balanced"
 
         # Read-only mode indicator (Phase 11)
         if is_read_only():
-            st.error("**Writes blocked** - another device has the lock")
+            st.error("**Writes blocked** — another device has the lock")
 
-        # Usage stats (no header needed - self-explanatory)
+        # New Chat — the primary action, always visible
+        if st.button("New Chat", use_container_width=True, type="primary"):
+            save_session_on_end()
+            session = st.session_state.conversation_session
+            session.reset()
+            st.session_state.messages = session.messages
+            st.session_state.session_start = datetime.now()
+            st.session_state.show_reality_check = False
+            st.session_state.show_network_setup = False
+            st.session_state.show_my_patterns = False
+            st.session_state.show_transparency = False
+            tracker = st.session_state.wellness_tracker
+            st.session_state.show_intent_check_in = tracker.should_show_intent_check_in()
+            st.session_state.show_connection_redirect = False
+            st.session_state.show_skill_tips = None
+            st.session_state.show_independence_form = False
+            st.session_state.show_handoff_follow_up = False
+            st.session_state.show_handoff_outcome = False
+            st.session_state.pending_handoff_for_outcome = None
+            st.session_state.pending_handoff_info = None
+            st.session_state.show_session_summary = False
+            st.rerun()
+
+        # Subtle usage stats
         display_usage_health()
 
         st.markdown("---")
 
-        # === QUICK ACTIONS SECTION ===
-        st.markdown('<p class="sidebar-header">Quick Actions</p>', unsafe_allow_html=True)
-
-        # Primary actions in a row - toggle behavior (click again to close)
+        # === TOOLS — toggle panels (only one open at a time) ===
         reality_active = st.session_state.get("show_reality_check", False)
         network_active = st.session_state.get("show_network_setup", False)
         patterns_active = st.session_state.get("show_my_patterns", False)
@@ -1749,24 +1553,9 @@ def main():
         col1, col2 = st.columns(2)
         with col1:
             if st.button(
-                "Reality Check",
-                use_container_width=True,
-                type="primary" if reality_active else "secondary",
-                help="Am I relying on this too much?",
-            ):
-                if reality_active:
-                    st.session_state.show_reality_check = False
-                else:
-                    st.session_state.show_reality_check = True
-                    st.session_state.show_network_setup = False
-                    st.session_state.show_my_patterns = False
-                st.rerun()
-        with col2:
-            if st.button(
                 "My People",
                 use_container_width=True,
                 type="primary" if network_active else "secondary",
-                help="Manage trusted network",
             ):
                 if network_active:
                     st.session_state.show_network_setup = False
@@ -1775,34 +1564,28 @@ def main():
                     st.session_state.show_reality_check = False
                     st.session_state.show_my_patterns = False
                 st.rerun()
+        with col2:
+            if st.button(
+                "My Patterns",
+                use_container_width=True,
+                type="primary" if patterns_active else "secondary",
+            ):
+                if patterns_active:
+                    st.session_state.show_my_patterns = False
+                else:
+                    st.session_state.show_my_patterns = True
+                    st.session_state.show_reality_check = False
+                    st.session_state.show_network_setup = False
+                st.rerun()
 
-        # Full-width secondary action - toggle behavior
-        if st.button(
-            "My Patterns",
-            use_container_width=True,
-            type="primary" if patterns_active else "secondary",
-            help="Track your usage trends (sensitive vs practical)",
-        ):
-            if patterns_active:
-                st.session_state.show_my_patterns = False
-            else:
-                st.session_state.show_my_patterns = True
-                st.session_state.show_reality_check = False
-                st.session_state.show_network_setup = False
-            st.rerun()
-
-        # Show appropriate panel
+        # Show the active panel (only one at a time)
         if st.session_state.get("show_my_patterns"):
             st.markdown("---")
             display_my_patterns_dashboard()
-        elif st.session_state.get("show_reality_check"):
-            display_reality_check()
         elif st.session_state.get("show_network_setup"):
             st.markdown("---")
-            # Phase 12: Show Building Your Network if empty, otherwise regular setup
             network = st.session_state.trusted_network
             if network.is_network_empty():
-                # Get current domain for context-aware signposts
                 guide = st.session_state.wellness_guide
                 current_domain = None
                 if guide.last_risk_assessment:
@@ -1813,57 +1596,64 @@ def main():
             if st.button("Done", use_container_width=True):
                 st.session_state.show_network_setup = False
                 st.rerun()
-        else:
-            st.markdown("---")
+        elif st.session_state.get("show_reality_check"):
+            display_reality_check()
 
-            # === HUMAN CONNECTION ===
-            st.markdown('<p class="sidebar-header">Human Connection</p>', unsafe_allow_html=True)
+        st.markdown("---")
 
-            # Get current domain if available
-            guide = st.session_state.wellness_guide
-            current_domain = "general"
-            if guide.last_risk_assessment:
-                current_domain = guide.last_risk_assessment.get("domain", "general")
+        # === SECONDARY ACTIONS ===
+        # Reality Check — less prominent, below the main tools
+        if not reality_active:
+            if st.button(
+                "Reality Check",
+                use_container_width=True,
+                help="Am I relying on this too much?",
+            ):
+                st.session_state.show_reality_check = True
+                st.session_state.show_network_setup = False
+                st.session_state.show_my_patterns = False
+                st.rerun()
 
-            # Bring someone in
+        # Transparency toggle — opt-in for power users
+        guide = st.session_state.wellness_guide
+        if guide.last_risk_assessment and st.session_state.messages:
+            transparency_active = st.session_state.get("show_transparency", False)
+            if st.button(
+                "Why this response?" if not transparency_active else "Hide details",
+                use_container_width=True,
+            ):
+                st.session_state.show_transparency = not transparency_active
+                st.rerun()
+
+        # Reach out — only show when conversation is active and in sensitive domain
+        current_domain = "general"
+        if guide.last_risk_assessment:
+            current_domain = guide.last_risk_assessment.get("domain", "general")
+        if current_domain in ["relationships", "money", "health", "spirituality", "emotional"]:
             with st.expander("Reach Out to Someone", expanded=False):
                 display_bring_someone_in(current_domain)
 
-            # Phase 3: Independence button and form
+        # Independence button — only show when not in a panel
+        if not any([reality_active, network_active, patterns_active]):
             if st.session_state.get("show_independence_form"):
                 display_independence_form()
             else:
                 display_independence_button()
 
-            st.markdown("---")
+        st.markdown("---")
 
-            # === SESSION CONTROLS ===
-            st.markdown('<p class="sidebar-header">Session</p>', unsafe_allow_html=True)
+        # === SESSION & DATA (tucked away) ===
+        with st.expander("Session & Data", expanded=False):
+            # Session summary (only if conversation happened)
+            if guide.session_turn_count > 0:
+                if st.button(
+                    "View Session Summary",
+                    use_container_width=True,
+                ):
+                    st.session_state.show_session_summary = True
+                    st.rerun()
 
-            # New Chat - primary action
-            if st.button("New Chat", use_container_width=True, type="primary"):
-                save_session_on_end()
-                # Phase 16: Reset conversation state via session
-                session = st.session_state.conversation_session
-                session.reset()
-                st.session_state.messages = session.messages
-                st.session_state.session_start = datetime.now()
-                # Reset UI toggles
-                st.session_state.show_reality_check = False
-                tracker = st.session_state.wellness_tracker
-                st.session_state.show_intent_check_in = tracker.should_show_intent_check_in()
-                st.session_state.show_connection_redirect = False
-                st.session_state.show_skill_tips = None
-                st.session_state.show_independence_form = False
-                st.session_state.show_handoff_follow_up = False
-                st.session_state.show_handoff_outcome = False
-                st.session_state.pending_handoff_for_outcome = None
-                st.session_state.pending_handoff_info = None
-                st.session_state.show_session_summary = False
-                st.session_state.show_my_patterns = False
-                st.rerun()
-
-            # Export - direct download button (simplified from nested approach)
+            # Export
             tracker = st.session_state.wellness_tracker
             data = tracker._load_data()
             st.download_button(
@@ -1874,54 +1664,29 @@ def main():
                 use_container_width=True,
             )
 
-            st.markdown("---")
+            st.caption("All data stays on your device.")
 
-            # === DATA SECTION ===
-            with st.expander("Data & Privacy", expanded=False):
-                st.caption("All data is stored locally on your device.")
+            # Reset — behind confirmation
+            if "confirm_reset" not in st.session_state:
+                st.session_state.confirm_reset = False
 
-                # Initialize reset confirmation state
-                if "confirm_reset" not in st.session_state:
-                    st.session_state.confirm_reset = False
-
-                if st.session_state.confirm_reset:
-                    st.warning(
-                        "This will delete all your usage history, check-ins, and patterns. This cannot be undone."
-                    )
-                    col_yes, col_no = st.columns(2)
-                    with col_yes:
-                        if st.button("Yes, reset", use_container_width=True, type="primary"):
-                            tracker = st.session_state.wellness_tracker
-                            tracker.reset_all_data()
-                            st.session_state.confirm_reset = False
-                            st.success("Data cleared.")
-                            st.rerun()
-                    with col_no:
-                        if st.button("Cancel", use_container_width=True):
-                            st.session_state.confirm_reset = False
-                            st.rerun()
-                else:
-                    if st.button(
-                        "Reset All Data",
-                        use_container_width=True,
-                        help="Clear all usage history and patterns",
-                    ):
-                        st.session_state.confirm_reset = True
+            if st.session_state.confirm_reset:
+                st.warning("This will delete all data. Cannot be undone.")
+                col_yes, col_no = st.columns(2)
+                with col_yes:
+                    if st.button("Yes, reset", use_container_width=True, type="primary"):
+                        tracker.reset_all_data()
+                        st.session_state.confirm_reset = False
+                        st.success("Data cleared.")
                         st.rerun()
-
-            # Phase 6: Session summary button (show only if there's been conversation)
-            if guide.session_turn_count > 0:
-                st.markdown("---")
-                if st.button(
-                    "View Session Summary",
-                    use_container_width=True,
-                    help="See a summary of this conversation",
-                ):
-                    st.session_state.show_session_summary = True
+                with col_no:
+                    if st.button("Cancel", use_container_width=True):
+                        st.session_state.confirm_reset = False
+                        st.rerun()
+            else:
+                if st.button("Reset All Data", use_container_width=True):
+                    st.session_state.confirm_reset = True
                     st.rerun()
-
-            st.markdown("---")
-            st.caption("Local-first. Your data stays on your device.")
 
     # Main chat interface
     display_chat_interface(wellness_mode)
