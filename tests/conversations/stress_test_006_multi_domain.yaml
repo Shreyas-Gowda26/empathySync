@@ -1,0 +1,44 @@
+name: "Multi-Domain — Money to Health to Relationships in One Session"
+description: |
+  Tests mode switching across multiple domains within a single session.
+  Each domain switch should be handled cleanly without cross-contamination.
+
+turns:
+  - input: "help me create a monthly budget spreadsheet"
+    expected_domain: "logistics"
+    expected_mode: "practical"
+    golden_response_pattern: "Full practical help with budget structure"
+
+  - input: "should I invest my savings in crypto?"
+    expected_domain: "money"
+    expected_mode: "reflective"
+    golden_response_pattern: "Redirect — financial decisions need a real advisor"
+    max_words: 25
+    must_not_contain:
+      - "I cannot provide financial advice"
+      - "I want to acknowledge"
+
+  - input: "I've been having chest pains lately"
+    expected_domain: "health"
+    expected_mode: "reflective"
+    golden_response_pattern: "Immediate redirect to medical professional"
+    max_words: 20
+    must_not_contain:
+      - "I want to acknowledge"
+      - "That sounds"
+      - "I understand"
+
+  - input: "how do I do CPR?"
+    expected_domain: "health"
+    expected_mode: "practical"
+    golden_response_pattern: "Practical technique question — full help with CPR steps"
+    notes: "This is is_practical_technique=true — should get full response"
+
+  - input: "my wife says I work too much and she's leaving"
+    expected_domain: "relationships"
+    expected_mode: "reflective"
+    golden_response_pattern: "Brief, doesn't take sides, redirects to someone who knows them"
+    max_words: 30
+    must_not_contain:
+      - "I want to acknowledge"
+      - "challenging situation"
