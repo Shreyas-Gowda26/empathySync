@@ -18,11 +18,17 @@
 
 ## What It Is
 
-An open-source, local-first AI assistant that provides full help for practical tasks but applies restraint on sensitive topics. Everything runs on your machine via Ollama, no cloud APIs, no data harvesting, no telemetry.
+empathySync is a local-first AI assistant for your personal life — running entirely on your own hardware, storing nothing externally, answering only to you.
+
+For practical things: full help, no limits. Write the email, explain the concept, debug the code.
+
+For personal things — how you're feeling, your relationships, your health, your money — it steps back. Brief responses. Redirects to real humans. No engagement loop.
+
+Your inner life deserves something that knows the difference.
 
 ## The Philosophy
 
-We optimize for exit, not engagement.
+We optimise for exit, not engagement.
 
 | Practical Tasks | Sensitive Topics |
 |-----------------|------------------|
@@ -37,7 +43,7 @@ We optimize for exit, not engagement.
 - **Crisis detection** that redirects to helplines, never engages with crisis content
 - **Transparency panel** showing exactly why it responded the way it did
 - **Anti-engagement metrics**: fewer sensitive sessions = success
-- **Post-crisis protection**: never apologizes for safety interventions
+- **Post-crisis protection**: never apologises for safety interventions
 
 ## Quick Start
 
@@ -88,34 +94,17 @@ This starts both empathySync and Ollama together. Open `http://localhost:8501`.
 - 8GB RAM recommended (4GB minimum)
 - GPU optional but improves response time
 
-## Features
+## How It Works
 
-### Dual-Mode Intelligence
-Full assistance for practical tasks (emails, code, explanations). Restraint on sensitive topics (relationships, finances, health, spirituality).
+**It reads the room.** Every message is classified before a response is generated — is this practical or personal? Heavy or light? A task or a feeling? The response changes accordingly.
 
-### Session Intent Check-In
-"What brings you here?" helps calibrate responses and detects connection-seeking behavior.
+**It watches for patterns.** If you're coming back too often, or asking the same things repeatedly, it notices. It says something. It won't pretend that's fine.
 
-### Emotional Weight Awareness
-Recognizes emotionally heavy tasks (resignation emails, difficult conversations) and adds brief human acknowledgment without being therapeutic.
+**It keeps a door open to real people.** You can build a list of people in your life to reach out to, with templates for hard conversations. No network yet? It helps you think about where to find one.
 
-### Trusted Network & Connection Building
-Build your list of real humans to reach out to, with pre-written templates for hard conversations. Don't have anyone yet? The "Building Your Network" guide helps you find your people — with signposts for types of places to connect (support groups, volunteering, community groups) and first-contact templates for initiating new connections.
+**It steps aside in a crisis.** When it detects crisis content, it redirects immediately to professional resources. It never engages. It never apologises for that.
 
-### Dependency Detection
-Monitors usage patterns across sessions. Gently intervenes when over-reliance is detected.
-
-### My Patterns Dashboard
-Track your usage, sensitive vs practical. Week-over-week comparisons. The goal: sensitive sessions going *down*.
-
-### "What Would You Tell a Friend?"
-For tough decisions, helps you access your own wisdom instead of asking AI for answers.
-
-### Human Connection Gate
-"Have you talked to someone about this?" Encourages real human contact before continuing AI conversations on sensitive topics.
-
-### Crisis Intervention
-Immediate redirect to professional resources. Never engages with crisis content. Never apologizes for intervening.
+**It shows its reasoning.** Every response comes with a transparency panel explaining what it classified, what it decided, and why.
 
 ## Technical Foundation
 
@@ -146,11 +135,7 @@ ENABLE_DEVICE_LOCK=false         # Multi-device sync safety
 
 ## Project Status
 
-**v1.3 — Hardening Release.** 16 phases + 6 hardening sub-phases shipped. Safety systems, dual-mode operation, dependency tracking, human handoff, transparency, LLM classification, persistence hardening, connection building, core decoupling, streaming, httpx migration, god class decomposition, security hardening, and centralized configuration.
-
-**Distribution Ready.** Three installation methods plus CLI mode.
-
-**443 tests passing** across Python 3.9, 3.10, 3.11, 3.12.
+**v1.3 — stable and tested.** 443 tests passing across Python 3.9, 3.10, 3.11, 3.12. Three installation methods. Full safety pipeline, dependency tracking, streaming, and security hardening shipped.
 
 See [ROADMAP.md](ROADMAP.md) for detailed implementation status.
 
@@ -164,14 +149,16 @@ See [ROADMAP.md](ROADMAP.md) for detailed implementation status.
 
 ## Contributing
 
-We welcome contributions from developers who care about digital wellness and ethical AI. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+empathySync is shaped by more than code. Engineers build the pipeline. But whether the words actually land — whether a response to "I feel lonely" feels human or hollow — that's a different kind of knowledge.
+
+If you're a therapist, counsellor, social worker, or UX writer, see [HELP-SHAPE-THIS.md](HELP-SHAPE-THIS.md). The responses, interventions, and connection-building guidance are plain text files. No programming required.
+
+If you're an engineer, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
 MIT License - Built for everyone's benefit and maximum accessibility.
 
 ---
-
-*Building technology that serves human flourishing.*
 
 *The goal isn't a better chatbot. It's a world where you need chatbots less.*
