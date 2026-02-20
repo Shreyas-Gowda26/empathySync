@@ -24,8 +24,6 @@ An open-source, local-first AI assistant that provides full help for practical t
 
 Every person should have the right to an AI system that is entirely their own. Not rented. Not monitored. Not optimized for someone else's engagement metrics. Yours — running on your hardware, answering only to you, storing nothing it doesn't need to.
 
-The AI industry is racing toward centralization. Your conversations, your emotional state, your patterns — flowing through servers you don't control, training models you'll never own, feeding dashboards you'll never see.
-
 empathySync goes the other direction.
 
 For sensitive, personal things — how you're feeling, your relationships, your health, your money — you deserve something local, private, and restrained. For complex tasks that need serious compute, use the cloud AIs. That's a reasonable division. But the part of AI that touches your inner life should belong to you.
