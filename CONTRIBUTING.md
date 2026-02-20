@@ -21,6 +21,10 @@ Before contributing, please embrace these principles:
 - Build technology that honors human dignity
 - Consider the wellness impact of your code
 
+## Not an Engineer?
+
+If you're a therapist, counsellor, social worker, UX writer, or ethicist — your expertise matters here more than code. See [CONTRIBUTING-NON-TECHNICAL.md](CONTRIBUTING-NON-TECHNICAL.md) for a guide to improving empathySync's responses, interventions, and connection-building guidance without writing any Python.
+
 ## Getting Started
 
 1. **Fork the repository**
