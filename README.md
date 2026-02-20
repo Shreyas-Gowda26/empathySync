@@ -18,7 +18,17 @@
 
 ## What It Is
 
-An open-source, local-first AI assistant that provides full help for practical tasks but applies restraint on sensitive topics. Everything runs on your machine via Ollama, no cloud APIs, no data harvesting, no telemetry.
+An open-source, local-first AI assistant that provides full help for practical tasks but applies restraint on sensitive topics. Everything runs on your machine via Ollama — no cloud APIs, no data harvesting, no telemetry.
+
+## The Belief Behind It
+
+Every person should have the right to an AI system that is entirely their own. Not rented. Not monitored. Not optimized for someone else's engagement metrics. Yours — running on your hardware, answering only to you, storing nothing it doesn't need to.
+
+empathySync goes the other direction.
+
+For sensitive, personal things — how you're feeling, your relationships, your health, your money — you deserve something local, private, and restrained. For complex tasks that need serious compute, use the cloud AIs. That's a reasonable division. But the part of AI that touches your inner life should belong to you.
+
+This isn't a feature. It's the point.
 
 ## The Philosophy
 
