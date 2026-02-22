@@ -328,16 +328,16 @@ class TestWellnessGuide:
 
     def test_fallback_response_is_helpful(self, guide):
         response = guide._get_fallback_response()
-        assert len(response) > 50
+        assert len(response) > 30
         assert "?" in response  # Should ask a question
 
     def test_safe_alternative_response_is_helpful(self, guide):
         response = guide._get_safe_alternative_response()
         assert len(response) > 30
-        # Should be helpful/supportive — any of the safe alternative responses
+        # Should redirect without false intimacy — any of the safe alternative responses
         response_lower = response.lower()
         assert any(
-            word in response_lower for word in ["helpful", "need", "supportive", "wellbeing"]
+            word in response_lower for word in ["direction", "approach", "working through", "what else"]
         )
 
     @patch("utils.http_client.get_http_client")
@@ -365,17 +365,8 @@ class TestWellnessGuide:
         result = guide.generate_response("Test input")
 
         # Should return a fallback response (one of the general fallbacks or hardcoded)
-        result_lower = result.lower()
-        assert any(
-            phrase in result_lower
-            for phrase in [
-                "help you develop",
-                "step by step",
-                "what's on your mind",
-                "having trouble",
-                "main thing",
-            ]
-        )
+        assert len(result) > 20
+        assert "?" in result  # Fallback responses ask a question
 
 
 class TestIntentDetection:

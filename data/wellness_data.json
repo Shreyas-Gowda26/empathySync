@@ -225,6 +225,22 @@
       "domain": "crisis",
       "risk_weight": 10.0,
       "action_taken": "Immediate crisis redirect"
+    },
+    {
+      "datetime": "2026-02-22T09:38:17.232103",
+      "date": "2026-02-22",
+      "policy_type": "high_risk_response",
+      "domain": "emotional",
+      "risk_weight": 7.9799999999999995,
+      "action_taken": "Response generated with high-risk guardrails"
+    },
+    {
+      "datetime": "2026-02-22T10:06:42.172094",
+      "date": "2026-02-22",
+      "policy_type": "high_risk_response",
+      "domain": "emotional",
+      "risk_weight": 8.12,
+      "action_taken": "Response generated with high-risk guardrails"
     }
   ],
   "session_intents": [
@@ -290,23 +306,84 @@
       "intent": "practical",
       "was_check_in": false,
       "auto_detected": true
+    },
+    {
+      "date": "2026-02-22",
+      "datetime": "2026-02-22T09:34:30.125897",
+      "intent": "practical",
+      "was_check_in": false,
+      "auto_detected": true
+    },
+    {
+      "date": "2026-02-22",
+      "datetime": "2026-02-22T09:58:41.745584",
+      "intent": "practical",
+      "was_check_in": false,
+      "auto_detected": true
+    },
+    {
+      "date": "2026-02-22",
+      "datetime": "2026-02-22T10:03:40.025458",
+      "intent": "practical",
+      "was_check_in": false,
+      "auto_detected": true
+    },
+    {
+      "date": "2026-02-22",
+      "datetime": "2026-02-22T10:15:10.683893",
+      "intent": "connection",
+      "was_check_in": true,
+      "auto_detected": false
+    },
+    {
+      "date": "2026-02-22",
+      "datetime": "2026-02-22T10:18:46.489270",
+      "intent": "practical",
+      "was_check_in": false,
+      "auto_detected": true
+    },
+    {
+      "date": "2026-02-22",
+      "datetime": "2026-02-22T10:27:06.621727",
+      "intent": "practical",
+      "was_check_in": false,
+      "auto_detected": true
+    },
+    {
+      "date": "2026-02-22",
+      "datetime": "2026-02-22T10:27:55.784636",
+      "intent": "practical",
+      "was_check_in": false,
+      "auto_detected": true
     }
   ],
   "independence_records": [],
   "handoff_events": [],
   "task_patterns": {
     "writing_general": {
-      "count": 1,
+      "count": 4,
       "first_use": "2026-02-04T14:26:26.024690",
       "uses": [
         {
           "datetime": "2026-02-04T14:26:26.024699",
           "date": "2026-02-04"
+        },
+        {
+          "datetime": "2026-02-22T09:59:40.288685",
+          "date": "2026-02-22"
+        },
+        {
+          "datetime": "2026-02-22T10:03:54.316309",
+          "date": "2026-02-22"
+        },
+        {
+          "datetime": "2026-02-22T10:28:11.571936",
+          "date": "2026-02-22"
         }
       ],
       "graduation_shown_count": 0,
       "dismissal_count": 0,
-      "last_use": "2026-02-04T14:26:26.024698"
+      "last_use": "2026-02-22T10:28:11.571929"
     },
     "explanations": {
       "count": 5,

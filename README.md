@@ -16,19 +16,38 @@
 
 </div>
 
+<!-- Screenshot: place image in assets/ and uncomment the line below once available -->
+<!-- ![empathySync interface showing the transparency panel](assets/screenshot.png) -->
+
 ## What It Is
 
-An open-source, local-first AI assistant that provides full help for practical tasks but applies restraint on sensitive topics. Everything runs on your machine via Ollama — no cloud APIs, no data harvesting, no telemetry.
+empathySync is a local-first AI assistant — full help for practical tasks, deliberate restraint on personal ones. Everything runs on your hardware via Ollama. No cloud APIs, no data harvesting, no telemetry.
+
+Your inner life deserves something that knows the difference.
 
 ## The Belief Behind It
 
-Every person should have the right to an AI system that is entirely their own. Not rented. Not monitored. Not optimized for someone else's engagement metrics. Yours — running on your hardware, answering only to you, storing nothing it doesn't need to. For sensitive, personal things — how you're feeling, your relationships, your health, your money — you deserve something local, private, and restrained. For complex tasks that need serious compute, use the cloud AIs. That's a reasonable division. But the part of AI that touches your inner life should belong to you.
+Every person should have the right to an AI system that is entirely their own. Not rented. Not monitored. Not optimised for someone else's engagement metrics. Yours — running on your hardware, answering only to you, storing nothing it doesn't need to.
+
+For sensitive, personal things — how you're feeling, your relationships, your health, your money — you deserve something local, private, and restrained. For complex tasks that need serious compute, use the cloud AIs. That's a reasonable division.
+
+But the part of AI that touches your inner life should belong to you.
 
 This isn't a feature. It's the point.
 
+## Who Is This For?
+
+If you're a **developer** who wants a privacy-respecting AI assistant with no API keys, no subscriptions, and no data leaving your hardware — this is for you.
+
+If you're building **ethical AI tooling** and want a reference implementation that optimises for user autonomy rather than engagement, the architecture is fully documented and embeddable.
+
+If you're a **therapist, counsellor, or domain expert** who wants to shape how an AI responds to emotional content — see [HELP-SHAPE-THIS.md](HELP-SHAPE-THIS.md).
+
+empathySync is **not** for people who want a companion AI or always-on assistant. It's for people who want useful help that doesn't try to become a habit.
+
 ## The Philosophy
 
-We optimize for exit, not engagement.
+We optimise for exit, not engagement.
 
 | Practical Tasks | Sensitive Topics |
 |-----------------|------------------|
@@ -38,12 +57,20 @@ We optimize for exit, not engagement.
 
 ## What Makes It Different
 
+### Safety & restraint
+
+- **Crisis detection**: immediate redirect to professional resources, no exceptions
+- **Post-crisis protection**: never apologises for safety interventions
+
+### Awareness & honesty
+
 - **Tracks dependency patterns** and warns you if you're relying on it too much
-- **Suggests real humans** to talk to, and helps you find them if you don't have anyone yet
-- **Crisis detection** that redirects to helplines, never engages with crisis content
 - **Transparency panel** showing exactly why it responded the way it did
 - **Anti-engagement metrics**: fewer sensitive sessions = success
-- **Post-crisis protection**: never apologizes for safety interventions
+
+### Human connection
+
+- **Suggests real humans** to talk to, and helps you find them if you don't have anyone yet
 
 ## Quick Start
 
@@ -58,6 +85,7 @@ bash install.sh
 The install script checks Python, creates a virtual environment, installs dependencies, configures `.env`, and verifies Ollama is ready.
 
 Then launch:
+
 ```bash
 venv/bin/python -m streamlit run src/app.py
 ```
@@ -85,7 +113,9 @@ docker compose up
 This starts both empathySync and Ollama together. Open `http://localhost:8501`.
 
 > **Note:** You'll still need to pull a model into the Ollama container:
-> `docker exec empathysync-ollama ollama pull llama2`
+> `docker exec empathysync-ollama ollama pull llama3.2`
+>
+> **Model choice matters here.** empathySync's restraint behaviour depends on the model understanding nuance — llama3.2 or mistral:7b are recommended minimums. Older models like llama2 will produce noticeably weaker classification and responses.
 
 ### Requirements
 
@@ -94,34 +124,19 @@ This starts both empathySync and Ollama together. Open `http://localhost:8501`.
 - 8GB RAM recommended (4GB minimum)
 - GPU optional but improves response time
 
-## Features
+**Lower-spec machine?** Smaller models like `qwen2.5:3b` or `tinyllama` run comfortably on 4GB RAM. Classification quality trades off slightly, but the safety pipeline remains intact. You can also set a separate smaller model just for classification via `OLLAMA_CLASSIFIER_MODEL` in your `.env`.
 
-### Dual-Mode Intelligence
-Full assistance for practical tasks (emails, code, explanations). Restraint on sensitive topics (relationships, finances, health, spirituality).
+## How It Works
 
-### Session Intent Check-In
-"What brings you here?" helps calibrate responses and detects connection-seeking behavior.
+**It reads the room.** Every message is classified before a response is generated — is this practical or personal? Heavy or light? A task or a feeling? The response changes accordingly.
 
-### Emotional Weight Awareness
-Recognizes emotionally heavy tasks (resignation emails, difficult conversations) and adds brief human acknowledgment without being therapeutic.
+**It watches for patterns.** If you're coming back too often, or asking the same things repeatedly, it notices. It says something. It won't pretend that's fine.
 
-### Trusted Network & Connection Building
-Build your list of real humans to reach out to, with pre-written templates for hard conversations. Don't have anyone yet? The "Building Your Network" guide helps you find your people — with signposts for types of places to connect (support groups, volunteering, community groups) and first-contact templates for initiating new connections.
+**It keeps a door open to real people.** You can build a list of people in your life to reach out to, with templates for hard conversations. No network yet? It helps you think about where to find one.
 
-### Dependency Detection
-Monitors usage patterns across sessions. Gently intervenes when over-reliance is detected.
+**It steps aside in a crisis.** When it detects crisis content, it redirects immediately to professional resources. It never engages. It never apologises for that.
 
-### My Patterns Dashboard
-Track your usage, sensitive vs practical. Week-over-week comparisons. The goal: sensitive sessions going *down*.
-
-### "What Would You Tell a Friend?"
-For tough decisions, helps you access your own wisdom instead of asking AI for answers.
-
-### Human Connection Gate
-"Have you talked to someone about this?" Encourages real human contact before continuing AI conversations on sensitive topics.
-
-### Crisis Intervention
-Immediate redirect to professional resources. Never engages with crisis content. Never apologizes for intervening.
+**It shows its reasoning.** Every response comes with a transparency panel explaining what it classified, what it decided, and why.
 
 ## Technical Foundation
 
@@ -140,7 +155,7 @@ See `.env.example` for all configuration options:
 ```bash
 # Required
 OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=llama2
+OLLAMA_MODEL=llama3.2
 OLLAMA_TEMPERATURE=0.7
 
 # Optional
@@ -149,16 +164,6 @@ STORE_CONVERSATIONS=true         # Local storage only
 USE_SQLITE=false                 # SQLite backend (better concurrency)
 ENABLE_DEVICE_LOCK=false         # Multi-device sync safety
 ```
-
-## Project Status
-
-**v1.3 — Hardening Release.** 16 phases + 6 hardening sub-phases shipped. Safety systems, dual-mode operation, dependency tracking, human handoff, transparency, LLM classification, persistence hardening, connection building, core decoupling, streaming, httpx migration, god class decomposition, security hardening, and centralized configuration.
-
-**Distribution Ready.** Three installation methods plus CLI mode.
-
-**443 tests passing** across Python 3.9, 3.10, 3.11, 3.12.
-
-See [ROADMAP.md](ROADMAP.md) for detailed implementation status.
 
 ## Documentation
 
@@ -170,14 +175,19 @@ See [ROADMAP.md](ROADMAP.md) for detailed implementation status.
 
 ## Contributing
 
-We welcome contributions from developers who care about digital wellness and ethical AI. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+empathySync is shaped by more than code. Engineers build the pipeline. But whether the words actually land — whether a response to "I feel lonely" feels human or hollow — that's a different kind of knowledge.
 
+If you're a therapist, counsellor, social worker, or UX writer, see [HELP-SHAPE-THIS.md](HELP-SHAPE-THIS.md). The responses, interventions, and connection-building guidance are plain text files. No programming required.
+
+If you're an engineer, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Built By
+
+[@Olawoyin007](https://github.com/Olawoyin007) — Specialist data engineer, building technology that serves human flourishing
 ## License
 
 MIT License - Built for everyone's benefit and maximum accessibility.
 
 ---
-
-*Building technology that serves human flourishing.*
 
 *The goal isn't a better chatbot. It's a world where you need chatbots less.*
