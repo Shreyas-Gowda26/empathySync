@@ -204,6 +204,34 @@ class ScenarioLoader:
             return config.get("modifier", "")
         return ""
 
+    # ==================== VOICE ====================
+
+    def get_voice_config(self) -> Dict:
+        """Get the empathySync voice/personality configuration."""
+        voice_data = self._load_directory("voice")
+        return voice_data.get("personality", {})
+
+    def get_voice_prompt_addition(self) -> str:
+        """Get the voice rules to inject into system prompts."""
+        config = self.get_voice_config()
+        return config.get("system_prompt_addition", "")
+
+    def get_voice_principles(self) -> List[str]:
+        """Get voice principles list."""
+        config = self.get_voice_config()
+        return config.get("principles", [])
+
+    def get_forbidden_phrases(self) -> List[Dict]:
+        """Get forbidden phrase definitions for post-filtering."""
+        config = self.get_voice_config()
+        return config.get("forbidden_phrases", [])
+
+    def get_voice_tone(self, context: str) -> Dict:
+        """Get tone instructions for a specific context."""
+        config = self.get_voice_config()
+        tones = config.get("tone", {})
+        return tones.get(context, {})
+
     # ==================== RESPONSES ====================
 
     def get_all_responses(self) -> Dict[str, Dict]:

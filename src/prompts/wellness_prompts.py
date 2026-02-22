@@ -49,6 +49,11 @@ class WellnessPrompts:
         # This prevents the model from over-applying restrictions to general questions
         prompt_parts = [self._get_base_rules(include_forbidden_topics=not is_practical)]
 
+        # Add voice layer (always applied — defines how empathySync sounds)
+        voice_addition = self.loader.get_voice_prompt_addition()
+        if voice_addition:
+            prompt_parts.append(voice_addition.strip())
+
         # Add style modifier
         modifier = self._get_style_modifier(wellness_mode)
         if modifier:

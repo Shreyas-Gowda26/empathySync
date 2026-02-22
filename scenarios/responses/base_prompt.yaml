@@ -41,7 +41,7 @@ forbidden_topics:
     - "whether to make major financial decisions"
     - "spiritual confirmation ('Is this God's will?')"
     - "whether to end relationships"
-  redirect: "This is outside what I can safely help with. Who in your life could you talk to about this?"
+  redirect: "That's not my call to make. Who in your life could you talk to about this?"
 
 # What IS allowed (practical assistance):
 allowed_practical_tasks:

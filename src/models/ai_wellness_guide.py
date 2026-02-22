@@ -342,6 +342,17 @@ class WellnessGuide:
                 "\n\n[Remember: Include a brief reminder that you are software, not a person.]"
             )
 
+        # Detect isolation signals — stop redirecting to humans who don't exist
+        isolation_context = ""
+        if not is_practical and self._user_expressed_isolation(conversation_history):
+            isolation_context = (
+                "\n\n[IMPORTANT: The user has said they have no one to talk to. "
+                "Do NOT suggest 'who in your life could you talk to' or similar. "
+                "Instead: acknowledge it briefly, offer to help them think about "
+                "building connections, or ask what specific thing you can help with. "
+                "Do not repeat the redirect.]"
+            )
+
         # Add post-crisis context if we recently had a crisis intervention
         post_crisis_context = ""
         if self.post_crisis_turn is not None:
@@ -356,7 +367,7 @@ class WellnessGuide:
                 self.post_crisis_turn = None
 
         full_prompt = (
-            f"{system_prompt}{post_crisis_context}\n\n"
+            f"{system_prompt}{post_crisis_context}{isolation_context}\n\n"
             f"{conversation_context}\n\n"
             f"User: {user_input}\n\n"
             f"Assistant:{identity_reminder}"
@@ -560,7 +571,10 @@ class WellnessGuide:
                     wellness_tracker,
                 )
 
-            # Store accumulated response for post-stream metadata
+            # Apply voice filter to stored response — cleans conversation history
+            # so the model doesn't reinforce forbidden phrases in follow-up turns.
+            # (Streamed tokens are already sent, but history shapes future responses.)
+            final_response = self._apply_voice_filter(final_response)
             self._last_streamed_response = prefix + final_response + suffix
 
         except Exception as e:
@@ -929,6 +943,32 @@ class WellnessGuide:
         """Delegate to OllamaClient.generate_stream()."""
         return self.ollama_client.generate_stream(prompt, is_practical=is_practical)
 
+    def _user_expressed_isolation(self, conversation_history: List[Dict]) -> bool:
+        """Check if the user has expressed having no support network."""
+        if not conversation_history:
+            return False
+
+        isolation_phrases = [
+            "i have no one",
+            "have no one",
+            "no one else",
+            "don't have anyone",
+            "nobody to talk to",
+            "no friends",
+            "no family",
+            "all alone",
+            "i'm alone",
+            "there is no one",
+            "there's no one",
+        ]
+
+        for msg in conversation_history:
+            if msg.get("role") == "user":
+                text = msg.get("content", "").lower()
+                if any(phrase in text for phrase in isolation_phrases):
+                    return True
+        return False
+
     def _build_context(self, conversation_history: List[Dict]) -> str:
         """Build conversation context from history"""
 
@@ -970,6 +1010,9 @@ class WellnessGuide:
         if len(response.strip()) < 10:
             return self._get_fallback_response(is_practical=is_practical)
 
+        # Apply voice filter — strip forbidden phrases (always, both modes)
+        response = self._apply_voice_filter(response)
+
         # For practical tasks, return the full response without truncation
         if is_practical:
             return response
@@ -982,6 +1025,71 @@ class WellnessGuide:
                 response = " ".join(words[:50]) + "..."
 
         return response
+
+    def _apply_voice_filter(self, response: str) -> str:
+        """Apply the empathySync voice filter — replace or remove forbidden phrases.
+
+        This catches corporate/therapy language that leaks through despite
+        the system prompt. The voice guide (scenarios/voice/personality.yaml)
+        defines which phrases to replace and which to remove entirely.
+        """
+        forbidden = self.prompts.loader.get_forbidden_phrases()
+        if not forbidden:
+            return response
+
+        for entry in forbidden:
+            phrase = entry.get("phrase", "")
+            if not phrase:
+                continue
+
+            # Case-insensitive check
+            lower_response = response.lower()
+            if phrase.lower() not in lower_response:
+                continue
+
+            action = entry.get("action", "")
+            replacement = entry.get("replacement", "")
+
+            if action == "remove_sentence":
+                # Remove the entire sentence containing the forbidden phrase
+                response = self._remove_sentence_containing(response, phrase)
+            elif replacement:
+                # Replace the phrase (preserve original casing of first char)
+                response = self._replace_phrase_preserve_case(response, phrase, replacement)
+
+        # Clean up: remove double spaces, leading/trailing whitespace, double newlines
+        import re
+
+        response = re.sub(r"  +", " ", response)
+        response = re.sub(r"\n\s*\n\s*\n", "\n\n", response)
+        response = response.strip()
+
+        return response
+
+    def _remove_sentence_containing(self, text: str, phrase: str) -> str:
+        """Remove the sentence containing a forbidden phrase."""
+        import re
+
+        # Split into sentences (handle ., !, ?, and newlines)
+        sentences = re.split(r"(?<=[.!?])\s+|\n", text)
+        filtered = []
+        for sentence in sentences:
+            if phrase.lower() not in sentence.lower():
+                filtered.append(sentence)
+
+        return " ".join(filtered) if filtered else text
+
+    def _replace_phrase_preserve_case(self, text: str, old: str, new: str) -> str:
+        """Replace a phrase, preserving the case of the first character."""
+        import re
+
+        def case_replacer(match):
+            matched = match.group(0)
+            if matched[0].isupper():
+                return new[0].upper() + new[1:]
+            return new
+
+        return re.sub(re.escape(old), case_replacer, text, flags=re.IGNORECASE)
 
     def _contains_harmful_content(self, text: str) -> bool:
         """Check for harmful content patterns."""
