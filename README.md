@@ -21,15 +21,15 @@
 
 ## What It Is
 
-empathySync is a local-first AI assistant — full help for practical tasks, deliberate restraint on personal ones. Everything runs on your hardware via Ollama. No cloud APIs, no data harvesting, no telemetry.
+empathySync is a local-first AI assistant, full help for practical tasks, deliberate restraint on personal ones. Everything runs on your hardware via Ollama. No cloud APIs, no data harvesting, no telemetry.
 
 Your inner life deserves something that knows the difference.
 
 ## The Belief Behind It
 
-Every person should have the right to an AI system that is entirely their own. Not rented. Not monitored. Not optimised for someone else's engagement metrics. Yours — running on your hardware, answering only to you, storing nothing it doesn't need to.
+Every person should have the right to an AI system that is entirely their own. Not rented. Not monitored. Not optimised for someone else's engagement metrics. Yours, running on your hardware, answering only to you, storing nothing it doesn't need to.
 
-For sensitive, personal things — how you're feeling, your relationships, your health, your money — you deserve something local, private, and restrained. For complex tasks that need serious compute, use the cloud AIs. That's a reasonable division.
+For sensitive, personal things, how you're feeling, your relationships, your health, your money etc you deserve something local, private, and restrained. For complex tasks that need serious compute, cloud AIs are good recommendation. That's a reasonable division.
 
 But the part of AI that touches your inner life should belong to you.
 
@@ -37,11 +37,11 @@ This isn't a feature. It's the point.
 
 ## Who Is This For?
 
-If you're a **developer** who wants a privacy-respecting AI assistant with no API keys, no subscriptions, and no data leaving your hardware — this is for you.
+If you're a **developer** who wants a privacy-respecting AI assistant with no API keys, no subscriptions, and no data leaving your hardware, this is for you.
 
 If you're building **ethical AI tooling** and want a reference implementation that optimises for user autonomy rather than engagement, the architecture is fully documented and embeddable.
 
-If you're a **therapist, counsellor, or domain expert** who wants to shape how an AI responds to emotional content — see [HELP-SHAPE-THIS.md](HELP-SHAPE-THIS.md).
+If you're a **therapist, counsellor, or domain expert** who wants to shape how an AI responds to emotional content, see [HELP-SHAPE-THIS.md](HELP-SHAPE-THIS.md).
 
 empathySync is **not** for people who want a companion AI or always-on assistant. It's for people who want useful help that doesn't try to become a habit.
 
@@ -115,7 +115,7 @@ This starts both empathySync and Ollama together. Open `http://localhost:8501`.
 > **Note:** You'll still need to pull a model into the Ollama container:
 > `docker exec empathysync-ollama ollama pull llama3.2`
 >
-> **Model choice matters here.** empathySync's restraint behaviour depends on the model understanding nuance — llama3.2 or mistral:7b are recommended minimums. Older models like llama2 will produce noticeably weaker classification and responses.
+> **Model choice matters here.** empathySync's restraint behaviour depends on the model understanding nuance, llama3.2 or mistral:7b are recommended minimums. Older models like llama2 will produce noticeably weaker classification and responses.
 
 ### Requirements
 
@@ -175,7 +175,7 @@ ENABLE_DEVICE_LOCK=false         # Multi-device sync safety
 
 ## Contributing
 
-empathySync is shaped by more than code. Engineers build the pipeline. But whether the words actually land — whether a response to "I feel lonely" feels human or hollow — that's a different kind of knowledge.
+empathySync is shaped by more than code. Engineers build the pipeline. But whether the words actually land, whether a response to "I feel lonely" feels human or hollow, that's a different kind of knowledge.
 
 If you're a therapist, counsellor, social worker, or UX writer, see [HELP-SHAPE-THIS.md](HELP-SHAPE-THIS.md). The responses, interventions, and connection-building guidance are plain text files. No programming required.
 
