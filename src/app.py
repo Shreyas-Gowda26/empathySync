@@ -99,7 +99,7 @@ def display_safety_banner():
             "harmful_stop": "I declined to engage with potentially harmful content.",
             "turn_limit_reached": f"We've reached the conversation limit for {domain} topics. This is by design.",
             "dependency_intervention": "I noticed a pattern that suggests it might be healthy to step back.",
-            "high_risk_response": f"This topic ({domain}) involves significant decisions. My responses are shorter and I'm suggesting human guidance.",
+            "high_risk_response": f"This topic ({domain}) is something a real person in your life can help with better than I can. My responses are shorter and I'm pointing toward people.",
             "cooldown_enforced": "Based on your usage pattern, I'm suggesting a break.",
         }
 
@@ -127,10 +127,13 @@ def display_transparency_panel():
     should_expand = auto_expand and guide.last_policy_action is not None
 
     with st.expander(ui_labels.get("panel_title", "Why this response?"), expanded=should_expand):
-        # Domain detected
+        # Phase 9.1: Determine mode once for all rows
+        is_practical_technique = assessment.get("is_practical_technique", False)
         domain = assessment.get("domain", "logistics")
-        domain_info = loader.get_domain_explanation(domain)
+        is_practical = domain == "logistics" or is_practical_technique
 
+        # Topic detected
+        domain_info = loader.get_domain_explanation(domain)
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown(f"**{ui_labels.get('domain_label', 'Topic detected')}**")
@@ -138,57 +141,22 @@ def display_transparency_panel():
             st.markdown(f"{domain_info.get('name', domain.title())}")
             st.caption(domain_info.get("description", ""))
 
-        st.markdown("---")
-
         # Response mode
-        # Phase 9.1: Check both domain and is_practical_technique flag
-        is_practical_technique = assessment.get("is_practical_technique", False)
-        is_practical = domain == "logistics" or is_practical_technique
         mode = "practical" if is_practical else "reflective"
         mode_info = loader.get_mode_explanation(mode)
-
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown(f"**{ui_labels.get('mode_label', 'Response mode')}**")
         with col2:
             st.markdown(f"{mode_info.get('name', mode.title())}")
-            # Phase 9.1: Show note if practical technique detected in sensitive domain
             if is_practical_technique and domain != "logistics":
-                st.caption(
-                    f"Technique question detected in {domain} domain → full response allowed"
-                )
+                st.caption(f"Technique question in {domain} domain → full response")
             else:
                 st.caption(mode_info.get("description", ""))
-
-        # Word limit
-        word_limit = ui_labels.get("no_limit", "None") if is_practical else "50-150 words"
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.markdown(f"**{ui_labels.get('word_limit_label', 'Word limit')}**")
-        with col2:
-            st.markdown(word_limit)
-
-        st.markdown("---")
-
-        # Emotional weight (for practical tasks)
-        if is_practical:
-            emotional_weight = assessment.get("emotional_weight", "low_weight")
-            weight_info = loader.get_emotional_weight_explanation(emotional_weight)
-
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.markdown(f"**{ui_labels.get('emotional_weight_label', 'Emotional weight')}**")
-            with col2:
-                st.markdown(f"{weight_info.get('name', emotional_weight)}")
-                if weight_info.get("note"):
-                    st.caption(weight_info.get("note"))
-
-            st.markdown("---")
 
         # Risk level
         risk_weight = assessment.get("risk_weight", 1.0)
         risk_info = loader.get_risk_level_explanation(risk_weight)
-
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown(f"**{ui_labels.get('risk_level_label', 'Risk level')}**")
@@ -198,25 +166,18 @@ def display_transparency_panel():
                 st.caption(risk_info.get("description"))
 
         # Policy action (if any)
-        if guide.last_policy_action:
-            st.markdown("---")
-            policy_type = guide.last_policy_action.get("type", "")
-            policy_info = loader.get_policy_explanation(policy_type)
-
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.markdown(f"**{ui_labels.get('policy_label', 'Policy action')}**")
-            with col2:
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown(f"**{ui_labels.get('policy_label', 'Policy action')}**")
+        with col2:
+            if guide.last_policy_action:
+                policy_type = guide.last_policy_action.get("type", "")
+                policy_info = loader.get_policy_explanation(policy_type)
                 st.markdown(f"{policy_info.get('name', policy_type)}")
                 st.caption(policy_info.get("reason", ""))
                 if policy_info.get("user_note"):
-                    st.info(policy_info.get("user_note"))
-        else:
-            st.markdown("---")
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.markdown(f"**{ui_labels.get('policy_label', 'Policy action')}**")
-            with col2:
+                    st.caption(f"*{policy_info.get('user_note')}*")
+            else:
                 st.markdown(ui_labels.get("none_triggered", "None triggered"))
 
 
@@ -1054,64 +1015,24 @@ def display_handoff_outcome():
 
 
 def display_intent_check_in():
-    """Display the 'What brings you here?' check-in at session start."""
+    """Subtle connection nudge shown occasionally at session start (Phase 4).
+
+    Replaces the 3-button gate. The classifier handles practical vs reflective
+    intent automatically. The only path worth preserving explicitly is connection-
+    seeking, which the classifier can't catch before the first message.
+    """
     tracker = st.session_state.wellness_tracker
-    network = st.session_state.trusted_network
-    loader = get_scenario_loader()
 
-    st.markdown("### What brings you here today?")
-
-    # Get check-in config from scenarios
-    check_in_config = loader.get_intent_check_in_config()
-    options = check_in_config.get("options", {})
-
-    col1, col2, col3 = st.columns(3)
-
+    col1, col2 = st.columns([4, 1])
     with col1:
-        practical = options.get("practical", {})
-        if st.button(
-            practical.get("label", "Get something done"),
-            use_container_width=True,
-            help=practical.get("description", "I have a specific task"),
-        ):
-            tracker.record_session_intent(INTENT_PRACTICAL, was_check_in=True)
-            st.session_state.conversation_session.session_intent = INTENT_PRACTICAL
-            st.session_state.show_intent_check_in = False
-            st.rerun()
-
+        st.caption("Just here to talk? Someone in your life would be better for that than I am.")
     with col2:
-        processing = options.get("processing", {})
-        if st.button(
-            processing.get("label", "Think through something"),
-            use_container_width=True,
-            help=processing.get("description", "I need to work through something"),
-        ):
-            tracker.record_session_intent(INTENT_PROCESSING, was_check_in=True)
-            st.session_state.conversation_session.session_intent = INTENT_PROCESSING
-            st.session_state.show_intent_check_in = False
-            st.rerun()
-
-    with col3:
-        connection = options.get("connection", {})
-        if st.button(
-            connection.get("label", "Just wanted to talk"),
-            use_container_width=True,
-            help=connection.get("description", "No specific goal"),
-        ):
-            # Connection-seeking - show gentle redirect
+        if st.button("Find them →", use_container_width=True):
             tracker.record_session_intent(INTENT_CONNECTION, was_check_in=True)
             st.session_state.conversation_session.session_intent = INTENT_CONNECTION
             st.session_state.show_connection_redirect = True
             st.session_state.show_intent_check_in = False
             st.rerun()
-
-    st.markdown("---")
-    st.caption("This helps me calibrate how to help you.")
-
-    # Skip option
-    if st.button("Skip", type="secondary"):
-        st.session_state.show_intent_check_in = False
-        st.rerun()
 
 
 def display_connection_redirect():
@@ -1406,7 +1327,11 @@ def display_chat_interface(wellness_mode):
                 )
 
     # Phase 6: Show transparency panel if we have assessment data
-    if guide.last_risk_assessment and session.messages:
+    if (
+        guide.last_risk_assessment
+        and session.messages
+        and session.messages[-1]["role"] == "assistant"
+    ):
         display_transparency_panel()
 
     # Phase 4: Show intent shift prompt if detected
@@ -1423,6 +1348,13 @@ def display_chat_interface(wellness_mode):
         display_graduation_prompt(grad["category"], grad["prompt"])
         session.pending_graduation = None
         session.graduation_shown_this_session = True
+
+    # Empty state welcome — shown before the first message
+    if not session.messages:
+        st.caption(
+            "Practical tasks get full help. Personal topics get a shorter response "
+            "and a nudge toward real people. Type anything to start."
+        )
 
     # Chat input (disabled in read-only mode)
     if is_read_only():
@@ -1704,7 +1636,11 @@ def main():
 
     # Check if network is empty - show Building Your Network (Phase 12)
     network = st.session_state.trusted_network
-    if not network.get_all_people() and not st.session_state.show_network_setup:
+    if (
+        not network.get_all_people()
+        and not st.session_state.show_network_setup
+        and not st.session_state.messages
+    ):
         # Get current domain if available for context-aware signposts
         current_domain = None
         if st.session_state.messages:
@@ -1715,12 +1651,8 @@ def main():
                     guide._session_state["domains"][-1] if guide._session_state["domains"] else None
                 )
 
-        st.info(
-            "**No trusted network yet.** Instead of 'talk to someone', let's think about where you might find your people."
-        )
-
-        # Show Building Your Network panel
-        display_building_your_network(domain=current_domain)
+        with st.expander("No trusted network yet — find your people", expanded=False):
+            display_building_your_network(domain=current_domain)
 
         st.markdown("---")
 

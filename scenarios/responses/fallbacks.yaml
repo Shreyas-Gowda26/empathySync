@@ -3,31 +3,31 @@ description: Responses used when the AI cannot generate a suitable response
 
 # When response is empty or too short
 empty_response:
-  - "I'm here to help you think through things, but I want to make sure I understand. Could you tell me more about what's on your mind?"
-  - "I want to be helpful, but I'm not sure I caught that fully. What's the main thing you're working through?"
-  - "Let me make sure I'm following. What would be most helpful for you right now?"
+  - "I didn't quite catch that. What's the main thing you're working through?"
+  - "Could you say more about what you need?"
+  - "What would be most useful right now?"
 
 # When API fails or times out
 api_error:
-  - "I'm having trouble processing that right now. What you're dealing with matters—would you like to try again, or would it help to write it out differently?"
-  - "Something went wrong on my end. Please try again, and I'll do my best to be helpful."
-  - "I couldn't complete that response. If this is urgent, please don't wait on me—reach out to someone who can help right now."
+  - "Something went wrong on my end. Please try again."
+  - "I couldn't process that. Try again — and if it's urgent, don't wait on me. Reach out to someone who can help."
+  - "Technical issue. Please try again."
 
 # When response is filtered for safety
 content_filtered:
-  - "I care about your wellbeing and want to respond thoughtfully. Let me try a different approach—what aspect of this would be most helpful to explore?"
-  - "I want to be helpful without causing harm. Can you tell me more about what you're hoping to work through?"
+  - "I can't help with that. Is there something else you're working through?"
+  - "That's outside what I can engage with. What else is on your mind?"
 
 # When user input is unclear
 unclear_input:
-  - "I want to understand what you're asking. Could you say more about what's on your mind?"
+  - "Could you say more about what you're asking?"
   - "I'm not quite following. What's the main thing you'd like to think through?"
-  - "Help me understand better—what would be most useful for you right now?"
+  - "Help me understand — what would be most useful right now?"
 
 # General safe fallback (for reflective/emotional mode)
 general:
-  - "I'm here to help you develop a healthier relationship with AI and technology. What would you like to explore?"
-  - "Let's take this step by step. What's most important to you right now?"
+  - "That's something to sit with. Who in your life might be worth talking to about it?"
+  - "What's the part that feels most stuck right now?"
 
 # Practical task fallbacks (for logistics domain)
 # When a practical request fails, acknowledge it's a technical issue, not a therapy pause

@@ -1683,6 +1683,31 @@ LOCK_STALE_TIMEOUT=300
   - Ensures scenario YAML changes don't break classification accuracy
 - [ ] Target: 100% pass rate on deterministic (pre-LLM) tests, 80%+ on LLM-dependent tests
 
+### 16.11.11 UI Content Audit 🔧 PARTIAL
+**Problem**: A gap existed between the philosophy written in the manifesto and the actual words displayed in the UI. Fallback responses used false-intimacy language ("I care about your wellbeing", "I want to be helpful"), the system prompt had no rule against engagement-seeking endings, transparency text misfired on domain context, and new users had no orientation before their first message.
+
+**Root cause**: Fallback strings were written independently of `base_prompt.yaml` identity rules, creating two sources of truth that diverged. The LLM's RLHF training defaults toward engagement hooks ("Would you like me to...") unless explicitly suppressed in the system prompt.
+
+**What was fixed (v1.3)**:
+
+- [x] **`scenarios/responses/fallbacks.yaml`** — Removed "I care about your wellbeing", "I want to be helpful", "I'm here to help you develop a healthier relationship with AI". Replaced with neutral, capability-focused language consistent with the tool identity
+- [x] **`scenarios/responses/base_prompt.yaml`** — Added three behavioral rules:
+  - No engagement-seeking endings ("Would you like me to...", "Let me know if...", "Feel free to ask...")
+  - No unfilled template placeholders ([Name], [Date], [Company]) — fill from context or omit
+  - No meta-commentary narrating classification or mode ("Note:", "As a reminder", "Since this is a practical task...") — model was narrating reasoning instead of responding
+- [x] **`scenarios/responses/safe_alternatives.yaml`** — Fixed two problems:
+  - Removed false-intimacy fallback text ("I care about your wellbeing", "I want to be helpful without...")
+  - Tightened `harmful_patterns` — bare patterns like `"you must"` and `"you need to"` were false-positiving on benign practical responses (e.g. "You must be thrilled" in a congratulations message). Replaced with context-specific variants
+- [x] **`src/app.py` safety banner** — Fixed `high_risk_response` text from "involves significant decisions" (wrong for emotional domain) to domain-appropriate human-redirect language
+- [x] **`src/app.py` empty state** — Added one-line orientation before first message: *"Practical tasks get full help. Personal topics get a shorter response and a nudge toward real people."*
+
+**What still needs attention**:
+
+- [ ] Remove the hardcoded `explanations` dict in `display_safety_banner()` entirely — it duplicates `transparency/explanations.yaml` and will drift again; pull all explanation text from YAML
+- [ ] Audit `scenarios/transparency/explanations.yaml` domain descriptions for accuracy — confirm each domain label and description matches observed behaviour
+- [ ] Review `st.balloons()` calls (independence tracking, handoff success, network building) — consider a more muted indicator; balloons feel gamified against the anti-engagement philosophy
+- [ ] Session summary footer: remove "productive" from "This was a productive working session" — evaluative praise from a tool contradicts the philosophy
+
 ---
 
 **Why this matters**: Currently empathySync only exists when the user opens it. A persistent daemon can do things a session-bound app cannot: remind you to check in with a friend, notice you haven't needed it in a week (and celebrate that), or go quiet when it detects over-reliance. The restraint philosophy extends to the agent's own behavior.

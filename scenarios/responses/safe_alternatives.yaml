@@ -3,28 +3,30 @@ description: Responses used when original response contains potentially harmful 
 
 # When response contains harmful patterns
 harmful_content_detected:
-  - "I care about your wellbeing and want to respond in a way that's genuinely helpful. What matters most to you right now?"
-  - "Let me take a different approach. What would be most supportive for you in this moment?"
-  - "I want to be helpful without adding to what you're carrying. What do you need right now?"
+  - "That's not the right direction. What's the actual thing you're trying to work through?"
+  - "Let me try a different approach. What would be most useful right now?"
+  - "I can't go there. What else is on your mind?"
 
 # Patterns that trigger safe alternative
+# Keep these specific enough to avoid false positives on benign practical responses
 harmful_patterns:
   - "you should feel"
   - "you're addicted"
   - "something is wrong with you"
-  - "you need to"
-  - "you must"
-  - "you have to"
+  - "you need to stop"
+  - "you must stop"
+  - "you must never"
+  - "you have to change"
   - "you're broken"
-  - "you're too"
+  - "you're too sensitive"
   - "that's pathetic"
   - "that's stupid"
-  - "you always"
-  - "you never"
+  - "you always do this"
+  - "you never learn"
   - "what's wrong with you"
   - "grow up"
   - "get over it"
-  - "stop being"
+  - "stop being so"
 
 # When response sounds too much like a therapist
 therapeutic_overreach:
