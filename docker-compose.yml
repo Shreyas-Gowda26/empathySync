@@ -4,10 +4,14 @@ services:
     container_name: empathysync-ollama
     ports:
       - "11434:11434"
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    environment:
+      - OLLAMA_MODEL=${OLLAMA_MODEL}  
     volumes:
       - ollama_data:/root/.ollama
+      - ./scripts/entrypoint.sh:/entrypoint.sh:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 10s
       timeout: 5s
       retries: 5
