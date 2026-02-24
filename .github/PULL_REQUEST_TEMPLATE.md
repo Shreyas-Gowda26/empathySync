@@ -1,36 +1,24 @@
-## Description
-Brief description of what this PR does.
+## Summary
 
-## Related Issue
-Fixes #(issue number) or Related to #(issue number)
+What does this PR do? (1-3 sentences)
 
-## Type of Change
-- [ ] Bug fix (non-breaking change that fixes an issue)
-- [ ] New feature (non-breaking change that adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to change)
-- [ ] Documentation update
-- [ ] Refactoring (no functional changes)
+## Changes
 
-## Philosophy Checklist
-- [ ] This change aligns with "optimize for exit, not engagement"
-- [ ] This change does NOT increase user dependency on AI
-- [ ] This change maintains local-first privacy (no external API calls)
-- [ ] This change does NOT add dark patterns or manipulation
-- [ ] I have read [MANIFESTO.md](MANIFESTO.md)
+-
+-
+-
+
+## Related Issues
+
+Closes #
 
 ## Testing
-- [ ] I have run `pytest tests/` and all tests pass
-- [ ] I have added tests for new functionality (if applicable)
-- [ ] I have manually tested the change
 
-## Safety Considerations
-If this change touches safety-critical code (crisis detection, dependency scoring, harmful content blocking):
-- [ ] I have added specific test cases for safety behavior
-- [ ] I have considered edge cases (e.g., "just joking" after crisis)
-- [ ] I understand that safety code should fail safely, not silently
+- [ ] `pytest tests/` passes
+- [ ] `black --check src/` passes
+- [ ] Manually tested (if applicable)
+- [ ] New tests added for new functionality (if applicable)
 
-## Screenshots (if applicable)
-Before and after, or demonstration of new UI.
+## Screenshots
 
-## Additional Notes
-Anything reviewers should know.
+If this changes the UI, include before/after screenshots.
