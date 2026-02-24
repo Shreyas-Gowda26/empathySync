@@ -26,7 +26,7 @@ CLI mode provides the same conversation engine with text-based interaction. Resp
 
 ### First Time Setup
 
-On first launch, you'll be prompted to set up your **Trusted Network**—the real humans you could talk to when things get hard. This is central to empathySync's philosophy: the goal is to bridge you back to human connection, not replace it.
+On first launch, you'll be prompted to set up your **Trusted Network** -the real humans you could talk to when things get hard. This is central to empathySync's philosophy: the goal is to bridge you back to human connection, not replace it.
 
 ## The Interface
 
@@ -43,7 +43,7 @@ empathySync operates in two modes:
 | **Practical** | Writing help, coding, explanations | Full responses, no limits |
 | **Reflective** | Emotional, health, money, relationships | Brief responses, redirects to humans |
 
-You don't choose the mode—the system detects it from your message.
+You don't choose the mode -the system detects it from your message.
 
 ### Adaptive Communication
 
@@ -51,7 +51,7 @@ empathySync automatically adjusts its communication style based on the detected 
 - Practical tasks get clear, direct responses
 - Sensitive topics get warmer, more careful phrasing
 
-You don't need to configure this—the system handles it.
+You don't need to configure this -the system handles it.
 
 ### Session Intent Check-In
 
@@ -62,7 +62,7 @@ Occasionally, when starting a new session, you'll see:
 > - Think through something
 > - Just wanted to talk
 
-This helps the system calibrate. If you choose "Just wanted to talk," you'll be gently redirected toward human connection—this isn't what empathySync is for.
+This helps the system calibrate. If you choose "Just wanted to talk," you'll be gently redirected toward human connection -this isn't what empathySync is for.
 
 ## Sidebar Features
 
@@ -73,13 +73,13 @@ The sidebar shows your usage patterns:
 - Minutes spent
 - Dependency indicators
 
-If you're using the app too frequently, you'll see warnings. This is intentional—empathySync is designed to notice when you might be over-relying on it.
+If you're using the app too frequently, you'll see warnings. This is intentional -empathySync is designed to notice when you might be over-relying on it.
 
 ### Reality Check Button
 
 Click to see a grounding reminder:
 - This is software, not a person
-- It reflects patterns in text—it doesn't truly know you
+- It reflects patterns in text -it doesn't truly know you
 - It's a tool for thinking, not a companion or advisor
 
 This panel helps maintain perspective on what AI is and isn't.
@@ -108,7 +108,7 @@ The system will suggest specific people when you're discussing topics in their d
 
 If your trusted network is empty, empathySync shifts from "reach out to someone" to "let's find your people." You'll see a tabbed panel:
 
-1. **Where to Look** — Types of places to find connection:
+1. **Where to Look**  - Types of places to find connection:
    - Community groups around shared interests
    - Volunteering opportunities
    - Support groups for shared experiences
@@ -117,14 +117,14 @@ If your trusted network is empty, empathySync shifts from "reach out to someone"
 
    Each category includes a "why it works" explanation and a search hint. If you're dealing with a specific topic (health, money, relationships), domain-relevant suggestions appear first.
 
-2. **Making First Contact** — Practical templates for:
+2. **Making First Contact**  - Practical templates for:
    - Starting a conversation at a group or meetup
    - Turning an acquaintance into a friend
    - Reconnecting with someone from the past
    - Joining a new community
    - Asking someone for help
 
-3. **Add Someone** — When you have someone in mind, add them directly.
+3. **Add Someone**  - When you have someone in mind, add them directly.
 
 Even after you have people in your network, the "Expand Your Network" section remains accessible via the My People panel.
 
@@ -168,7 +168,7 @@ When a safety guardrail activates, you'll see a message explaining why:
 
 > **Why I responded this way:** I noticed a pattern that suggests it might be healthy to step back.
 
-This transparency is intentional—you should always know when the system is limiting itself.
+This transparency is intentional -you should always know when the system is limiting itself.
 
 ### Cooldown Enforcement
 
@@ -177,7 +177,7 @@ The system may block new sessions if:
 - You've spent 120+ minutes today
 - Your dependency score is high
 
-This isn't punishment—it's the system doing its job of not becoming a crutch.
+This isn't punishment -it's the system doing its job of not becoming a crutch.
 
 ### Crisis Detection
 
@@ -186,7 +186,7 @@ If the system detects crisis language (suicidal ideation, self-harm), it immedia
 2. Provides crisis resources (hotlines, text lines)
 3. Strongly encourages professional help
 
-**Post-crisis protection:** If you say "just joking" or try to dismiss the intervention, the system won't apologize. It responds firmly but warmly, because taking crisis language seriously is always the right thing to do—even if it turns out to be a false alarm.
+**Post-crisis protection:** If you say "just joking" or try to dismiss the intervention, the system won't apologize. It responds firmly but warmly, because taking crisis language seriously is always the right thing to do -even if it turns out to be a false alarm.
 
 ## Practical Tasks
 
@@ -234,7 +234,7 @@ For these, responses are:
 - Redirecting to professional help or trusted humans
 - Limited by turn count
 
-This isn't because the system can't help—it's because it shouldn't replace human support for these topics.
+This isn't because the system can't help -it's because it shouldn't replace human support for these topics.
 
 ### "What Would You Tell a Friend?"
 

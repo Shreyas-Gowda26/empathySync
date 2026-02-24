@@ -9,7 +9,7 @@ This document covers empathySync's local data storage strategy, including atomic
 | **Local-first** | No external API calls; user data never leaves their devices |
 | **Single user** | No multi-tenant isolation needed |
 | **Multiple devices** | User may run on laptop + desktop, but only one device at a time |
-| **Sync via file sync tools** | Dropbox, Syncthing, iCloud—not custom sync protocol |
+| **Sync via file sync tools** | Dropbox, Syncthing, iCloud -not custom sync protocol |
 | **Defense-in-depth** | Multiple layers prevent accidental data corruption |
 
 ## Storage Backends
@@ -47,7 +47,7 @@ with os.fdopen(fd, 'w') as f:
 os.replace(temp_path, final_path)
 ```
 
-**Why this works:** `os.replace()` is atomic on POSIX systems when source and target are on the same filesystem. Either the old file exists or the new one does—never a partial write.
+**Why this works:** `os.replace()` is atomic on POSIX systems when source and target are on the same filesystem. Either the old file exists or the new one does -never a partial write.
 
 ### Schema Versioning
 

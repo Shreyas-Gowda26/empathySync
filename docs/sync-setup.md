@@ -93,7 +93,7 @@ The sequence:
 If you open empathySync while it's still running on another device:
 
 - The app detects the lock file from the other device
-- It enters **read-only mode** — you can browse but not write
+- It enters **read-only mode** -you can browse but not write
 - A warning banner appears: "Read-only mode: empathySync is open on [device name]"
 - You can click **"Take Over"** to force ownership (only if the other device is actually closed)
 
@@ -120,7 +120,7 @@ The lock file contains a heartbeat timestamp. If the heartbeat is older than `LO
 
 3. On Device B, accept the shared folder and set the same local path.
 
-4. **Ignore patterns** — add to `.stignore` in the synced folder:
+4. **Ignore patterns** -add to `.stignore` in the synced folder:
    ```
    // Ignore WAL files (only exist while app is running)
    *.db-wal
@@ -135,7 +135,7 @@ The lock file contains a heartbeat timestamp. If the heartbeat is older than `LO
 
 ## Dropbox / iCloud / OneDrive setup
 
-These work out of the box — just put the data directory inside the synced folder:
+These work out of the box -just put the data directory inside the synced folder:
 
 ```bash
 # Dropbox
@@ -148,7 +148,7 @@ DATA_DIR=/Users/youruser/Library/Mobile Documents/com~apple~CloudDocs/empathySyn
 DATA_DIR=/home/youruser/OneDrive/empathySync/data
 ```
 
-**Watch for conflict copies**: If the sync tool creates files like `empathySync (conflict).db`, it means both devices wrote simultaneously. Delete the conflict copy and rely on the original — the lock file should prevent this, but check that `ENABLE_DEVICE_LOCK=true`.
+**Watch for conflict copies**: If the sync tool creates files like `empathySync (conflict).db`, it means both devices wrote simultaneously. Delete the conflict copy and rely on the original -the lock file should prevent this, but check that `ENABLE_DEVICE_LOCK=true`.
 
 ---
 

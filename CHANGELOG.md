@@ -2,18 +2,18 @@
 
 All notable changes to empathySync are documented here.
 
-## v1.3 (2026-02-11) — Hardening Release
+## v1.3 (2026-02-11) -Hardening Release
 
 **"The restraint is the feature."**
 
 Phases 16.5–16.10 complete. Type safety, performance optimization, security hardening, god class decomposition, expanded test coverage, and centralized configuration.
 
 ### Type Safety (Phase 16.5)
-- **Type-safe enums**: `Domain`, `Intent`, `EmotionalWeight`, `ClassificationMethod` — `str, Enum` pattern for backward compatibility
+- **Type-safe enums**: `Domain`, `Intent`, `EmotionalWeight`, `ClassificationMethod` -`str, Enum` pattern for backward compatibility
 - **Dataclasses**: `RiskAssessment` and `LLMClassification` with dict-compatible access (`__getitem__`, `.get()`, `to_dict()`) and `__post_init__` validation
 
 ### Performance (Phase 16.6)
-- **httpx migration**: Replaced `requests` with `httpx` — shared connection-pooling client via `get_http_client()`
+- **httpx migration**: Replaced `requests` with `httpx` -shared connection-pooling client via `get_http_client()`
 - **Pre-compiled regex**: Module-level `_RE_JSON_STRICT` and `_RE_JSON_PERMISSIVE` patterns for hot-path classification
 - **Injectable http_client**: All Ollama-calling code accepts `http_client` parameter for testability
 
@@ -24,7 +24,7 @@ Phases 16.5–16.10 complete. Type safety, performance optimization, security ha
 - **Secrets cleanup**: `.env.example` sanitized with `SECRET_KEY=change-me-to-a-random-string` placeholder
 
 ### Architecture (Phase 16.8)
-- **OllamaClient extracted**: HTTP layer pulled from WellnessGuide into `src/models/ollama_client.py` — `generate()`, `generate_stream()`, `check_health()`
+- **OllamaClient extracted**: HTTP layer pulled from WellnessGuide into `src/models/ollama_client.py` -`generate()`, `generate_stream()`, `check_health()`
 - **EmotionalWeightAssessor extracted**: Weight logic pulled from RiskClassifier into `src/models/emotional_weight_assessor.py`
 - Both parent classes delegate via facade pattern
 
@@ -33,7 +33,7 @@ Phases 16.5–16.10 complete. Type safety, performance optimization, security ha
   - `test_write_gate.py` (11 tests): state transitions, `@require_write` decorator
   - `test_trusted_network.py` (57 tests): person management, reach-outs, prompts, handoff, error handling
   - `test_helpers.py` (10 tests): logging, validation, formatting
-  - `test_llm_classifier.py` additions (5 tests): error injection — timeout, connection refused, malformed JSON, empty response, HTTP 500
+  - `test_llm_classifier.py` additions (5 tests): error injection -timeout, connection refused, malformed JSON, empty response, HTTP 500
 
 ### Configuration (Phase 16.10)
 - **Centralized tunables**: `scenarios/config/system_defaults.yaml` with 100+ settings organized by component
@@ -51,11 +51,11 @@ Phases 16.5–16.10 complete. Type safety, performance optimization, security ha
 - `requests` dependency removed, replaced with `httpx>=0.26.0`
 
 ### Breaking Changes
-- `requests` replaced by `httpx` — run `pip install -r requirements.txt` after upgrading
+- `requests` replaced by `httpx` -run `pip install -r requirements.txt` after upgrading
 
 ---
 
-## v1.0 (2026-02-06) — Core Decoupling & Streaming
+## v1.0 (2026-02-06) -Core Decoupling & Streaming
 
 **"The soul as a library."**
 
@@ -86,11 +86,11 @@ Phase 16 complete. The conversation engine is now framework-agnostic and can be 
 
 ---
 
-## v0.9-beta (2026-02-01) — First Public Release
+## v0.9-beta (2026-02-01) -First Public Release
 
 **"Help that knows when to stop."**
 
-This is the first tagged release of empathySync — a local-first AI assistant that provides full help for practical tasks while applying restraint on sensitive topics. 14 phases of development, 323 tests passing.
+This is the first tagged release of empathySync -a local-first AI assistant that provides full help for practical tasks while applying restraint on sensitive topics. 14 phases of development, 323 tests passing.
 
 ### Core Engine
 - **Dual-mode operation**: Full assistance for practical tasks (emails, code, explanations). Brief, restrained responses for sensitive topics (relationships, health, finances, spirituality) with human redirect.
@@ -101,7 +101,7 @@ This is the first tagged release of empathySync — a local-first AI assistant t
 
 ### Anti-Dependency Systems
 - **Dependency scoring** (12-message lookback): Tracks frequency and repetition patterns. Graduated interventions at 5 levels.
-- **Anti-engagement metrics** (Phase 7): Tracks sensitive topic usage only — practical tasks are neutral. Week-over-week comparison where fewer sensitive sessions = success.
+- **Anti-engagement metrics** (Phase 7): Tracks sensitive topic usage only -practical tasks are neutral. Week-over-week comparison where fewer sensitive sessions = success.
 - **"What Would You Tell a Friend?"** (Phase 8): Flips the question on sensitive topics to help users access their own wisdom.
 - **"Before You Send" pause** (Phase 8): Suggests sleeping on high-stakes messages (resignations, difficult conversations).
 - **"Have You Talked to Someone?" gate** (Phase 8): Asks if you've talked to a human before continuing on heavy topics.
@@ -110,8 +110,8 @@ This is the first tagged release of empathySync — a local-first AI assistant t
 
 ### Human Connection
 - **Trusted network management** (Phase 5): Add your real humans. Domain-specific suggestions for who to talk to.
-- **Context-aware handoff templates**: Pre-written messages for reaching out — "need to talk", "reconnecting", "hard conversation", "asking for help". Auto-suggested based on session content.
-- **Connection building** (Phase 12): For users with empty networks — signpost categories (community groups, volunteering, support groups, classes) and first-contact templates for initiating new connections.
+- **Context-aware handoff templates**: Pre-written messages for reaching out -"need to talk", "reconnecting", "hard conversation", "asking for help". Auto-suggested based on session content.
+- **Connection building** (Phase 12): For users with empty networks -signpost categories (community groups, volunteering, support groups, classes) and first-contact templates for initiating new connections.
 - **Handoff tracking**: "Did you reach out?" → "How did it go?" with success metrics.
 
 ### Transparency & Tracking
@@ -135,14 +135,14 @@ This is the first tagged release of empathySync — a local-first AI assistant t
 - **Schema versioning**: Automatic migration on load.
 
 ### Distribution
-- **One-command setup**: `bash install.sh` — checks Python, creates venv, installs deps, configures .env, verifies Ollama.
+- **One-command setup**: `bash install.sh` -checks Python, creates venv, installs deps, configures .env, verifies Ollama.
 - **pip install**: `pip install -e ".[dev]"` with `empathysync` CLI entry point.
 - **Docker Compose**: `docker compose up` starts both empathySync and Ollama together.
-- **Startup health checks** (Phase 13): Validates Ollama connectivity, model availability, data directory, SQLite — with actionable error messages.
+- **Startup health checks** (Phase 13): Validates Ollama connectivity, model availability, data directory, SQLite -with actionable error messages.
 
 ### Known Limitations
 - Requires Ollama running locally (no cloud LLM support by design).
-- Classification quality depends on the local model — larger models give better results.
+- Classification quality depends on the local model -larger models give better results.
 - Single-user design. No multi-user or authentication system.
 
 ### Requirements

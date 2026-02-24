@@ -80,10 +80,10 @@ empathySync/
 │   ├── cli.py                   # CLI entry point: `empathysync` or `empathysync --mode cli` (Phase 14, 16)
 │   ├── config/settings.py       # Environment configuration
 │   ├── models/
-│   │   ├── ai_wellness_guide.py # Core conversation engine — delegates to OllamaClient
+│   │   ├── ai_wellness_guide.py # Core conversation engine -delegates to OllamaClient
 │   │   ├── ollama_client.py     # HTTP layer for Ollama API (extracted Phase 16.8)
 │   │   ├── emotional_weight_assessor.py # Emotional weight logic (extracted Phase 16.8)
-│   │   ├── risk_classifier.py   # Risk assessment + intent detection — delegates to EmotionalWeightAssessor
+│   │   ├── risk_classifier.py   # Risk assessment + intent detection -delegates to EmotionalWeightAssessor
 │   │   ├── llm_classifier.py    # LLM-based classification with pre-compiled regex (Phase 9, 16.6)
 │   │   ├── enums.py             # Domain, Intent, EmotionalWeight, ClassificationMethod enums (Phase 16.5)
 │   │   ├── data_contracts.py    # RiskAssessment, LLMClassification dataclasses (Phase 16.5)
@@ -96,7 +96,7 @@ empathySync/
 │   │   └── wellness_prompts.py  # Dynamic prompt generation (~350 lines)
 │   └── utils/
 │       ├── helpers.py           # Logging and utilities
-│       ├── health_check.py      # Startup health checks — uses httpx (Phase 13, 16.6)
+│       ├── health_check.py      # Startup health checks -uses httpx (Phase 13, 16.6)
 │       ├── http_client.py       # Shared httpx.Client with connection pooling (Phase 16.6)
 │       ├── wellness_tracker.py  # Session/check-in/metrics tracking (~1400 lines)
 │       ├── trusted_network.py   # Human network management (~500 lines)
@@ -142,11 +142,11 @@ empathySync/
 
 **Models**:
 - [src/models/ai_wellness_guide.py](src/models/ai_wellness_guide.py) - `WellnessGuide` class: main conversation engine with 7-step safety pipeline, delegates HTTP calls to `OllamaClient`, streaming via `generate_response_stream()`
-- [src/models/ollama_client.py](src/models/ollama_client.py) - `OllamaClient` class: extracted HTTP layer for Ollama API — `generate()`, `generate_stream()`, `check_health()`. Loads tunables from `system_defaults.yaml` (Phase 16.8)
-- [src/models/emotional_weight_assessor.py](src/models/emotional_weight_assessor.py) - `EmotionalWeightAssessor` class: extracted from RiskClassifier — `measure_intensity()`, `assess_weight()`, `needs_reflection_redirect()`, `get_response_modifier()` (Phase 16.8)
+- [src/models/ollama_client.py](src/models/ollama_client.py) - `OllamaClient` class: extracted HTTP layer for Ollama API -`generate()`, `generate_stream()`, `check_health()`. Loads tunables from `system_defaults.yaml` (Phase 16.8)
+- [src/models/emotional_weight_assessor.py](src/models/emotional_weight_assessor.py) - `EmotionalWeightAssessor` class: extracted from RiskClassifier -`measure_intensity()`, `assess_weight()`, `needs_reflection_redirect()`, `get_response_modifier()` (Phase 16.8)
 - [src/models/risk_classifier.py](src/models/risk_classifier.py) - `RiskClassifier` class: detects conversation domain (8 domains), delegates emotional weight to `EmotionalWeightAssessor`, intent detection
 - [src/models/llm_classifier.py](src/models/llm_classifier.py) - `LLMClassifier` class: LLM-based classification with caching, pre-compiled regex patterns, injectable `http_client`, input truncation at 5000 chars (Phase 9, 16.6, 16.7)
-- [src/models/enums.py](src/models/enums.py) - Type-safe enums: `Domain`, `Intent`, `EmotionalWeight`, `ClassificationMethod` — `str, Enum` pattern for backward compatibility (Phase 16.5)
+- [src/models/enums.py](src/models/enums.py) - Type-safe enums: `Domain`, `Intent`, `EmotionalWeight`, `ClassificationMethod` -`str, Enum` pattern for backward compatibility (Phase 16.5)
 - [src/models/data_contracts.py](src/models/data_contracts.py) - `RiskAssessment` and `LLMClassification` dataclasses with dict-compatible access (`__getitem__`, `.get()`, `to_dict()`) and `__post_init__` validation (Phase 16.5)
 - [src/models/conversation_session.py](src/models/conversation_session.py) - `ConversationSession` class: framework-agnostic session manager. Entry points: `process_message()` → `ConversationResult` or `process_message_stream()` + `finalize_stream()`
 - [src/models/conversation_result.py](src/models/conversation_result.py) - `ConversationResult` dataclass: structured return type containing response, risk assessment, policy actions, and UI hints
@@ -418,9 +418,9 @@ See [ROADMAP.md](ROADMAP.md) for the phased implementation plan covering:
 - Phase 16: Core Decoupling & Interface Abstraction ✅
 - Phase 16.5: Type-safe enums and dataclasses ✅ (Partial)
 - Phase 16.6: httpx migration and pre-compiled regex ✅ (Partial)
-- Phase 16.7: Security hardening — atomic locks, SQL injection prevention ✅ (Partial)
-- Phase 16.8: God class decomposition — OllamaClient, EmotionalWeightAssessor ✅ (Partial)
-- Phase 16.9: Test coverage expansion — 83 new tests ✅ (Partial)
-- Phase 16.10: Centralized configuration — system_defaults.yaml ✅ (Partial)
+- Phase 16.7: Security hardening -atomic locks, SQL injection prevention ✅ (Partial)
+- Phase 16.8: God class decomposition -OllamaClient, EmotionalWeightAssessor ✅ (Partial)
+- Phase 16.9: Test coverage expansion -83 new tests ✅ (Partial)
+- Phase 16.10: Centralized configuration -system_defaults.yaml ✅ (Partial)
 - Phase 16.11: Conversation testing & voice tuning 🔧 NEXT
 - Phase 17: Persistent agent daemon 🔜 PLANNED

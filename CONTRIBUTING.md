@@ -23,7 +23,7 @@ Before contributing, please embrace these principles:
 
 ## Not an Engineer?
 
-If you're a therapist, counsellor, social worker, UX writer, or ethicist — your expertise matters here more than code. See [HELP-SHAPE-THIS.md](HELP-SHAPE-THIS.md) for how to improve empathySync's responses, interventions, and connection-building guidance without writing any Python.
+If you're a therapist, counsellor, social worker, UX writer, or ethicist - your expertise matters here more than code. See [HELP-SHAPE-THIS.md](HELP-SHAPE-THIS.md) for how to improve empathySync's responses, interventions, and connection-building guidance without writing any Python.
 
 ## Getting Started
 
