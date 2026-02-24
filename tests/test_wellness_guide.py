@@ -337,7 +337,8 @@ class TestWellnessGuide:
         # Should redirect without false intimacy — any of the safe alternative responses
         response_lower = response.lower()
         assert any(
-            word in response_lower for word in ["direction", "approach", "working through", "what else"]
+            word in response_lower
+            for word in ["direction", "approach", "working through", "what else"]
         )
 
     @patch("utils.http_client.get_http_client")
@@ -2996,7 +2997,7 @@ class TestStreaming:
         mock_get_client.return_value = mock_client
         tokens = list(guide.generate_response_stream("I want to kill myself"))
         full = "".join(tokens)
-        assert "findahelpline.com" in full
+        assert "https://findahelpline.com" in full
         assert not mock_client.stream.called
 
     @patch("utils.http_client.get_http_client")
@@ -3098,7 +3099,7 @@ class TestStreaming:
         """_prepare_response should set early_return for crisis input."""
         prepared = guide._prepare_response("I want to kill myself")
         assert prepared.early_return is not None
-        assert "findahelpline.com" in prepared.early_return
+        assert "https://findahelpline.com" in prepared.early_return
 
     def test_prepare_response_builds_prompt_for_practical(self, guide):
         """_prepare_response should build a full prompt for practical input."""
