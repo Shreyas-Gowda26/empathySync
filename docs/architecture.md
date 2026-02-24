@@ -208,8 +208,8 @@ Response to User (streamed in real-time)
 │                                                                 │
 │   - Loads YAML knowledge base                                   │
 │   - Caching with hot-reload support                             │
-│   - get_system_defaults() — centralized tunables (Phase 16.10) │
-│   - get_default(*keys, fallback=) — nested config lookup        │
+│   - get_system_defaults() -centralized tunables (Phase 16.10) │
+│   - get_default(*keys, fallback=) -nested config lookup        │
 │   - Domain rules, triggers, responses                           │
 │   - Emotional markers, intervention configurations              │
 │   - Connection building signposts (Phase 12)                    │
@@ -473,7 +473,7 @@ empathySync/
 ├── scenarios/                    # Knowledge base (YAML)
 │   ├── domains/                 # 8 risk domains
 │   ├── emotional_markers/       # 4 intensity levels
-│   ├── config/                  # system_defaults.yaml — 100+ tunables (Phase 16.10)
+│   ├── config/                  # system_defaults.yaml -100+ tunables (Phase 16.10)
 │   ├── classification/          # LLM classifier config (Phase 9)
 │   ├── connection_building/     # Signposts, first-contact (Phase 12)
 │   ├── interventions/           # Dependency, boundaries
