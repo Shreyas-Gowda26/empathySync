@@ -193,10 +193,6 @@ If you're a therapist, counsellor, social worker, or UX writer, see [HELP-SHAPE-
 
 If you're an engineer, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Built By
-
-[@Olawoyin007](https://github.com/Olawoyin007) - Specialist data engineer, building technology that serves human flourishing
-
 ## License
 
 MIT License - Built for everyone's benefit and maximum accessibility.
