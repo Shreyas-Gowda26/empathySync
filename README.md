@@ -13,6 +13,7 @@
 [![CI](https://github.com/Olawoyin007/empathySync/actions/workflows/ci.yml/badge.svg)](https://github.com/Olawoyin007/empathySync/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Local-First](https://img.shields.io/badge/Privacy-Local--First-blue.svg)](#)
+[![Ollama](https://img.shields.io/badge/local--first-Ollama-orange.svg)](https://ollama.com)
 
 </div>
 
@@ -21,11 +22,15 @@
 
 ## What It Is
 
-empathySync is a local-first AI assistant - full help for practical tasks, deliberate restraint on personal ones. Everything runs on your hardware via Ollama. No cloud APIs, no data harvesting, no telemetry.
+Every AI assistant is built to keep you talking. empathySync is the only one built to make itself less needed.
+
+Full help for practical tasks. Deliberate restraint on personal ones. When it detects you're spiralling, it redirects you to real humans - not more conversation. Everything runs on your hardware via Ollama. No cloud. No data harvesting. No engagement optimization.
 
 Your inner life deserves something that knows the difference.
 
-## The Belief Behind It
+<details>
+<summary><strong>The belief behind it</strong></summary>
+<br>
 
 Every person should have the right to an AI system that is entirely their own. Not rented. Not monitored. Not optimised for someone else's engagement metrics. Yours - running on your hardware, answering only to you, storing nothing it doesn't need to.
 
@@ -34,6 +39,8 @@ For sensitive, personal things - how you're feeling, your relationships, your he
 But the part of AI that touches your inner life should belong to you.
 
 This isn't a feature. It's the point.
+
+</details>
 
 ## Who Is This For?
 
@@ -45,7 +52,9 @@ If you're a **therapist, counsellor, or domain expert** who wants to shape how a
 
 empathySync is **not** for people who want a companion AI or always-on assistant. It's for people who want useful help that doesn't try to become a habit.
 
-## The Philosophy
+<details>
+<summary><strong>The philosophy</strong></summary>
+<br>
 
 We optimise for exit, not engagement.
 
@@ -54,6 +63,8 @@ We optimise for exit, not engagement.
 | Writing emails, coding, explanations | Emotional, health, financial, relationships |
 | Full assistance, no limits | Brief responses, redirects to humans |
 | Complete the task thoroughly | Encourage human connection |
+
+</details>
 
 ## What Makes It Different
 
@@ -82,9 +93,7 @@ cd empathySync
 bash install.sh
 ```
 
-The install script checks Python, creates a virtual environment, installs dependencies, configures `.env`, and verifies Ollama is ready.
-
-Then launch:
+The install script checks Python, creates a virtual environment, installs dependencies, configures `.env`, and verifies Ollama is ready. Then launch:
 
 ```bash
 venv/bin/python -m streamlit run src/app.py
@@ -112,19 +121,22 @@ docker compose up
 
 This starts both empathySync and Ollama together. Open `http://localhost:8501`.
 
-> **Note:** You'll still need to pull a model into the Ollama container:
-> `docker exec empathysync-ollama ollama pull llama3.2`
->
-> **Model choice matters here.** empathySync's restraint behaviour depends on the model understanding nuance - llama3.2 or mistral:7b are recommended minimums. Older models like llama2 will produce noticeably weaker classification and responses.
+**Ollama powers the responses.** Any model works - `llama3.2`, `mistral:7b`, `qwen2.5:3b`, whatever you already have. Set it in `.env` or pull one into the container:
+
+```bash
+docker exec empathysync-ollama ollama pull llama3.2
+```
+
+Don't have Ollama yet? [Install it here](https://ollama.com) - it runs entirely on your hardware, no cloud required.
 
 ### Requirements
 
 - Python 3.9+
 - [Ollama](https://ollama.com/) running locally (or via Docker)
-- 8GB RAM recommended (4GB minimum)
+- 8GB RAM recommended (4GB minimum with smaller models)
 - GPU optional but improves response time
 
-**Lower-spec machine?** Smaller models like `qwen2.5:3b` or `tinyllama` run comfortably on 4GB RAM. Classification quality trades off slightly, but the safety pipeline remains intact. You can also set a separate smaller model just for classification via `OLLAMA_CLASSIFIER_MODEL` in your `.env`.
+**Lower-spec machine?** Smaller models like `qwen2.5:3b` or `tinyllama` run comfortably on 4GB RAM. The safety pipeline remains intact regardless of model size.
 
 ## How It Works
 
@@ -181,9 +193,6 @@ If you're a therapist, counsellor, social worker, or UX writer, see [HELP-SHAPE-
 
 If you're an engineer, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Built By
-
-[@Olawoyin007](https://github.com/Olawoyin007) - Specialist data engineer, building technology that serves human flourishing
 ## License
 
 MIT License - Built for everyone's benefit and maximum accessibility.
