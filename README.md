@@ -9,7 +9,7 @@
 *Most chatbots want you to keep talking.*
 *This one wants you to leave and go live your life.*
 
-[![v1.3](https://img.shields.io/badge/release-v1.4-orange.svg)](https://github.com/Olawoyin007/empathySync/releases/tag/v1.4)
+[![v1.4](https://img.shields.io/badge/release-v1.4-orange.svg)](https://github.com/Olawoyin007/empathySync/releases/tag/v1.4)
 [![CI](https://github.com/Olawoyin007/empathySync/actions/workflows/ci.yml/badge.svg)](https://github.com/Olawoyin007/empathySync/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Local-First](https://img.shields.io/badge/Privacy-Local--First-blue.svg)](#)
@@ -106,7 +106,7 @@ cd empathySync
 bash install.sh
 ```
 
-The install script checks Python, creates a virtual environment, installs dependencies, configures `.env`, and verifies Ollama is ready. Then launch:
+The install script checks Python, creates a virtual environment, installs dependencies, configures `.env`, and pulls the configured model automatically if Ollama is running. Then launch:
 
 ```bash
 venv/bin/python -m streamlit run src/app.py
@@ -131,18 +131,6 @@ empathysync --mode cli  # Direct terminal mode
 - GPU optional but improves response time
 
 **Lower-spec machine?** Smaller models like `qwen2.5:3b` or `tinyllama` run comfortably on 4GB RAM. The safety pipeline remains intact regardless of model size.
-
-## How It Works
-
-**It reads the room.** Every message is classified before a response is generated - is this practical or personal? Heavy or light? A task or a feeling? The response changes accordingly.
-
-**It watches for patterns.** If you're coming back too often, or asking the same things repeatedly, it notices. It says something. It won't pretend that's fine.
-
-**It keeps a door open to real people.** You can build a list of people in your life to reach out to, with templates for hard conversations. No network yet? It helps you think about where to find one.
-
-**It steps aside in a crisis.** When it detects crisis content, it redirects immediately to professional resources. It never engages. It never apologises for that.
-
-**It shows its reasoning.** Every response comes with a transparency panel explaining what it classified, what it decided, and why.
 
 ## Technical Foundation
 

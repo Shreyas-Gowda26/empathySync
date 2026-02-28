@@ -85,6 +85,13 @@ if command -v ollama &> /dev/null; then
     if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
         ok "Ollama server running"
 
+        # Determine which model is configured
+        CONFIGURED_MODEL=""
+        if [ -f ".env" ]; then
+            CONFIGURED_MODEL=$(grep -E '^OLLAMA_MODEL=' .env | cut -d= -f2- | tr -d '"' | tr -d "'" | xargs)
+        fi
+        CONFIGURED_MODEL="${CONFIGURED_MODEL:-llama3.2}"
+
         # Check for models
         MODEL_COUNT=$(curl -s http://localhost:11434/api/tags | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('models',[])))" 2>/dev/null || echo "0")
         if [ "$MODEL_COUNT" -gt 0 ]; then
@@ -98,10 +105,25 @@ for m in data.get('models', []):
     size = m.get('size', 0) / (1024**3)
     print(f\"    - {m['name']} ({size:.1f} GB)\")
 " 2>/dev/null
+
+            # Check if the configured model is present; pull if not
+            MODEL_PRESENT=$(curl -s http://localhost:11434/api/tags | python3 -c "
+import json, sys
+model = '$CONFIGURED_MODEL'
+data = json.load(sys.stdin)
+names = [m.get('name','') for m in data.get('models',[])]
+print('yes' if any(n == model or n.startswith(model + ':') for n in names) else 'no')
+" 2>/dev/null || echo "no")
+            if [ "$MODEL_PRESENT" = "no" ]; then
+                echo ""
+                echo "  Configured model '$CONFIGURED_MODEL' not found - pulling now..."
+                ollama pull "$CONFIGURED_MODEL"
+                ok "Model '$CONFIGURED_MODEL' ready"
+            fi
         else
-            warn "No models downloaded yet"
-            echo "  Run: ollama pull llama2"
-            echo "  Or for a smaller model: ollama pull smollm2:360m"
+            warn "No models downloaded yet - pulling '$CONFIGURED_MODEL'..."
+            ollama pull "$CONFIGURED_MODEL"
+            ok "Model '$CONFIGURED_MODEL' ready"
         fi
     else
         warn "Ollama installed but not running"

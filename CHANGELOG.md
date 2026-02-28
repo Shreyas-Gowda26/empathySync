@@ -10,6 +10,7 @@ Docker one-liner, README rewrite, global crisis resources, coverage baseline, an
 
 ### Distribution
 - **Docker one-liner**: `docker compose up` starts both empathySync and Ollama - model pulls automatically on first run, no manual step needed
+- **Auto-pull (non-Docker)**: `install.sh` now pulls the model configured in `.env` automatically if Ollama is running but the model is not yet present - no manual `ollama pull` needed
 - **Any Ollama model**: `OLLAMA_MODEL` in `.env` accepts any model - `llama3.2`, `mistral:7b`, `qwen2.5:3b`, whatever you have
 
 ### Safety
