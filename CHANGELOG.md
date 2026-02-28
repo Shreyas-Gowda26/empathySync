@@ -2,7 +2,37 @@
 
 All notable changes to empathySync are documented here.
 
-## v1.3 (2026-02-11) -Hardening Release
+## v1.4 (2026-02-28) - Distribution & Safety
+
+**"Easier to start. Safer for everyone."**
+
+Docker one-liner, README rewrite, global crisis resources, coverage baseline, and open community channels.
+
+### Distribution
+- **Docker one-liner**: `docker compose up` starts both empathySync and Ollama - model pulls automatically on first run, no manual step needed
+- **Any Ollama model**: `OLLAMA_MODEL` in `.env` accepts any model - `llama3.2`, `mistral:7b`, `qwen2.5:3b`, whatever you have
+
+### Safety
+- **Non-US crisis resources**: crisis.yaml now surfaces 12 regional crisis lines directly in every crisis response - UK, Canada, Australia, Nigeria, South Africa, India, Germany, France, Brazil, Philippines, Kenya
+
+### Documentation
+- **README rewrite**: Leads with what makes empathySync unique - the only AI assistant built to make itself less needed
+- **Ollama reframed**: Positioned as a capability, not a prerequisite
+- **Docker as Option 1**: Lowest-friction path now at the top of Quick Start
+
+### Quality
+- **pytest-cov configured**: Coverage reporting enabled, 53.82% baseline established (443 tests)
+- **GitHub topics added**: `ollama`, `local-first`, `humane-tech`, `privacy`, `anti-engagement`, `mental-health`, `ai-assistant`, `streamlit`
+- **GitHub Discussions enabled**: Community Q&A channel open
+
+### Stats
+- 443 tests passing
+- 53.82% test coverage
+- CI green on Python 3.9, 3.10, 3.11, 3.12
+
+---
+
+## v1.3 (2026-02-11) - Hardening Release
 
 **"The restraint is the feature."**
 
