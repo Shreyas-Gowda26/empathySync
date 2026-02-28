@@ -85,7 +85,20 @@ We optimise for exit, not engagement.
 
 ## Quick Start
 
-### Option 1: One-Command Setup (recommended)
+### Option 1: Docker (recommended)
+
+```bash
+git clone https://github.com/Olawoyin007/empathySync.git
+cd empathySync
+cp .env.example .env
+docker compose up
+```
+
+This starts both empathySync and Ollama together. The model pulls automatically on first run. Open `http://localhost:8501`.
+
+**Any Ollama model works** - `llama3.2`, `mistral:7b`, `qwen2.5:3b`, whatever you already have. Set `OLLAMA_MODEL` in `.env` before running. Defaults to `llama3.2`.
+
+### Option 2: install.sh
 
 ```bash
 git clone https://github.com/Olawoyin007/empathySync.git
@@ -99,7 +112,7 @@ The install script checks Python, creates a virtual environment, installs depend
 venv/bin/python -m streamlit run src/app.py
 ```
 
-### Option 2: pip install
+### Option 3: pip install
 
 ```bash
 git clone https://github.com/Olawoyin007/empathySync.git
@@ -109,25 +122,6 @@ cp .env.example .env
 empathysync          # Launches Streamlit web UI
 empathysync --mode cli  # Direct terminal mode
 ```
-
-### Option 3: Docker
-
-```bash
-git clone https://github.com/Olawoyin007/empathySync.git
-cd empathySync
-cp .env.example .env
-docker compose up
-```
-
-This starts both empathySync and Ollama together. Open `http://localhost:8501`.
-
-**Ollama powers the responses.** Any model works - `llama3.2`, `mistral:7b`, `qwen2.5:3b`, whatever you already have. Set it in `.env` or pull one into the container:
-
-```bash
-docker exec empathysync-ollama ollama pull llama3.2
-```
-
-Don't have Ollama yet? [Install it here](https://ollama.com) - it runs entirely on your hardware, no cloud required.
 
 ### Requirements
 
