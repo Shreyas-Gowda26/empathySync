@@ -1,5 +1,4 @@
 """Tests for CLI mode."""
-import pytest
 from unittest.mock import patch, MagicMock
 
 
@@ -27,24 +26,20 @@ class TestCLIArguments:
 
 
 class TestRunCLI:
-    def test_run_cli_starts_adapter(self):
-        with patch("src.cli.run_cli") as mock_run_cli:
-            mock_run_cli.return_value = None
+    def test_run_cli_invokes_adapter(self):
+        """Test that run_cli actually wires up and calls adapter.run()."""
+        mock_adapter_instance = MagicMock()
+
+        with patch("models.ai_wellness_guide.WellnessGuide"), \
+            patch("models.conversation_session.ConversationSession"), \
+            patch("utils.wellness_tracker.WellnessTracker"), \
+            patch("utils.trusted_network.TrustedNetwork"), \
+            patch("interfaces.cli_adapter.CLIAdapter") as mock_adapter:
+
+            mock_adapter.return_value = mock_adapter_instance
+
             with patch("sys.argv", ["empathysync", "--mode", "cli"]):
                 from src.cli import main
                 main()
-            assert mock_run_cli.call_count == 1
 
-    def test_run_cli_with_mocked_ollama(self):
-        with patch("models.ai_wellness_guide.OllamaClient") as mock_ollama:
-            mock_ollama.return_value.generate.return_value = "I'm here for you"
-            mock_ollama.chat.return_value = {
-                "message": {"content": "I'm here for you"}
-            }
-            with patch("interfaces.cli_adapter.CLIAdapter") as mock_adapter:
-                mock_adapter.return_value.run = MagicMock()
-                with patch("sys.argv", ["empathysync", "--mode", "cli"]):
-                    from src.cli import main
-                    with patch("src.cli.run_cli") as mock_run_cli:
-                        main()
-                    assert mock_run_cli.called
+            mock_adapter_instance.run.assert_called_once()
